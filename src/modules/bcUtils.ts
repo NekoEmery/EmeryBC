@@ -19,6 +19,9 @@ export function initSettings(): void {
     for (const [k, v] of Object.entries(src)) {
         if (k !== "_d") _mem[k] = v;
     }
+    // Device-stored keys override the account copy for whatever the user moved
+    // off the account on this browser.
+    loadDeviceKeysIntoMem();
     // One-time cleanup: old EBC versions wrote an "EmeryBC" key directly into
     // Player.OnlineSettings before settings were moved to ExtensionSettings.
     // BC's PreferenceInitPlayer now warns about unknown OnlineSettings keys, which
@@ -129,22 +132,178 @@ export function reinitFromExtensionSettings(ebcData?: Record<string, unknown>): 
                 _mem[k] = v;
             }
         }
+        // Device-stored keys override whatever the account had for them.
+        loadDeviceKeysIntoMem();
         _initialized = true;
     } catch { /* ignore */ }
 }
 
-/** Write _mem as plain keys to Player.ExtensionSettings.EmeryBC. */
-export function flushToExtensionSettings(): void {
+// ---------------------------------------------------------------------------
+// Device-stored keys
+// ---------------------------------------------------------------------------
+// Any settings key listed here is persisted to this browser's localStorage
+// instead of the BC account. Every getter/setter in the addon still reads and
+// writes _mem exactly as before - only where the data lands changes. Keeping the
+// split at the persistence layer means no feature code needs to know about it.
+
+const DEVICE_KEYS_LS = "EBC_deviceKeys";
+
+/**
+ * Whole lists kept on the device rather than per-key. Outfits and restraint
+ * sets are stored this way because they are moved to the device ONE AT A TIME
+ * (the per-item Account/Local pill), so there is no single settings key to flag
+ * - the list is split, half on the account and half here.
+ *
+ * Declared here rather than in outfitManager so the backup code can see them.
+ * It could not, which meant a backup silently left out every outfit you had
+ * moved to this device.
+ */
+export const LOCAL_OUTFITS_KEY    = "EBC_localOutfits";
+export const LOCAL_RESTRAINTS_KEY = "EBC_localRestraints";
+
+/**
+ * Settings keys that must never become device keys.
+ *
+ * These hold lists whose items each carry their own account/device flag, so
+ * moving the whole key is a second, conflicting way to say the same thing - and
+ * the two disagreeing is what stranded outfits on a single browser.
+ */
+export const PER_ITEM_SETTINGS_KEYS = ["outfits", "restraints", "restraintPresets"];
+const DEVICE_VAL_PREFIX = "EBC_dev_";
+
+export function getDeviceKeys(): Set<string> {
     try {
-        if (!Player.ExtensionSettings) return;
+        const raw = localStorage.getItem(DEVICE_KEYS_LS);
+        const v = raw ? JSON.parse(raw) as unknown : null;
+        return new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+    } catch { return new Set(); }
+}
+
+export function setDeviceKeys(keys: Set<string>): void {
+    try { localStorage.setItem(DEVICE_KEYS_LS, JSON.stringify([...keys])); } catch { /* ignore */ }
+}
+
+/** Reads one device-stored key straight from localStorage (null when absent). */
+export function readDeviceValue(key: string): unknown {
+    try {
+        const raw = localStorage.getItem(DEVICE_VAL_PREFIX + key);
+        return raw === null ? null : JSON.parse(raw) as unknown;
+    } catch { return null; }
+}
+
+export function writeDeviceValue(key: string, value: unknown): void {
+    try {
+        if (value === undefined || value === null) localStorage.removeItem(DEVICE_VAL_PREFIX + key);
+        else localStorage.setItem(DEVICE_VAL_PREFIX + key, JSON.stringify(value));
+    } catch { /* ignore */ }
+}
+
+/** Pulls every device-stored key into _mem. Called after the account settings
+ *  load so the device copy wins for keys the user moved off the account. */
+export function loadDeviceKeysIntoMem(): void {
+    try {
+        for (const k of getDeviceKeys()) {
+            const v = readDeviceValue(k);
+            if (v !== null) _mem[k] = v;
+        }
+    } catch { /* ignore */ }
+    migrateOutfitKeysOffDeviceStorage();
+}
+
+/**
+ * Takes `outfits` and `restraints` back off the device-key mechanism.
+ *
+ * Those two are stored per item - each outfit carries its own `local` flag - and
+ * the storage manager now drives that flag. It used to move the whole settings
+ * KEY instead, and anyone who pressed the button back then still has the key
+ * registered here. That matters because the flush nulls the account copy of
+ * every device key on every sync, so the outfits stayed on the one browser that
+ * made the switch and every other device saw nothing - while the button, now
+ * reading the per-item flags, reported them as being on the account.
+ *
+ * The device copy is loaded into memory first, so this hands the outfits back to
+ * the account rather than dropping them: whichever device runs this is the one
+ * that still had them, and its copy is what gets uploaded.
+ */
+function migrateOutfitKeysOffDeviceStorage(): void {
+    try {
+        const dev = getDeviceKeys();
+        const stale = PER_ITEM_SETTINGS_KEYS.filter(k => dev.has(k));
+        if (stale.length === 0) return;
+
+        // _mem already holds the device copy (loaded just above). Dropping the
+        // registration is what lets the next flush put it back on the account.
+        for (const k of stale) {
+            const v = readDeviceValue(k);
+            if (v !== null) _mem[k] = v;
+            dev.delete(k);
+        }
+        setDeviceKeys(dev);
+
+        // The local copy is NOT deleted here. Until the account actually has the
+        // data, that copy is the only one there is - clearing it first would
+        // leave the outfits in memory alone, and a session that ended before the
+        // next flush would take them with it. Deferred so BC has finished
+        // setting up, then removed only once the flush reports it wrote.
+        setTimeout(() => {
+            try {
+                if (!flushToExtensionSettings()) return;   // retry on next load
+                try { ServerPlayerExtensionSettingsSync("EmeryBC"); } catch { /* ignore */ }
+                for (const k of stale) writeDeviceValue(k, null);
+                console.info(`[EBC] Moved ${stale.join(", ")} back to account storage - `
+                    + "these are managed per item now, not per key.");
+            } catch { /* ignore - the device copy is still intact */ }
+        }, 2000);
+    } catch { /* ignore */ }
+}
+
+
+/** Write _mem as plain keys to Player.ExtensionSettings.EmeryBC. */
+// Hard ceiling for EBC's ExtensionSettings blob. BC accounts share a ~180 KB
+// budget across ALL addons - pushing an oversized account update gets the
+// connection dropped by the server, and since the data is re-flushed after every
+// relog the client ends up in an infinite reconnect loop. Never let that happen.
+export const SETTINGS_FLUSH_CAP = 150_000;
+
+/** Serialized size (in characters ~ bytes) of EBC's whole settings blob. */
+export function getSettingsBlobSize(): number {
+    try {
+        const dev = getDeviceKeys();
+        if (dev.size === 0) return JSON.stringify(_mem).length;
+        const acct: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(_mem)) if (!dev.has(k)) acct[k] = v;
+        return JSON.stringify(acct).length;
+    } catch { return 0; }
+}
+
+export function flushToExtensionSettings(): boolean {
+    try {
+        if (!Player.ExtensionSettings) return false;
+        try {
+            const size = JSON.stringify(_mem).length;
+            if (size > SETTINGS_FLUSH_CAP) {
+                console.error(`[EBC] Settings NOT synced - data too large (${Math.round(size / 1000)} KB > ${SETTINGS_FLUSH_CAP / 1000} KB cap). ` +
+                    "Delete some saved outfits to shrink it. Keeping the previous server copy to avoid a disconnect loop.");
+                return false;
+            }
+        } catch { /* size check best-effort */ }
         if (!Player.ExtensionSettings.EmeryBC ||
             typeof Player.ExtensionSettings.EmeryBC !== "object") {
             Player.ExtensionSettings.EmeryBC = {} as typeof Player.ExtensionSettings.EmeryBC;
         }
         const target = Player.ExtensionSettings.EmeryBC as Record<string, unknown>;
+        const deviceKeys = getDeviceKeys();
         // Remove stale _d blob if it somehow survived.
         delete target["_d"];
         for (const [k, v] of Object.entries(_mem)) {
+            // Device-stored: persist locally and null the account copy, otherwise
+            // the old (large) server value would linger - the flush only ever
+            // copies keys to the server, it never removes them.
+            if (deviceKeys.has(k)) {
+                writeDeviceValue(k, v);
+                target[k] = null;
+                continue;
+            }
             // Name caches are MERGED with the server copy rather than overwritten.
             // Without this, a secondary device (tablet) that has only seen a handful
             // of friends pushes its tiny cache over the desktop's full one the moment
@@ -168,7 +327,8 @@ export function flushToExtensionSettings(): void {
                 target[k] = v;
             }
         }
-    } catch { /* ignore */ }
+        return true;
+    } catch { return false; }
 }
 
 // ---------------------------------------------------------------------------
@@ -215,8 +375,11 @@ export function syncSettings(): void {
     if (_syncTimer !== null) clearTimeout(_syncTimer);
     _syncTimer = setTimeout(() => {
         _syncTimer = null;
-        flushToExtensionSettings();
-        try { ServerPlayerExtensionSettingsSync("EmeryBC"); } catch { /* ignore */ }
+        // Only push to the server when the flush actually wrote - an oversized
+        // blob is kept in-memory only (see SETTINGS_FLUSH_CAP above).
+        if (flushToExtensionSettings()) {
+            try { ServerPlayerExtensionSettingsSync("EmeryBC"); } catch { /* ignore */ }
+        }
     }, 400);
 }
 

@@ -1,6 +1,6 @@
 ﻿// General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
 
-import { callBC, getSettings, syncSettings } from "./bcUtils";
+import { callBC, getSettings, syncSettings, getDeviceKeys, setDeviceKeys, readDeviceValue, writeDeviceValue, LOCAL_OUTFITS_KEY, LOCAL_RESTRAINTS_KEY, PER_ITEM_SETTINGS_KEYS } from "./bcUtils";
 
 
 // -- Emery Versioning (SAL sub-version display) --------------------------------
@@ -170,9 +170,12 @@ export function removeFromAntiRestraintWhitelist(group: string): void {
     setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
 }
 
-// -- Special friends ----------------------------------------------------------
-// Member numbers displayed with a golden gradient highlight in the People in
-// Room and Friends lists. Stored server-side so it persists across devices.
+// -- Starred people -----------------------------------------------------------
+// Member numbers highlighted with a golden star in the People in Room and
+// Friends lists. This is EBC's own marker and is deliberately independent of
+// BC's friend list - you can star anyone you meet, friend or not. Stored
+// server-side so it persists across devices. (Storage key stays "specialFriends"
+// for backward compatibility with existing saves.)
 
 export function getSpecialFriends(): number[] {
     try {
@@ -436,6 +439,422 @@ export function setToastDurationSec(value: number): void {
         getSettings().toastDurationSec = Math.max(1, Math.min(60, Math.round(value)));
         syncSettings();
     } catch { /* ignore */ }
+}
+
+// -- Stored-data manager -------------------------------------------------------
+// Every category of data EBC keeps on the account, so the Storage panel can show
+// what is taking up space and let the user clear any of it.
+
+export interface DataCategory {
+    /** Plain-English explanation shown behind the ? in the storage list. */
+    help?: string;
+    label: string;
+    keys: string[];
+    /**
+     * localStorage keys holding this category's device-stored half, for the
+     * categories that can be split item by item rather than all or nothing.
+     */
+    localKeys?: string[];
+}
+
+export const EBC_DATA_CATEGORIES: DataCategory[] = [
+    { label: "Outfits",              keys: ["outfits"], localKeys: [LOCAL_OUTFITS_KEY], help: "Every outfit you have saved, including the items, colours and settings in each one. This is usually the biggest thing EBC stores." },
+    { label: "Restraint sets",       keys: ["restraints", "restraintPresets"], localKeys: [LOCAL_RESTRAINTS_KEY], help: "Saved restraint sets and their presets - the groups of items you can apply in one go." },
+    { label: "Action buttons",       keys: ["buttonCategories", "actionSlotCount", "activeCategoryIndex"], help: "Your custom chat buttons, their categories, and how many slots you show." },
+    { label: "Pose combos",          keys: ["poseCombos"], help: "Saved pose sequences you can play back." },
+    { label: "Scenes",               keys: ["scenes"], help: "Saved scenes - scripted sequences of poses, expressions and messages." },
+    { label: "Expression presets",   keys: ["expressionPresets", "defaultExprPresetId"], help: "Saved faces you can apply, plus which one is your default." },
+    { label: "Expression sequences", keys: ["expressionSequences"], help: "Saved expression animations that play over time." },
+    { label: "Expression triggers",  keys: ["expressionTriggers"], help: "Rules that change your face automatically when something happens." },
+    { label: "Outfit tags",          keys: ["outfitTags"], help: "The coloured labels you use to sort outfits, and their colours." },
+    { label: "Outfit schedules",     keys: ["outfitSchedules"], help: "Outfits set to apply automatically at a time of day." },
+    { label: "Colour palettes",      keys: ["palettes", "customColors"], help: "Saved colour sets and any custom colours you mixed." },
+    { label: "User notes",           keys: ["characterNotes"], help: "Private notes you have written about other people. Only you can ever see these." },
+    { label: "Friend tags",          keys: ["friendTags"], help: "The labels you have put on people in your friends list." },
+    { label: "Name cache",           keys: ["friendNames", "friendAccountNames"], help: "Remembered names for member numbers, so people show as names instead of numbers. Rebuilds itself as you play - safe to clear." },
+    { label: "Beep history",         keys: ["beepHistory"], help: "Your saved conversations in EBC's messenger. Clearing this deletes those chats." },
+    { label: "Beep groups",          keys: ["groups"], help: "Group chats you have set up in the messenger." },
+    { label: "Quick replies",        keys: ["quickReplies"], help: "The canned replies that sit above the message box." },
+    { label: "People met",           keys: ["peopleMet"], help: "A log of everyone you have shared a room with, and when." },
+    { label: "Last seen / since",    keys: ["lastSeen", "friendSince", "lastSeenMigrated"], help: "When you last saw each friend online, and how long you have been friends." },
+    { label: "Stars & watchlist",    keys: ["specialFriends", "pinnedFriends", "onlineWatchList"], help: "Who you have starred, pinned, or asked to be told about when they come online." },
+    { label: "Achievements",         keys: ["achievements"], help: "Your achievement progress and which ones you have already been told about." },
+    { label: "Barks",                keys: ["barks"], help: "Saved bark phrases." },
+    { label: "Favorite rooms",       keys: ["favoriteRooms"], help: "Rooms you saved, including their full settings so they can be rebuilt." },
+    { label: "Restraint timers",     keys: ["restraintTimers"], help: "How long each item you are wearing has been on. Feeds the bound timer." },
+    { label: "Dom config",           keys: ["domConfig"], help: "Your dom tool setup - targets and saved restraint sets for them." },
+];
+
+// ── Backup: export / import ──────────────────────────────────────────────────
+// Storage-agnostic on purpose. Export reads the in-memory store, which already
+// holds per-key device-stored data (pulled in at login), so a backup covers
+// cache and account data alike. Import writes back into the same store and lets
+// the normal flush decide where each key belongs on THIS device - so a backup
+// taken with everything in cache restores correctly on a machine that keeps the
+// same categories on the account, and the other way round.
+//
+// Outfits and restraint sets are the exception: they are moved to the device one
+// item at a time, so their device half is a separate list in localStorage that
+// never passes through the settings store. It has to be read and written
+// directly, which is what `local` below is for. Leaving it out meant anyone who
+// followed the "switch outfits to This device storage" advice - given by EBC
+// itself when the account fills up - then took a backup got a file with those
+// outfits missing, and lost them the moment they cleared their cache.
+
+export interface EBCBackup {
+    ebcBackup: 1;
+    ts: number;
+    categories: string[];
+    data: Record<string, unknown>;
+    /** Device-stored lists, by localStorage key. Absent in older backups. */
+    local?: Record<string, unknown>;
+}
+
+/** Every localStorage key any category declares - the import whitelist. */
+function knownLocalKeys(): Set<string> {
+    const out = new Set<string>();
+    for (const cat of EBC_DATA_CATEGORIES) for (const k of cat.localKeys ?? []) out.add(k);
+    return out;
+}
+
+function readLocalRaw(key: string): unknown {
+    try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const v = JSON.parse(raw) as unknown;
+        return Array.isArray(v) && v.length === 0 ? null : v;
+    } catch { return null; }
+}
+
+/** Serialises the given categories. Keys holding nothing are skipped. */
+export function exportDataCategories(cats: DataCategory[]): string {
+    const store = getSettings() as Record<string, unknown>;
+    const data: Record<string, unknown> = {};
+    const local: Record<string, unknown> = {};
+    const labels: string[] = [];
+    for (const cat of cats) {
+        let any = false;
+        for (const k of cat.keys) {
+            const v = store[k];
+            if (v === undefined || v === null) continue;
+            data[k] = v;
+            any = true;
+        }
+        // The device half, straight from localStorage. A category can be
+        // entirely device-stored, so this alone is enough to count as present.
+        for (const k of cat.localKeys ?? []) {
+            const v = readLocalRaw(k);
+            if (v === null) continue;
+            local[k] = v;
+            any = true;
+        }
+        if (any) labels.push(cat.label);
+    }
+    const backup: EBCBackup = { ebcBackup: 1, ts: Date.now(), categories: labels, data };
+    if (Object.keys(local).length > 0) backup.local = local;
+    return JSON.stringify(backup);
+}
+
+export function exportAllData(): string {
+    return exportDataCategories(EBC_DATA_CATEGORIES);
+}
+
+/**
+ * Restores a backup. Only keys belonging to a known category are written - a
+ * pasted file can never introduce settings EBC does not already define.
+ * Returns what was restored, and which keys were ignored, so the UI can be
+ * honest about a partial import rather than claiming success.
+ */
+export function importDataBackup(json: string): { categories: string[]; keys: number; skipped: string[] } {
+    const parsed = JSON.parse(json) as Partial<EBCBackup>;
+    if (!parsed || parsed.ebcBackup !== 1 || typeof parsed.data !== "object" || parsed.data === null) {
+        throw new Error("Not an EBC backup file.");
+    }
+    const known = new Map<string, DataCategory>();
+    for (const cat of EBC_DATA_CATEGORIES) for (const k of cat.keys) known.set(k, cat);
+
+    const store = getSettings() as Record<string, unknown>;
+    const touched = new Set<string>();
+    const skipped: string[] = [];
+    let keys = 0;
+    for (const [k, v] of Object.entries(parsed.data as Record<string, unknown>)) {
+        const cat = known.get(k);
+        if (!cat) { skipped.push(k); continue; }
+        if (v === undefined) continue;
+        store[k] = v;
+        touched.add(cat.label);
+        keys++;
+    }
+
+    // Device-stored lists go back to localStorage, not to the account - restoring
+    // them into account storage is what the user moved them out of to begin with,
+    // and on a full account it would simply be refused.
+    if (parsed.local && typeof parsed.local === "object") {
+        const allowed = knownLocalKeys();
+        const byLocalKey = new Map<string, DataCategory>();
+        for (const cat of EBC_DATA_CATEGORIES) for (const lk of cat.localKeys ?? []) byLocalKey.set(lk, cat);
+        for (const [k, v] of Object.entries(parsed.local as Record<string, unknown>)) {
+            if (!allowed.has(k)) { skipped.push(k); continue; }
+            if (v === undefined || v === null) continue;
+            try { localStorage.setItem(k, JSON.stringify(v)); } catch { skipped.push(k); continue; }
+            const cat = byLocalKey.get(k);
+            if (cat) touched.add(cat.label);
+            keys++;
+        }
+    }
+
+    if (keys > 0) syncSettings();
+    return { categories: [...touched], keys, skipped };
+}
+
+/** Serialized size (chars ~ bytes) of one category's data. */
+export function getDataCategorySize(cat: DataCategory): number {
+    try {
+        const store = getSettings() as Record<string, unknown>;
+        let n = 0;
+        for (const k of cat.keys) {
+            const v = store[k];
+            if (v === undefined || v === null) continue;
+            n += JSON.stringify(v).length + k.length + 4;
+        }
+        // Plus the device-stored half. Outfits moved to this device leave the
+        // account key empty, so counting only that would report a full library
+        // as 0 KB - the one number most likely to be checked after moving it.
+        for (const k of cat.localKeys ?? []) {
+            try { n += localStorage.getItem(k)?.length ?? 0; } catch { /* ignore */ }
+        }
+        return n;
+    } catch { return 0; }
+}
+
+/** Categories that usually make more sense kept on this device only - big,
+ *  browser-local value with little benefit from syncing. Purely a suggestion
+ *  shown in the UI; nothing is moved automatically. */
+export const DEVICE_SUGGESTED = new Set([
+    "Beep history", "Name cache", "People met", "Last seen / since", "Barks",
+]);
+
+/** "account" when every key of the category syncs, "device" when they are all
+ *  local, "mixed" if the category was split by hand. */
+export function getDataCategoryLocation(cat: DataCategory): "account" | "device" | "mixed" {
+    const dev = getDeviceKeys();
+    const on = cat.keys.filter(k => dev.has(k)).length;
+    if (on === 0) return "account";
+    if (on === cat.keys.length) return "device";
+    return "mixed";
+}
+
+/** Size of this category's data as currently held in memory. */
+export function getDataCategoryDeviceSize(cat: DataCategory): number {
+    let n = 0;
+    for (const k of cat.keys) {
+        const v = readDeviceValue(k);
+        if (v === null || v === undefined) continue;
+        try { n += JSON.stringify(v).length + k.length + 4; } catch { /* ignore */ }
+    }
+    // Per-item device lists count too - they are device storage by any measure,
+    // and this figure is quoted back to the user before they move a category.
+    for (const k of cat.localKeys ?? []) {
+        try { n += localStorage.getItem(k)?.length ?? 0; } catch { /* ignore */ }
+    }
+    return n;
+}
+
+/** Moves a whole category between the BC account and this browser.
+ *  The in-memory values are kept, so whichever device performs the switch is the
+ *  copy that becomes authoritative - the UI warns about this before calling. */
+export function setDataCategoryLocation(cat: DataCategory, loc: "account" | "device"): void {
+    try {
+        const dev = getDeviceKeys();
+        const store = getSettings() as Record<string, unknown>;
+        for (const k of cat.keys) {
+            // Outfits and restraint sets are moved per item, not per key. Doing
+            // both leaves two mechanisms disagreeing, and the flush nulls the
+            // account copy of any device key - which is how a library ended up
+            // stranded on one browser while the button said it was on the
+            // account. Refused here as well as routed around in the UI, so a
+            // future caller cannot reopen it.
+            if (PER_ITEM_SETTINGS_KEYS.includes(k)) continue;
+            if (loc === "device") {
+                dev.add(k);
+                writeDeviceValue(k, store[k] ?? null);
+            } else {
+                dev.delete(k);
+                // Pull the device copy into memory so it is what gets uploaded,
+                // then drop the local copy.
+                const local = readDeviceValue(k);
+                if (local !== null) store[k] = local;
+                writeDeviceValue(k, null);
+            }
+        }
+        setDeviceKeys(dev);
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+/** Clears a category. Values are set to null rather than deleted: the settings
+ *  flush only COPIES keys to the server and never removes them, so a deleted key
+ *  would keep its old (large) server value. */
+export function clearDataCategory(cat: DataCategory): void {
+    try {
+        const store = getSettings() as Record<string, unknown>;
+        const dev = getDeviceKeys();
+        for (const k of cat.keys) {
+            store[k] = null;
+            if (dev.has(k)) writeDeviceValue(k, null);
+        }
+        // And the device half. Clearing Outfits used to leave every outfit you
+        // had moved to this device sitting there, so the list came straight back
+        // and the button looked broken.
+        for (const k of cat.localKeys ?? []) {
+            try { localStorage.removeItem(k); } catch { /* ignore */ }
+        }
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+// -- Quick actions placement ---------------------------------------------------
+// false (default) = Release Restraints / Remove Locks / restraint picker stay
+// pinned above every tab. true = they move into the Buttons tab as their own
+// pill, freeing that vertical space everywhere else.
+
+export function getQuickActionsInButtons(): boolean {
+    try { return getSettings()?.quickActionsInButtons === true; } catch { return false; }
+}
+
+export function setQuickActionsInButtons(v: boolean): void {
+    try { getSettings().quickActionsInButtons = v; syncSettings(); } catch { /* ignore */ }
+}
+
+// -- Users tab layout ----------------------------------------------------------
+// "tabs"    = sections split behind pill sub-navigation (less clutter)
+// "classic" = every section stacked on one long page (the original layout)
+
+export function getUsersLayout(): "tabs" | "classic" {
+    try { return getSettings()?.usersLayout === "classic" ? "classic" : "tabs"; } catch { return "tabs"; }
+}
+
+export function setUsersLayout(v: "tabs" | "classic"): void {
+    try { getSettings().usersLayout = v; syncSettings(); } catch { /* ignore */ }
+}
+
+// -- Favorite rooms ------------------------------------------------------------
+// Rooms the user saved for one-click joining from the Users tab. Each entry is a
+// full snapshot of the room's settings (description, admins, background, limits,
+// visibility, custom data...) so the room can be RECREATED when it is closed.
+// Old saves were plain name strings - normalized to { name } on read.
+
+export interface FavoriteRoomData {
+    name: string;
+    description?: string;
+    background?: string;
+    limit?: number;
+    admin?: number[];
+    ban?: number[];
+    whitelist?: number[];
+    blockCategory?: string[];
+    game?: string;
+    language?: string;
+    space?: string;
+    visibility?: unknown;   // stored verbatim - shape differs across BC versions
+    access?: unknown;
+    custom?: unknown;       // custom background / theme data
+    mapData?: unknown;      // map-room tiles (only stored when reasonably small)
+    savedAt?: number;
+}
+
+export function getFavoriteRooms(): FavoriteRoomData[] {
+    try {
+        const v = getSettings()?.favoriteRooms;
+        if (!Array.isArray(v)) return [];
+        return (v as unknown[]).map((e): FavoriteRoomData | null => {
+            if (typeof e === "string") return e.trim() ? { name: e.trim() } : null;
+            if (e && typeof e === "object" && typeof (e as { name?: unknown }).name === "string" && ((e as { name: string }).name).trim()) {
+                return e as FavoriteRoomData;
+            }
+            return null;
+        }).filter((x): x is FavoriteRoomData => x !== null);
+    } catch { return []; }
+}
+
+export function setFavoriteRooms(rooms: FavoriteRoomData[]): void {
+    try {
+        getSettings().favoriteRooms = rooms.slice(0, 30);
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+// Auto-refresh: while the player is inside a favorited room, its saved snapshot
+// silently keeps itself up to date (description edits, admin changes, new
+// background...). Throttled, and only writes when something actually changed so
+// the server sync isn't spammed.
+let _lastFavSnapshotCheck = 0;
+
+export function autoUpdateFavoriteSnapshot(force = false): void {
+    try {
+        const now = Date.now();
+        if (!force && now - _lastFavSnapshotCheck < 30_000) return;
+        _lastFavSnapshotCheck = now;
+        const snap = captureCurrentRoomSnapshot();
+        if (!snap) {
+            if (force) try { console.info("[EBC] Snapshot check: no room data (not in a room?)"); } catch { /* ignore */ }
+            return;
+        }
+        const favs = getFavoriteRooms();
+        const idx = favs.findIndex(r => r.name.toLowerCase() === snap.name.toLowerCase());
+        if (idx === -1) {
+            if (force) try { console.info(`[EBC] Snapshot check: room "${snap.name}" is not in favorites`); } catch { /* ignore */ }
+            return;
+        }
+        // Compare without the volatile savedAt stamp - identical rooms mean no write.
+        const stored = JSON.stringify({ ...favs[idx], savedAt: 0 });
+        const fresh  = JSON.stringify({ ...snap,      savedAt: 0 });
+        if (stored === fresh) {
+            if (force) try { console.info(`[EBC] Snapshot check: "${snap.name}" unchanged`); } catch { /* ignore */ }
+            return;
+        }
+        favs[idx] = snap;
+        setFavoriteRooms(favs);
+        try { console.info("[EBC] Favorite snapshot updated:", snap.name, JSON.parse(JSON.stringify(snap))); } catch { /* ignore */ }
+    } catch (err) {
+        try { console.warn("[EBC] Snapshot check failed:", err); } catch { /* ignore */ }
+    }
+}
+
+/** Snapshots the current room's full settings for later rebuild.
+ *  Returns null when not in a room (no ChatRoomData). */
+export function captureCurrentRoomSnapshot(): FavoriteRoomData | null {
+    try {
+        const w = window as unknown as Record<string, unknown>;
+        const d = w.ChatRoomData as Record<string, unknown> | null | undefined;
+        if (!d || typeof d.Name !== "string" || !d.Name.trim()) return null;
+        const str    = (x: unknown): string | undefined => typeof x === "string" ? x : undefined;
+        const num    = (x: unknown): number | undefined => typeof x === "number" ? x : undefined;
+        const numArr = (x: unknown): number[] | undefined => Array.isArray(x) ? x.filter((n): n is number => typeof n === "number") : undefined;
+        const strArr = (x: unknown): string[] | undefined => Array.isArray(x) ? x.filter((v): v is string => typeof v === "string") : undefined;
+
+        const out: FavoriteRoomData = { name: d.Name.trim() };
+        const desc = str(d.Description);  if (desc !== undefined) out.description = desc.slice(0, 300);
+        const bg   = str(d.Background);   if (bg   !== undefined) out.background = bg;
+        const lim  = num(d.Limit);        if (lim  !== undefined) out.limit = lim;
+        const adm  = numArr(d.Admin);     if (adm)                out.admin = adm.slice(0, 50);
+        const ban  = numArr(d.Ban);       if (ban)                out.ban = ban.slice(0, 100);
+        const wl   = numArr(d.Whitelist); if (wl)                 out.whitelist = wl.slice(0, 100);
+        const bc   = strArr(d.BlockCategory); if (bc)             out.blockCategory = bc;
+        const game = str(d.Game);         if (game !== undefined) out.game = game;
+        const lang = str(d.Language);     if (lang !== undefined) out.language = lang;
+        const spc  = str(d.Space);        if (spc  !== undefined) out.space = spc;
+        if (d.Visibility !== undefined) out.visibility = d.Visibility;
+        if (d.Access     !== undefined) out.access = d.Access;
+        if (d.Custom     !== undefined) out.custom = d.Custom;
+        // Map tile data can be huge - only keep it when it stays well under the
+        // ExtensionSettings size budget.
+        if (d.MapData !== undefined) {
+            try { if (JSON.stringify(d.MapData).length <= 20000) out.mapData = d.MapData; } catch { /* skip */ }
+        }
+        out.savedAt = Date.now();
+        return out;
+    } catch { return null; }
 }
 
 // -- Quick replies -------------------------------------------------------------

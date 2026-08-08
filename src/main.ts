@@ -2,6 +2,7 @@
 import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
 import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { addWhisperEntry } from "./modules/whisperLog";
+import { sendBeepViaBC, sendRoomEmote, isEbcOriginatedBeep } from "./modules/bcSpeech";
 import { handlePoseComboCommand } from "./modules/poses";
 import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPresetId, getExpressionPresets, applyExpressionPreset } from "./modules/expressions";
 import { handleSceneCommand } from "./modules/scenes";
@@ -14,8 +15,10 @@ import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./m
 import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modules/timer";
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
-import { appendLocalLogLine } from "./modules/notify";
-import { addBeepEntry, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
+import { appendLocalLogLine, appendChangelogBlock } from "./modules/notify";
+import { getCursedGroups, isCursePaused, getCurseExpiry, handleCurseCommand, releaseAllCurses, describeCursedGroups } from "./modules/curse";
+import { broadcastRoom, parseShareMessage, noteSharedRoom } from "./modules/privateRooms";
+import { sendBeep, addBeepEntry, dedupeSentBeeps, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
@@ -23,10 +26,11 @@ import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import { isXToysUser, isXToysEnabled, xtoysConnect, xtoysStatus, xtoysActivityEvent, xtoysActivityOnOtherEvent, xtoysItemAdded, xtoysItemRemoved, xtoysShockEvent, xtoysToyEvent, parseXToysActivity, getXToysWebhookId } from "./modules/xtoys";
 import bcModSdk from "bondage-club-mod-sdk";
+import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "5.5.8";
-const SAL_VERSION  = 153;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.0.0";
+const SAL_VERSION  = 273;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -44,25 +48,252 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "5.5.7",
+        version: "9.0.0",
         changes: [
-            "Fixes: chat textarea now resets height after *emote sends; resize hitbox hidden on minimized beep windows; beep windows and group chat windows can no longer be dragged off-screen; restoring a minimized beep window no longer pushes the header off-screen; resizing a beep window past the viewport bottom no longer grows it upward.",
-            "Anims: added 'Tight Back' arm pose (BackElbowTouch), new pose combos (Tight Back, Kneel+Tight), pose buttons now announce the action in room chat.",
-            "Action buttons: each button can now bind a body and/or arm pose that applies automatically when the button fires.",
-            "Removed: 'Member # to DM' field (AccountBeep unreliable to non-friends).",
-            "Feedback form: optional 'Include my name' checkbox (off by default).",
-            "Chat and notifications: 'Keep beep popups until dismissed' toggle and configurable dismiss time (1-60 s).",
+            "Version numbers. Stable and beta had drifted so far apart that the update check could not compare them - stable was on 5.5.8 while beta was on 8.3.3, and the higher number was the unreleased one. Both are on 9.0.0 from here, and the version you see is the version you have.",
+            "Toys. PiShock and Lovense are both fully supported, over BLE or the Lovense Connect app for browsers without it. You can drive your own equipped BC toys from MY TOYS, let a friend drive them, mirror BC toy activations onto a real one, and set chat phrases or body-touch actions as triggers. Anyone controlling you has to ask first unless you put them on the whitelist.",
+            "Outfits and storage. Each outfit and restraint set can now live on your BC account or on the device in front of you, chosen one at a time - device storage uses none of your account's limited space. STORAGE shows what every category is costing you, and everything EBC saves can be exported to a file and imported anywhere, so clearing your cache or moving to a new device no longer means losing it.",
+            "Friends and rooms. The Users tab shows where every online friend is, grouped by room, with a Join button on the public ones. Favourite rooms save the entire room - description, admins, bans, whitelist, background, size, map - and rebuild it exactly. The messenger gained group chats, quick replies, an emoji picker, notes and tags on people, and last-seen times.",
+            "Achievements. Bug Hunter for sending reports, Settled In and Comfy Captive for staying put, and two rare ones for meeting and headpatting everyone in the credits.",
+            "Safety. The safeword releases restraints and curses together and can be told to leave owner locks alone. EBC now routes what it sends through the game's own functions, so BCX rules that block beeps or speech apply to EBC's too - it used to be a way around them without meaning to be.",
+            "IMPORTANT fix: the cuddle, pet and boop buttons check permissions. They called the game's activity function directly, which checks nothing on its own - so someone who had never given you item permission could still be booped, and you could do it while tied up. All of EBC's activity buttons now ask the same three questions the game asks before offering an activity.",
+            "Dom tools. Position a target beside you or in your arms, fire quick activities at them, apply curses, and drive saved restraint sets - all behind one person picker. Creator-only.",
+            "Feedback. There is a Feedback & Bugs button in the footer that submits anonymously from inside the game, no browser tab and no account needed. Much of this release came from it.",
+            "Layout and commands. The panel has a tab layout with CREDITS as its own tab, a fade-when-not-hovered option, and a movable quick-action strip. /ebc is registered with the game's command system, so it appears in /help and Tab completes it and its subcommands. /ebc changelog is laid out to be skimmed, with each entry tagged.",
+            "Julia (#235962) is in the credits, for finding a very large number of these and writing every one of them up clearly.",
+            "Behind all of that: 187 beta releases and around 618 individual changes since 5.5.8, most of them fixes. Run /ebc changelog for the detail.",
         ],
     },
     {
-        version: "5.5.8",
+        version: "8.3.3",
         changes: [
-            "XToys integration (Emery + Lucy only): connect to xtoys.app via webhook ID - BC game events forwarded to toys in real time. Fixed crash ('getSettings is not defined') that affected XToys hooks.",
-            "Action buttons: each button can now bind a body and/or arm pose that applies automatically when it fires. Sidebar no longer blocks clicks on BC native buttons when repositioned. Hover tooltip now always visible above BC's chat overlay.",
-            "Anims: added 'Tight Back' arm pose, new pose combos, pose buttons now announce the action in chat.",
-            "AFK Auto-Reply moved to its own top-level Notes tab section. Removed: Auto-greet. Removed: 'Member # to DM' field.",
-            "Feedback form: optional 'Include my name' checkbox.",
-            "Fixes: beep window corner drag can no longer push the header off-screen; resizing past viewport edges now clamped in all directions; clicking a beep notification for an already-open window no longer snaps it to center; header buttons (close/minimize) now clickable in Firefox; chat textarea height resets correctly after *emote sends.",
+            "IMPORTANT fix: backups now include outfits and restraint sets you moved to device storage. They were kept in a separate list that the backup code could not see, so a backup taken after following EBC's own 'switch outfits to This device storage' advice came out with those outfits missing - and clearing your cache then lost them for good. Restoring puts them back on the device rather than onto your account, so a restore cannot push you over the account limit. Older backup files still import exactly as before.",
+            "Fix: clearing Outfits or Restraint sets in the storage manager now clears the device-stored ones as well. It only cleared the account half, so anything kept on this device came straight back and the button looked like it had done nothing.",
+            "Fix (reported by Julia): the quick action buttons now stay on the far right across a reload. The earlier fix stopped the saved position being squeezed through a fixed 700px guess when the page loaded, but the same guess was still used while drawing - and it was written back over the saved position on any frame where the chat window could not be measured, which is most of them right after a reload. The limit now reports honestly that it does not know, and the drawn position never overwrites the one you chose, so a narrow window holds the panel back on screen temporarily instead of permanently moving it.",
+            "IMPORTANT fix: outfits that stopped appearing on your other devices are put back on your account. The storage manager used to move Outfits by relocating the whole settings key, and every sync then blanked the account copy - so the outfits lived on the one browser that made the switch and no other device could see them, while the button reported them as being on the account. That registration is now undone automatically on the device that still has them, and the local copy is only cleared once the upload has actually gone through, so nothing is dropped if it fails. Open EBC on the device where the outfits still show, and they will come back everywhere within a few seconds.",
+            "IMPORTANT fix: the boop, cuddle and pet buttons now respect item permissions and being bound. They called BC's activity function directly, and that function checks nothing - all the checking normally happens in BC's dialog before it is ever reached. So adding someone one-way as a friend was enough to boop them with no permission from them, and you could boop people while tied up yourself. The same three checks BC makes are now applied first: whether you can act at all, whether they allow you, and whether the activity is valid for them. The DOM quick actions and the kitty menu went through the same gap and are fixed with it - including their fallback that announced the action to the room as plain text, which would otherwise have been the same bypass in a different form.",
+            "Fix: 'Boop all friends' and its cuddle and pet counterparts now report how many were actually booped. The count was worked out before anything was sent, so it counted everyone it was about to try, including people who would refuse. Anyone skipped is now mentioned once for the batch rather than once per person.",
+            "Fix: the automatic update check now follows the branch you are actually on. Only the manual /ebc update was taught about dev, so the hourly background check carried on comparing dev builds against the stable release - where the dev version is higher by definition, so a new dev build never once looked like an update. Both now ask the same code which branch to use, and both say which channel they are talking about. The already-told-you marker records the channel too, so hearing about dev v9.0.0 no longer silences the notice when stable reaches the same number.",
+            "IMPORTANT fix: switching Outfits or Restraint sets to device storage in the storage manager now actually moves them. The switch went green but drove a different mechanism to the one outfits are stored by, so nothing it claimed to do happened - the size bar did not move, every outfit still said Account, and the \"storage is full\" refusal carried on exactly as before. It now sets each item the way the per-outfit switch does, which is what the bar, the pills and the storage limit all read.",
+            "Fix: the storage manager no longer reports 0 KB for a category kept on this device. It only counted the account half, so a full outfit library moved to the device read as empty - the one number you would go and check straight after moving it.",
+            "New: /ebc is now part of the game's own command list, so it appears in /help alongside everything else and Tab completes it and its subcommands. Tab had no idea the word existed, so pressing it on /ebc found the nearest command it did know and rewrote your input to that instead - turning a working command into a broken one. Tab now takes '/ebc rel' to '/ebc release', and suggests on/off after '/ebc updates'.",
+            "Changed: the /ebc changelog is laid out to be skimmed rather than read end to end. Each entry is tagged FIX, NEW or IMPORTANT so you can see at a glance whether it applies to you, the change itself leads, and the reasoning behind it sits underneath in a quieter colour instead of running on in the same sentence.",
+            "Fix: friends in the same private room as you no longer show as 'in a private room' when the game rejoins that room for you at login. A friend in a private room can only be recognised by being in the room roster - the server strips the name - and the roster arrives after the room does, so classifying too early got them wrong. The previous fix waited a fixed 2.5 seconds, which covered a normal login and left a slow one wrong until the next 30-second refresh; it now retries on a ladder up to 9 seconds, so a slow roster is caught rather than waited out.",
+        ],
+    },
+    {
+        version: "8.3.2",
+        changes: [
+            "'/ebc changelog' now prints one block with an × to dismiss it, instead of a separate chat line per entry. The current version has well over a hundred entries behind it, so it used to bury the conversation with no way to clear it - it shows the newest fifteen, says how many more there are, and scrolls within itself. Requested by Julia.",
+            "IMPORTANT fix: being over the outfit storage limit no longer traps you there. The limit refused every save while you were over it - including deleting an outfit and moving one to device storage, which are the two things the error message tells you to do. Saves that make things smaller now go through even while still over, so you can actually dig yourself out. Restraint sets had the identical problem and are fixed too.",
+            "Fix (reported by Julia): 'Import Restraint Set' now creates a restraint set. It was calling the outfit importer, so imports landed in Outfits and nothing could ever appear under Restraint Sets.",
+            "Fix (reported by Julia): the quick action buttons stay where you put them. A saved position was squeezed through a fixed 700px guess when the page loaded - before the chat window exists, so the real limit was unknown - which dragged them leftwards on every reload for anyone on a wide screen.",
+            "Fix (reported by Julia): '/ebc update' checks the right branch. On a dev build it compared against the stable release, which is always older, so it just said you were up to date. It now checks dev when you are on dev and says which channel it is talking about.",
+            "Fix: creator access now includes the achievements. #140712 was given the tools but the trophy button stayed hidden, because the trophy is gated on a separate list that the grant did not touch. The two are derived from one another now, so access and the trophy cannot drift apart again. Emery's own trophy was never affected.",
+            "Member #140712 now has the same creator-level access as Emery: the DOM tab, the stat editor, XToys and the achievement reset. Internally this is a short list rather than a single hardcoded number, so it can be changed in one place. It is kept separate from the credits on purpose - being thanked on the CREDITS tab and being able to act on other players are different things and should not be granted together by accident.",
+            "Fix (reported by Julia): the friends list could freeze on stale content and never recover. It steps aside rather than rebuilding on top of a box you are typing in, but it had no limit on how long it would wait - so if the focus stayed put, it waited for good. Being voided by the server does exactly that, swapping the screen out while a field still has focus. It now waits about half a second and then refreshes regardless; nothing is lost, since a half-typed tag survives the rebuild anyway.",
+            "Fix (reported by Julia): friends sharing a private room with you show the room name after the game rejoins you at login. Their room can only be identified from the list of people present, and that list is not ready when the friends data first arrives, so they were filed under 'in a private room' with nothing to correct it. The list is now refreshed again once the room has settled.",
+            "The bug report form now asks you to be on the latest DEV build before reporting - a great deal is fixed there first, and a report from an older build is usually something already dealt with.",
+            "Fix: the Body menu no longer greys out the pose you are actually in. Poses you cannot get into by yourself are dimmed - which is right for a hogtie, since you cannot hogtie yourself - but that dimming was also applied when a restraint had already put you there. So being hogtied faded out the very button that was meant to be lit up, and the menu looked broken at exactly the moment it should have been telling you something. A pose you are currently in is never dimmed now.",
+            "Fix (third attempt): the Body menu follows poses forced on you by restraints. It was checking on a timer, and the timer decided for itself when to stop by looking for the panel in the page - when that check was wrong it quietly stopped and nothing said so. It is now told directly, the moment the game recalculates your pose, which is the same moment a restraint changes anything.",
+            "The count beside each achievement category (0/8 and so on) is readable now - it was small, dim and letter-spaced, which made the one part of that row carrying any information the hardest thing on it to see.",
+            "Fix: poses render correctly again after a restraint changes. EBC was writing the game's internal pose record itself and then immediately overwriting it a second way, and its idea of 'no pose' was an empty record where the game's is two named base poses. The result looked fine until something recalculated it - which putting on or changing a restraint does - and then the pose came out wrong. EBC now leaves that record to the game, which has done the conversion properly all along. The pose sent to everyone else in the room is read from your character rather than rebuilt, so what they see matches what you see.",
+            "Fix: the achievement progress bar actually animates now. It was being built before it was put on the page, so there was no starting point for it to grow from and it simply appeared at its final length. The glow that was meant to sit at the end of the fill has been dropped - the bar is six pixels tall and clips its own contents, so it was never going to be visible.",
+            "Fix: the Body menu now follows a pose forced on you by a restraint. It was reading the pose you last chose rather than the one in effect - the game keeps those separately, and a restraint only changes the second, so the highlight stayed on whatever you last clicked while your character was visibly in something else.",
+            "Testing (Emery only): 'Reset for testing' at the bottom of the achievements panel clears all progress so unlocks can be watched happening again, and 'Restore my progress' puts it straight back. A copy is taken before the first reset and is never replaced by a later one, so resetting twice still restores the real progress rather than the empty state from the first reset.",
+            "Fix: sidebar emote buttons put your name back in front - '*Emery pouts*' rather than '*pouts*'. They are sent the way they always were before this run of changes. For a while they were routed through the game's own emote function so that BCX rules would cover them, but that meant the game re-read the text as if you had typed it, and the name kept going missing. A working button matters more than enforcing a rule nobody had asked about. Beeps are unaffected and still respect BCX rules - that was the case that was actually reported.",
+            "Fix (reported by Lucy): the gesture buttons in the sidebar remember whether you left them folded away. The state was only held in memory, so they sprang back open on every reload. Saved on this device, since whether a panel is folded is about this screen rather than your account.",
+            "New (requested by Julia): a small note appears the moment you share a room with one of the credited crew, saying who and how many you have now - and reminding you to pet them while they are still there, since that is the other half of the pair. The same appears when a headpat counts. Click it to dismiss.",
+            "Fix: emotes from the side buttons no longer come out without your name the first time. The name in front of an emote is put there by the game, which asks for your nickname and falls back to your account name only when the nickname is missing - but a BLANK nickname is not the same as a missing one, so it fell back to nothing. Characters arrive from the room with a blank nickname for a moment before it is filled in, which is exactly why it was the first emote and never the rest. EBC now treats a blank nickname as no nickname, everywhere the game asks.",
+            "Fix (reported by Azuith): right-clicking the EBC button no longer throws away where you put it without warning. Right-click has always been a shortcut for resetting it back to following the chat window, but nothing said so - so right-clicking for any other reason moved your button and there was no way back. It asks first now, and says nothing at all if the button is already in its default place.",
+            "Fix: an emote button used as the first thing after logging in could send '*shrugs*' with no name in front. BC works out the name from the sender attached to the message, and EBC's backup send path attached nobody - so BC had no name to print. That path only runs when BC's own emote function is unavailable, which it briefly is at the very start of a session, which is why it only ever happened on the first one. Action-style buttons were never affected.",
+            "Fix (Julia, second attempt): a half-typed friend tag really does survive now. The previous fix only held the list still while the text box had focus - but picking a colour takes focus away from it, so by the time the list refreshed there was nothing focused and the row was rebuilt anyway. The typed name and chosen colour are now remembered and put back, whatever happens underneath.",
+            "Achievements: the overall progress bar has some life to it - it fills from zero with the count ticking up beside it, carries moving stripes and a bright edge where it stops. Suggested by Julia. It holds still if your system asks for reduced motion.",
+            "Removed the 'HQ Regular' achievement. That is the last of the time-in-a-room ones - none of them could be measured honestly, since a reload or a reconnect is indistinguishable from leaving. 'Living in Rope' is unaffected: it reads the restraint timers, which persist on their own.",
+            "Fix (Julia): the crew achievement number disagreed with its own checklist. You are counted toward your own total when you are credited, but that was only recorded the first time the list was written - so anyone added to the credits afterwards stayed missing from their count while showing as done in the list. It is now kept in step, and existing progress corrects itself the next time it ticks over.",
+            "Fix (Julia): making a tag on a friend could blank the name and reset the colour while you were typing. The friends list refreshes whenever the game reports who is online, which rebuilt the row and threw away whatever was half-typed in it. It now waits until you have finished with the field.",
+            "Fix (Julia): 'yesterday' on last seen was measured in elapsed hours, so anything 24 to 48 hours old was called yesterday even when it was two dates ago. It now compares actual calendar days.",
+            "Fix (Azuith): the choice of whether restraint buttons sit above every tab or inside Safety is applied at login again. The panel is built before your account settings arrive, so it was reading the default and you had to re-toggle it every session.",
+            "Fix (Emery): action buttons could send without your name in front. BC's nickname helper returns an empty string rather than falling back to your account name when your nickname is blank, and the message was built from that.",
+            "Friends: 'friends since' now shows how long as well as the date - '(1 year 3 months)'. Requested by Julia.",
+            "Achievement popups pause while your pointer is on them and show a bar of the time remaining, so one can no longer vanish in the instant you reach for the X and drop the click on whatever was behind it. Requested by Julia.",
+            "Fix (reported by Nicole): your own name no longer glows with a flowing gradient in the EBC chat window. That effect is meant to mark people in the credits, but it was also applied to yourself, so everyone saw their own name animating and it read as a glitch. Your messages still use their own colour. A flowing name now means one thing: someone from the credits.",
+            "Private room sharing is hidden for now while it is still being worked out. The settings are gone from SOCIAL -> Settings, nothing is sent, and nothing is accepted - so if you had already switched it on, it has stopped broadcasting. Anything you set is kept and will be there when it comes back.",
+            "Crew achievements show everyone as pills - green with a tick for the ones you have, red with a cross for the ones left. Names stay in the same order whatever their state, so one only changes colour when it lands rather than jumping to another line. The tick and cross carry the meaning as well as the colour.",
+            "Fix: private room sharing did nothing if you turned it on while already sitting in a private room. Entering a room recorded it as announced before checking whether there was anybody to announce it to, so switching the toggles on afterwards found nothing left to say. Changing who you share with now re-announces immediately. Rooms are also now classified using BC's own private-room test - a room open to admins as well as everyone counted as public before. Each broadcast writes a line to the browser console saying what was sent and to how many people, so it can be checked.",
+            "Fix: the crew achievements were supposed to list who you have met and who is left, and showed neither. The lines were built and then inserted next to an element that had not been added to the page yet, which does nothing and reports no error. They appear now.",
+            "Private room sharing: the 'sharing with N people' line now opens to list exactly who, by name and member number, with a tag on each showing which setting put them there - friend, starred, or added by hand. A headcount is not something you can check against what you meant.",
+            "New: private room sharing, in SOCIAL -> Settings. The game never reveals the name of a private room, so this works by telling people directly - while you are in one, your client sends the room name to whoever you choose, and their EBC shows the room instead of 'in a private room'. Pick recipients with any combination of 'all friends', 'starred friends' and a list of specific member numbers, and the panel tells you how many people that adds up to. Seeing other people's shared rooms is a separate switch, so you can do either on its own. Everything is off until you turn it on, shared rooms are marked with an unlocked icon so they are never mistaken for public ones, and only friends can send you one.",
+            "'Met the Crew' and 'Crew Cuddler' now show who you have already got as well as who is left, so a name visibly moves from one line to the other when it registers.",
+            "'Met the Crew' and 'Crew Cuddler' now list who you still need by name. The bare count was confusing because you count toward your own total if you are credited, so meeting one person showed 2/6 and looked like nothing had happened. Hovering the line shows who is already done.",
+            "Fix (reported by Julia): the Body menu now keeps up when something else changes your pose. Being forced into a pose by a restraint, or posed by someone else, left the old highlight in place until you clicked something - the grid only repainted on your own clicks. It now follows the real pose while the page is open.",
+            "Tags and protected items are back to being sized to their text. The previous version stretched them across the full width, which turned three tags into three enormous slabs.",
+            "Layout: Tags, Protected and IRL toys use the width they have instead of a few small pills in the corner. Tags and protected items are cards in a grid that fills the page, with the colour swatch and full name readable; the 'current restraints' list under Protected now opens by default, since it is the only way to add anything there and hiding it made the page look empty. Each IRL toy integration is a card with a line explaining what it actually is, so the page reads without opening all three.",
+            "A blocked beep is now a proper notice under the message rather than a line of small grey text, and it names BCX when BCX is what is loaded. It says whether the rule is on you or on them, and reminds you that only you can see it.",
+            "Beeps: if one of your own rules stops you beeping someone, the message now stays in the conversation marked '⛔ Not sent - a rule on you blocks beeping them' instead of vanishing from the box with no explanation. Only you see it. Messages the recipient's rules refuse are still marked separately, so you can tell which side stopped it.",
+            "All stored EBC data: every row has a ? that explains in plain English what that data actually is and what clearing it would lose.",
+            "Notes now show the note itself under each name instead of just a list of names, with a search box that looks through the note text as well as the names, and a two-step delete on each row.",
+            "Language picker uses the space it has in the new layout - a grid of cards naming each language rather than seven small codes in the corner. The classic layout keeps the thin pinned strip, where a grid would push everything down.",
+            "Removed the 'Settled In' and 'Comfy Captive' achievements. Time spent sitting in one room could not be measured reliably - reloading, reconnecting or BC dropping the room state all looked identical to leaving, so progress was inconsistent and there was no honest way to fix that. The rest of the bondage achievements, including 'Living in Rope' for a continuous bound streak, are unaffected.",
+            "Fix: sections inside a pill were squeezed into a small scrolling box with a screen of empty space beneath them. The height cap on those strips exists for the classic layout, where they sit pinned above every tab and would otherwise push the footer off screen - inside a pill they own the whole page, so the cap is dropped and the panel scrolls normally.",
+            "Fix: 'HQ Regular' counted your time in EBC HQ in memory only, so it reset every time you reloaded the page and two forty-minute visits never added up to the hour it asks for. It is a running total that persists now.",
+            "'Crew Groomer' renamed to 'Crew Cuddler'.",
+            "Curses: the target can no longer lift a curse themselves - the indicator in the footer is read-only now. Only whoever cast it can lift it. The red safeword still clears curses, since that is an emergency exit rather than a convenience.",
+            "Fix: Active Curses could list a slot nobody had just cursed. Applying a curse merged the new items into the stored list but only told the target about the newly ticked ones, so the two sides drifted apart and old entries kept resurfacing. The full set is sent now. A cursed slot the person is not wearing anything in is also labelled 'slot empty' instead of showing a bare slot name that looks like a curse from nowhere.",
+            "Fix: every beep you sent was recorded twice in the conversation. Root cause: EBC hooks BC's beep function to catch messages sent from BC's own UI, which EBC would otherwise never see. When EBC's beeps were rerouted through that same function so BCX rules would apply, the hook started logging them too - on top of the entry the send already wrote. The hook now ignores beeps EBC sent itself. History already doubled by this is cleaned up once automatically on your next login; only sent messages are touched and only exact duplicates within two seconds of each other.",
+            "New: back up and restore everything EBC saves for you. Under STORAGE there is now 'Backup - export & import': 'Export everything' downloads a single file with all your outfits, buttons, notes, tags, achievements and the rest, and every row in the data list has its own Save button if you only want one category. Import takes a file or pasted text, tells you what it is about to replace before it does anything, and skips anything it does not recognise. It does not matter where the data lived - a backup covers both account-synced and device-only categories, and restoring puts each one wherever the device you are on is set to keep it, so you can clear your browser data or move to another device without losing anything.",
+            "Fix: the Tags pill was empty - no tag chips, and no box to create one. Root cause: the tag list was only built the moment its header was clicked, and once the section had been expanded even once it was remembered as already open, so nothing ever triggered that build again. Inside a pill, where the header is hidden, that left a category with nothing in it. The contents are built up front now and collapsing only hides them.",
+            "ME tab: TAGS is its own pill now instead of being tacked onto the end of Outfits. On its own it no longer shares a header with anything, so the tag chips and the add-tag box show straight away with no dropdown to open.",
+            "Fix: TAGS inside a pill could not be opened at all - it sat there as a dead label with nothing under it. Root cause: TAGS does not build its contents until its header is first clicked, but sections sharing a pill get their header replaced with a plain label (so a shared pill has no half-working dropdowns), which removed the only thing that would ever build it. Sections are now genuinely opened before that swap, so their content exists. Any other section that builds itself lazily was affected the same way and is fixed too.",
+            "Julia (#235962) added to CREDITS for finding a huge number of bugs and writing them up clearly. She counts as a credited person everywhere - the two crew achievements now ask for all six, and she gets the animated name and the credited-only tools like everyone else.",
+            "Internal: credited people now come from one roster instead of five separate lists (credits cards, name gradients, stat editor, achievement whitelist, achievement roster). Adding someone to the credits used to mean editing all five with nothing to catch a miss - now it is one entry plus their blurb.",
+            "Two new rare achievements about the people in CREDITS: 'Met the Crew' for sharing a room with all of them, and 'Crew Cuddler' for headpatting all of them. Meeting is checked whenever the room changes, so someone passing through still counts. If you are credited yourself you count toward your own total, so everyone needs the same number.",
+            "Fix: sharing an achievement with the room no longer shows it to you twice. Your own share comes back to you from the server and was drawn a second time as 'shared by <your own name>' - the echo is now ignored, so you keep the 'you shared with the room' plaque only.",
+            "Fix: the shine on achievement plaques is no longer a bright band. The sweep was a single gradient whose middle stop was the metal colour at 8% opacity, which left the plaque almost see-through there - on BC's default light chat log that showed as a glaring white streak instead of a sheen. The sweep is now a soft overlay on a solid base.",
+            "Achievement plaques in chat have a × to dismiss them, and the unlock popup can be clicked (anywhere, or on its ×) to close early instead of waiting out its six seconds. Requested by Julia and Emery.",
+            "CREDITS is its own tab again on the new layout instead of being a collapsed section at the bottom of SETTINGS. Both layouts now have the same CREDITS tab, so switching layout keeps you on it. You can still hide it from the tab list in SETTINGS -> Drawer if you would rather not see it.",
+            "Fix (reported by Julia): typing in the friends search no longer makes the room list reappear above your results. Root cause: the search, clear, sort and filter controls all redrew the friends list without telling it where the Rooms section lives, and the renderer falls back to drawing rooms inline when it is not told - so the whole room list landed on top of the friends section every keystroke. All four now keep Rooms in its own pill.",
+            "Fix: AUTO-ESCAPE is creator-only again. The new six-tab layout put it on the SAFETY tab where every user could see and enable it - in the classic layout it only ever lived on the DOM tab, which is hidden unless dom tools are unlocked. It is back on the DOM tab in both layouts.",
+            "Fix: the auto-escape room emote now fills in its tokens whether you wrote them with braces or square brackets ({item} or [item]), and a token can be used more than once. Text saved with square brackets was being sent to the room literally.",
+            "Menu layout toggle is clearer: it now says which layout you are on and the button says what pressing it does (\"Switch to Classic\" / \"Switch to New\"), instead of one small pill reading \"New layout\" that meant both equally.",
+            "Fix: emote-style action buttons, anims and outfit announcements send your text literally again. Routing them through BC's own emote function in the last update also handed BC your text as chat SYNTAX, so a button starting with a number and a percent sign (\"100% done~\") was turned into an attempt dice roll with the text rewritten, and text already wrapped in asterisks came out with a stray one. Now the asterisk is only added when it is missing, and dropped entirely when keeping it would trigger the roll. Rule addons still see every emote.",
+            "IMPORTANT (reported by TiredSora): you can now always free yourself from a curse. A curse blocks removal of a whole slot for everyone including you, is stored on your device so it survives refreshing, and never expired unless whoever cast it set a timer - so if they set no timer and then vanished, that slot was locked forever and any new restraint you put in it was locked too. The only escape was disabling EBC. Two ways out now: the footer shows '🔒 Cursed (Legs)' with a 'lift' link beside it (click twice), and the red safeword clears every curse on you. Neither depends on the person who cast it being online, still a friend, or still running EBC.",
+            "Fix: pills lagged behind their own highlight after using the pose buttons in Body - you clicked a pill, it lit up, and the section under it only caught up a moment later. Root cause: every pose click queued a full rebuild of the tab 150ms later using a timer nothing ever cancelled, so the rebuild tore down the pill nav after you had already moved on, and clicking several poses in a row stacked one rebuild per click. Pose buttons now repaint themselves in place instead of rebuilding the tab, only one rebuild can ever be pending anywhere in the panel, and switching pills cancels a rebuild queued before it. The whole menu should feel snappier, not just the Body pills.",
+            "Fix (reported by Julia): pose buttons in Body no longer emote that you changed pose when your restraints won't let you. Root cause: EBC wrote the pose mapping directly with force enabled, so BC's own permission check never ran and the announce fired regardless of whether the pose took. Poses your restraints forbid are now dimmed with a reason on hover, and clicking one does nothing instead of forcing it. Poses you can still reach by struggling (kneel/stand) stay available.",
+            "Beeps (requested by Antalina): if someone's BCX rules refuse your message, your copy is now marked '⛔ Not delivered - their rules block beeps from you' instead of sitting there looking sent, and it is dropped from the offline retry queue so EBC stops trying to redeliver something their rules will refuse again. Detected from the automatic reply BCX sends back, which still shows so you can read their own wording. Note the reverse direction already worked: when your own rule blocks an incoming beep, BCX stops it before EBC ever sees it, so EBC does not notify you or store it.",
+            "Fix: BCX (and any other rule addon) rules now apply to EBC. Beeps sent from EBC's chat windows ignored rules like 'Restrict sending beep messages' - you could beep someone the rule forbade. Root cause: rule addons enforce by hooking BC's named functions (BCX hooks ServerSendBeepMessage), but EBC was writing to the server socket itself with ServerSend, so the hook never ran. Fix: beeps now go through ServerSendBeepMessage, and if a rule refuses one, EBC no longer records it as sent or queues it for re-delivery. The same bypass is fixed for room emotes sent from EBC buttons, anims, outfit announcements and the fight-back prompt, which now go through ChatRoomSendEmote - so owner presence rules apply to those too. EBC's own sync messages (toy control, group routing) still take the direct path: they are addon traffic, not you speaking.",
+            "Fix: the bug report form now works in map rooms - typing no longer moves the character or loses letters. Root cause: the form's textareas were the only EBC inputs missing the keydown stopPropagation guard, so WASD/arrow keys fell through to BC's map movement handler.",
+            "Fix: expression presets now correctly reset face parts that were in their default state when the preset was saved. Root cause: capture stored the worn asset's style name (e.g. 'Eyebrows2') when Property.Expression was null - that is not a valid expression, so BC silently ignored it on apply and the part kept its old expression. Fix: capture stores null for default-state parts, and apply sanitizes stored names against the group's AllowExpression list - existing broken presets start working again automatically, no re-save needed.",
+            "Beeps: messages sent to offline friends are now marked '⏳ Not delivered - sends when they come online' in the conversation window, with a Cancel button to remove them before delivery. The marker disappears automatically once the message is handed to the server.",
+            "Friends: new collapsible 'Friend rooms' section in the Users tab - shows where every online friend is, grouped by room. Public rooms get a Join button; private rooms and the lobby are listed separately. Updates live with the friends list.",
+            "Fix: beep windows could open collapsed to just the input bar (header and chat hidden). Root cause: older EBC versions kept resize handles active on minimized windows, so a width-drag there persisted the 44px minimized height to localStorage - the saved size was then restored unclamped on every open. Fix: saved sizes are clamped to the resize minimums (220x200) on both load and save, so stale bad values self-heal on next open.",
+            "Friend rooms: redesigned as room cards - each room shows its name, member count, and a Join button, with each friend as a clickable chip that opens their chat window.",
+            "Beep windows: the room bar under the header now always shows where the friend is while online - room name (hover/tap to drop down Join and Copy), '🔒 In a private room', or '🏛 In the lobby'. A ▼ hint marks when the drop-down has actions. Fix: a friend standing in your room no longer needs BC's friend-query data for the bar to show the room name.",
+            "Beep windows: the room drop-down is now cleaner - Join and Copy sit side by side, and an 'Also here:' row lists your other friends in that same room as clickable chips that open their chat windows.",
+            "Favorite rooms: new collapsible section in the Users tab. Saving a room captures its FULL settings (description, admins, bans, whitelist, background, size, visibility, custom data, small maps) - so besides one-click Join, the 🔨 Rebuild button can recreate the room with all its settings when it's closed (confirms before leaving your current room). 'Update saved room settings' re-captures while inside. Synced to your BC account.",
+            "Favorite rooms: saved snapshots now keep themselves up to date automatically - while you're inside a favorited room, EBC re-captures its settings on join and every minute, so description/admin/background changes are saved without pressing anything. Old name-only favorites upgrade themselves the next time you're in the room.",
+            "Fix: 🔨 Rebuild silently did nothing when the server rejected the create. Root cause: the room create payload could exceed server limits (description over 100 chars, name over 20) causing an InvalidRoomData rejection that EBC never listened for. Fix: payload is clamped to server limits, the ChatRoomCreateResponse is now watched - success and failure both show a toast, 'RoomAlreadyExist' automatically joins the open room instead, and an invalid payload retries once with a minimal fallback. Join buttons also un-stick their '→ …' label if a join goes nowhere.",
+            "Fix: 🔨 Rebuild now actually puts you in the rebuilt room with the correct settings. Root cause: the create payload could omit or malform Visibility/Access (BC R128 requires string arrays) - the room got created but BC's client-side room validation instantly ejected you, and saved admin lists were sent at create time where the server may not honor them. Fix: mirrors BC's own room-recreate flow exactly - create with yourself as sole admin and PUBLIC access/visibility (entry always succeeds), then push the full saved settings (real admins, whitelist, bans, access mode) as a room update one second after entering. Limit clamped to BC's real 2-10 range.",
+            "Fix: 🔨 Rebuild could loop 'Room doesn't exist anymore'. Root cause: the server answered RoomAlreadyExist (the name is squatted by a ghost or private room), EBC fell back to joining, and the join failed with CannotFindRoom - a dead end. Fix: the join response is now watched - when the name turns out to be squatted, the rebuild retries with a numbered name ('Emy Dungeon 2'), the same trick BC's own recreate uses. Full-room and locked cases show their reason instead. A 'Rebuilding…' toast confirms the click, and every create/join response is logged to the browser console for diagnosis.",
+            "Favorite rooms: Join is now the one smart button - it joins the room when it's open, and when the server says the room doesn't exist it automatically recreates it with all the saved settings (background, description, admins, size...). The separate 🔨 button is gone.",
+            "Fix: rebuilding a favorite room crashed BC with 'Cannot read properties of undefined (reading Type)' right after entering. Root cause: the settings-restore room update omitted MapData, the server nulled the room's map state, and every client crashed in ChatRoomSyncRoomProperties reading MapData.Type. Fix: the restore update always includes MapData - the saved map tiles, or { Type: 'Never' } for non-map rooms.",
+            "Favorite rooms: joining a closed room now asks first - a confirm dialog offers to recreate it with the saved settings instead of rebuilding automatically.",
+            "Fix: favorite room snapshots could keep stale/default settings. Root cause: the auto-capture only ran on room join and on a throttled 60s poll - saving changes in the room admin screen and leaving shortly after never got captured, so rebuilds restored the old state. Fix: EBC now captures the favorited room's settings the moment a room-properties update arrives (admin Save, background/description change), and the on-join capture waits 5s so a rebuild's own settings-restore lands first. To fix an already-stale favorite: open the room, adjust it (or press Save once in the room admin screen), and the favorite updates instantly.",
+            "Favorite rooms: rebuild reworked to a single step - the room create now carries ALL saved settings directly (description, background, size, full admin list, whitelist, bans, visibility, access/lock, custom theme). 3 seconds after entering, the live room is compared against the snapshot and any field the server ignored is corrected with one room update (always carrying MapData). The saved snapshot, every server response, and the verify result are logged to the console as [EBC] - if a rebuild ever looks wrong again, the console shows exactly whether the snapshot or the server is at fault.",
+            "Dev: the startup console line now includes the build number ('[EBC] v8.3.2 (build 169) loaded') so a stale cached bundle is immediately recognizable in logs.",
+            "Favorite rooms: the Recreate confirm dialog now lists exactly what the saved snapshot holds (background, size, admins, visibility/access, description) - a stale or default snapshot is visible BEFORE the room gets created, with a hint on how to re-capture it.",
+            "Favorite rooms: three fixes to make the auto-capture bulletproof - (1) the snapshot is re-captured the moment the Users tab renders the favorites list, so the list and Recreate dialog can never show stale data while you're in the room; (2) a socket-level listener for room-property updates backs up the hook, so the capture fires even if another addon breaks BC's hook chain; (3) every capture attempt now logs its outcome to the console ('no room data' / 'not in favorites' / 'unchanged' / 'updated' / the exact error), so a silent failure is impossible.",
+            "Fix: importing/saving outfits with many crafted restraints could trap the account in an infinite relog loop. Root cause: each crafted item carries its full Craft + Property data, so a full crafted set pushed EBC's settings blob past BC's ~180 KB account budget - the server dropped the connection on every sync, and the data re-flushed after each reconnect. Fix: two guards - the outfit list refuses to save past a 60 KB budget (clear in-chat error instead of a false success), and the settings flush skips the server push entirely if EBC's whole blob ever exceeds 150 KB (console error, previous server copy kept). Escaping an existing loop: the oversized data now simply stops syncing, so the account recovers on next login and the offending outfit can be deleted.",
+            "Fix: restraints locked with an Exclusive Padlock were invisible to the removal picker and skipped by Release Restraints / Remove Locks. Root cause: exclusive locks were unconditionally on the protected-locks list (they are DOGS's base lock). Fix: exclusive locks are only protected while the DOGS addon is actually loaded - without DOGS they list and remove like any other lock. Owner/Lover/Family locks stay protected.",
+            "Outfits & restraint sets: new per-item storage choice - each outfit/set now has a ☁ Account / 💾 This device chip. Account = synced across devices (uses the 60 KB account budget). This device = stored in the browser's localStorage: uses NO account storage (no relog risk), effectively unlimited, and visible to EVERY account you log in from this browser. Click the chip to move an item between stores. Imports automatically fall back to device storage when the account budget is full.",
+            "Fix: running two accounts in two windows could deliver one account's queued offline beeps from the OTHER account (recipient saw the wrong sender). Root cause: the offline re-delivery queue lived under one shared localStorage key for the whole browser. Fix: the queue is now keyed per account; the old shared queue migrates to whichever account logs in first.",
+            "Fix: vibes and piercings could not be removed by Release Restraints or the removal picker. Root cause: the ItemVulvaPiercings, ItemNipplesPiercings, and ItemHandheld groups were missing from EBC's restraint-group list, so items in those slots (e.g. the Vibrating Heart Clitoris Piercing) were invisible to every removal feature. All three groups added.",
+            "Removed: the Favorite rooms section (save/rebuild rooms) - taken out by request. The underlying saved data is untouched, so it can come back later if wanted.",
+            "Outfits tab: new collapsible STORAGE meter - progress bars for account outfits (vs 60 KB), account restraint sets (vs 60 KB), and all EBC settings (vs the 150 KB sync cap), plus this-device usage. Bars turn amber at 70% and red at 90%; the header shows the account total even when collapsed.",
+            "Fix: the ☁/💾 storage chips from the previous build crashed when clicked - the two mover functions were referenced in the UI but never imported. Now imported (and the build-warning check that let this slip is being watched more carefully).",
+            "Storage: the meter now sits directly above Saved Outfits, and has a 'Manage saved items' list - every outfit and restraint set sorted biggest-first with its size in KB, a ☁/💾 chip to move it between account and device storage, and a 🗑 delete (with confirm). The fastest way to free account space.",
+            "Tutorial: new Storage step (after the first Outfits step) explaining account vs 💾 device storage and the Manage list, in all 7 languages.",
+            "Achievements (credits crew only for now): new 🏆 section at the top of the Credits tab. Tracks things done TO you - headpats (25/250), hugs (50), kisses (100), 25 different people interacting with you, restraints applied to you (50), staying bound 24h straight - plus rare ⭐ Emery ones: headpat Emery 5 times, tie Emery up, and Emery doing 25 things to you. Progress syncs with your account; unlocks pop a toast (golden for rare). Locked to the credits member list.",
+            "Achievement badges: unlocked achievements now have a 'Wear' button - the worn badge's icon rides EBC's presence broadcast and shows next to your name (with a soft golden glow) in the People-in-Room list of every other EBC user. One badge at a time; click 'Worn ✓' to take it off. Incoming badges are length-capped so hand-crafted presence data can't inject junk.",
+            "Storage manage list polish: moving or deleting an item no longer snaps the list shut (open state persists), the 'This device' line and hint text are brighter and bigger, Delete is now a labeled button that turns red on hover (still confirms first), item types show as Clothing/Restraint pills, and the storage toggle is a text pill - blue 'Account' / green 'Local' - instead of the ☁/💾 icons.",
+            "Achievements moved from the Credits tab to the top of the DEV tab - they're a dev-crew feature, so that's where they belong.",
+            "Achievements reworked to TIERS: most achievements now level up through three thresholds (e.g. pats 5 → 25 → 250) and their card upgrades bronze → silver → gold plate, with tier pips and I/II/III labels. New doer achievements: Boop! (boop someone 10/50/250 times), Pat Dispenser (headpat others 10/50/250), Hug Dealer (give 10/50/250 hugs). Tier-ups pop a toast in the tier's metal color. Existing counters carry over.",
+            "Removed: the wearable badge system (Wear buttons + the badge icon next to names) - achievements are pure bragging rights now, per Emery's call.",
+            "Achievements: organized into CLASSES - Received (things done to you), Given (things you do), Bondage, and Emery - each with its own header and unlocked count. New Given achievements: Kiss Bandit (kiss others 10/50/250), Heavy Hand (spank others 10/50/250), Tickle Monster (tickle others 10/50/250). New Bondage: Rigger (put restraints on others 10/50/250). New Emery rares: Boop the Dev (boop Emery 10x), Dev Cuddler (hug Emery 10x), Brave Soul (spank Emery 5x).",
+            "Achievements UI: emoji icons removed from the cards and class headers, every card now has a tier-colored progress bar toward its next threshold (gold and glowing when maxed), and a 🏆 trophy button in the panel header (crew only) opens the whole list as a popup from anywhere.",
+            "Achievements: category filter chips (All / Received / Given / Bondage / Emery) above the list - click one to show just that class; the choice is remembered.",
+            "Achievements: unlocked cards have a Share button that posts the achievement to the room chat. Other EBC users (and you) see it as a big shiny animated plaque - metal-colored border and glow matching the tier, larger than normal chat messages like addon update notices. Non-EBC users see a plain '*shares an achievement: ...*' emote line instead.",
+            "Achievements: removed from the DEV tab - the 🏆 trophy button beside the reload button (panel header, crew only) is now the one home for the whole list.",
+            "Fix: Share said 'Join a room first' while standing in a room. Root cause: the share checked the announced-unlocks map, which lags behind the live counters until the next event or 5-minute tick - so a freshly loaded session considered even maxed achievements locked, and the button showed the wrong error label for every failure. Fix: the share derives the tier from the live counter exactly like the cards do, and the button now reports the real reason (Shared ✓ / Join a room first / Not unlocked yet).",
+            "Achievements: new Bug Hunter (Given class) - send 1 / 5 / 15 bug reports or suggestions through the Feedback & Bugs form. Bug and feature reports both count.",
+            "Fix: the 🏆 trophy button never appeared in the panel header. Root cause: its crew-only visibility was decided once while the panel was being built - before login finished, when Player.MemberNumber didn't exist yet - so it stayed hidden forever. Fix: the visibility re-checks every 2 s until the player data exists.",
+            "Fix: dragging the panel out of the drawer (free-float mode) crushed the header - the DEV pill clipped mid-letter and the title overlapped the buttons on narrow widths. Fix: the version text and DEV pill no longer shrink, the 'EmeryBC' subtitle hides in float mode, and the header buttons compact slightly so everything always fits.",
+            "Achievements popup: the fat default browser scrollbar replaced with EBC's slim pink one (same style as the panel body).",
+            "Achievement sharing reworked so chat can't be spammed: Share now opens a picker of people in the room and sends the plaque as a WHISPER to that one person only (never the whole room), with a 60-second cooldown between shares (the button shows 'Wait Ns'). You get a local 'you shared with X' plaque as confirmation. Incoming plaques are also rate-limited to one per sender per 30s, and the plaque's shine sweep slowed way down (9s) so it's subtle instead of flashy.",
+            "Achievements visual overhaul: every card now has a metallic medal coin (empty when locked, bronze/silver/gold with the tier numeral, ★ for rares), gradient tier plates with depth and a hover lift, inset progress bars with metal-gradient fills, class headers with fading divider lines, an 'Unlocked X / Y' summary bar at the top, and a soft glow on the popup background. No more flat look.",
+            "Friend rooms: your current room card is now green-tinted with the actual room name ('Kitty yacht (your room)') so it can't be confused with joinable rooms, and you now appear in its member list as 'Name (you)'.",
+            "People in Room: the relationship emoji (👑 ❤️ 🔒) replaced with clear labeled pills - gold 'Owner' (they own you), pink 'Dating' / 'Engaged' / 'Married' (the actual lovership stage instead of one generic heart), and purple 'Yours' (you own them). Each has a tooltip.",
+            "Achievements: opt-out toggle at the top of the DEV tab (crew only) - turning it OFF hides the 🏆 trophy, stops all tracking, and can be flipped back anytime. Progress is kept while opted out, just frozen.",
+            "Achievements: the opt-out moved INTO the trophy popup itself (DEV-tab row removed). A muted 'Opt out of achievements' button sits under the list; when opted out the popup shows an off-state screen with a 'Turn achievements back ON' button. The 🏆 trophy stays visible for crew members either way, so the way back is always one click.",
+            "Friends list details: the expanded friend info now uses the same relationship pills as People in Room - gold 'Owner', pink 'Dating'/'Engaged'/'Married', purple 'Yours' - instead of the old mixed emoji (👑💍💒❤️🔒), so both places speak one visual language. 'Last seen' lost its clock emoji too.",
+            "Achievements: members 114395 (DJ Rae) and 235962 (Julia) added to the crew whitelist.",
+            "Fix: empty pills (Poses, Expressions) no longer appear at all - the converter now drops any section that renders nothing, so a pill only exists when there is something behind it. The console line also marks which sections came back empty.",
+            "Expressions: the 'PRESETS' heading renamed to 'EXPRESSIONS' in all 7 languages - it lists face presets, and 'presets' next to 'expression sequences' read as two different things.",
+            "Achievements: new Settled In - stay in one room for 20 minutes / 1 hour / 1 day straight (no restraints needed; the streak resets only when you change room). Time thresholds now print readably ('20 min', '1 hour', '1 day') instead of raw minute counts.",
+            "Achievements: two new ones - Comfy Captive (stay bound in the same room for 1 / 5 / 24 hours; the streak resets if you change room or get free) and the rare ⭐ HQ Regular (spend an hour in EmeryBC (EBC) HQ, accumulated across visits).",
+            "Game toys: new MY TOYS section at the top - drive your own equipped BC vibrators directly with Off / Low / Med / High / Max / Random / Escalate / Tease / Deny / Edge, applied to every vibrating item you are wearing. It lists what you currently have on so the buttons are not a mystery, and says so when nothing is equipped. Previously you could let others control your toys or control a friend's, but not your own.",
+            "Toys: the Game toys pill no longer shows a redundant 'GAME TOYS' dropdown inside it - a pill holding a single section opens that section and hides its header, since the pill is the header. IRL toys keeps its per-integration headers (Lovense / PiShock / XToys) because there are several to tell apart.",
+            "Fix: the Toys pills did not appear - the converter was pointed at the Lovense section's inner content instead of the tab's top-level sections. It now runs over the card holding Game toys / IRL toys (Lovense) / PiShock / XToys, giving two pills: Game toys and IRL toys.",
+            "Toys tab split into pills: IRL toy (Bluetooth/Lovense Connect setup and vibrate defaults), In-game (BC toy sync), Triggers (chat phrases and body touch) and Sharing (let others control your toy / control a friend's). Sections declare their own group, and anything untagged counts as physical-toy setup - so a section added later still lands somewhere sensible rather than disappearing. Classic layout keeps the original single scrolling page.",
+            "Dom keeps its own tab in the new layout instead of being folded into Toys, matching the classic layout - it is still creator-only in both. Auto-escape is not duplicated: it shows on the Dom tab in classic, and on Safety in the new layout.",
+            "Fix: section headers kept as sub-labels inside a shared pill (Tags, Storage) were still live collapse buttons, so they could be clicked shut inside a pill that no longer had a working chevron. They are now replaced with a listener-free clone - a plain label with the arrow stripped.",
+            "Storage: every data category can now live on your BC account (synced across devices) or on this device only (browser storage, no account space used). Each row in 'All stored EBC data' has an Account/Device pill; switching shows a confirm naming which copy is about to become the only one, with both sizes, since the other side gets replaced - empty categories switch without nagging. Categories that are usually better kept local (beep history, name cache, people met, last seen, barks) say so in their tooltip, but nothing is moved for you. Implemented purely in the persistence layer: device keys are written to localStorage and nulled on the account, and loaded back into memory at startup, so every existing getter and setter works unchanged. The account size bar now excludes device-stored data.",
+            "Storage: new 'All stored EBC data' list covering everything EBC saves - outfits, restraint sets, action buttons, pose combos, scenes, expression presets/sequences/triggers, tags, schedules, colour palettes, notes, friend tags, name cache, beep history and groups, quick replies, people met, last-seen, stars/watchlist, achievements, barks, favourite rooms, restraint timers and dom config. Each row shows its size (with its share of your total on hover), sorted biggest-first, and has a Clear button with confirmation. Clearing writes an empty value rather than deleting the key, because the settings flush only copies keys to the server and never removes them - a deleted key would keep its old large value there.",
+            "Fix: the TAGS header sat inset and offset from the other headers inside the merged Outfits pill. Root cause: Tags and Storage use <button> elements as their section header while the rest use plain <div>s, so they picked up button padding and box styling. Headers kept visible inside a merged pill are now normalised to match.",
+            "No more redundant dropdowns inside pills: the Rooms pill drops its ▼ ROOMS header, and Safewords / EBC Tags open directly with their own collapsible headers hidden - in each case the pill is the header.",
+            "New drawer option (DEV → Drawer → 'Restraint buttons'): move Release Restraints / Remove Locks / the restraint picker off the permanently-pinned strip and into the Buttons tab as their own pill, freeing that space on every other tab. Toggling applies instantly without a reload, and 'Always on top' restores the original behaviour.",
+            "Dev: the pill converter now logs the sections it finds per tab ('[EBC] pillify EBC_animsView: POSES[2] | ...') so an empty pill can be diagnosed from the console instead of guessed at.",
+            "Safewords and EBC Tags moved out of the always-pinned strip above the tabs and into the DEV tab as their own pills - the panel gets that vertical space back on every other tab. They keep all their existing controls and handlers (the elements are moved, not rebuilt), and in Classic layout they appear as normal stacked sections.",
+            "Outfits tab consolidated from eight pills to four: Outfits (saved outfits, schedule, tags), Restraints (active, protected, saved sets), Colours and Storage. Merged pills keep their sub-headers so the grouping stays readable; the grouping is matched on translated labels, and any section that doesn't match simply keeps its own pill rather than disappearing.",
+            "Renamed 'special friend' to starred: you can star anyone you meet, friend or not, so calling it a friend marker was misleading. The star, golden highlight and 'Starred first' sorting are unchanged, and existing stars are kept (the stored data is untouched).",
+            "Rooms section now shows real occupancy (e.g. '4/10') instead of just the friend count, turning red when a room is full. Your own room reads live from the room data so it is always current; other rooms use counts harvested from room searches (BC's friend-presence data carries no occupancy at all), cached for 5 minutes - so their numbers appear once you have browsed the room list, and fall back to the friend count until then.",
+            "Fix (pill sections, Anims): the Anims tab kept a leftover dropdown row above its content and its sections still opened collapsed. Root cause: Anims puts the ▶/▼ chevron in a span BESIDE the label rather than inside it, so the collapse check never saw the arrow and the header row was misread as a content wrapper. Fix: sections are now classified properly - label-only, chevron+label header row, or header+content wrapper - by checking whether anything follows the label inside the element, and the collapsed check reads the whole header's text. Header rows are hidden completely, so no stray dropdown remains.",
+            "Pills enlarged for touch: bigger text, taller hit area (30px minimum) and more spacing, across every pill row - tab sections, Users, Dev and the achievement filters.",
+            "Fix (pill sections): Colours, Tags and Storage opened empty, and pill labels were cut off mid-word. Two root causes: those sections wrap their header AND content in one element, so hiding the 'header' hid the whole section - the converter now hides just the inner header and keeps the wrapper as content; and several sections build their content lazily, skipping the build entirely while collapsed, so forcing them visible showed an empty panel - the converter now clicks each collapsed header first, running the section's own expand-and-build. Labels also strip trailing stats ('STORAGE 82.2 / 150.0 KB ACCOUNT' -> 'Storage') and the row wraps instead of truncating.",
+            "Outfits, Buttons and Anims tabs decluttered too - their stacked sections are now pills, driven by one generic converter that finds each tab's section headers, hides the now-redundant header, opens the content, and builds the pill row. Each tab remembers its own pill. Nested UI that is deliberately hidden (outfit edit panels, popovers) is left alone.",
+            "Users tab: the 'People' pill is renamed 'Friends', and the Notes pill now explains how to actually write a note (expand a person's row in Friends or People in Room) instead of looking empty.",
+            "Menu layout toggle reworded to 'New layout' / 'Old layout' (DEV → Drawer), defaulting to New.",
+            "DEV tab decluttered the same way as Users: Drawer / Tools / Copy / Logs / Stats are now pills instead of five stacked collapsibles, with the chosen pill remembered. The layout toggle now controls both tabs (renamed 'Menu layout (Users + Dev)') and switching it redraws immediately - Classic still restores the original stacked pages.",
+            "Achievement plaques toned way down - about half the height, a thin border instead of a thick glowing one, smaller text, no outer glow, and the shine sweep slowed from 9s to 14s so it reads as a subtle gleam rather than a flash.",
+            "Achievement sharing: the picker now offers 'Everyone' (posts to the room) and 'Friends here' (private whisper to each friend present, staggered so the server never sees a burst) alongside picking one person. The 60-second cooldown covers all three.",
+            "Achievement plaques can be switched off: anyone who opted out of achievements never sees shared plaques at all, and everyone else gets a 'Shared achievements: shown/hidden' toggle in the trophy popup. When hidden, the plain chat line shows instead so nothing is lost.",
+            "Achievements renamed from dev-speak to kitty: Pat the Kitty, Boop the Kitty, Kitty Cuddler, Kitty Rigger and Kitty's Favorite (Brave Soul kept). Progress carries over - only the labels changed.",
+            "Fix: the 'Live support' badge stopped appearing when EBC HQ was open. Root cause: the scanner sent a partial ChatRoomSearch ({ Query, Language }) while BC's server expects the full request shape (Space, Game, FullRooms, ShowLocked, MapTypes, SearchDescs) - partial requests get filtered out, so the room was never found. Fix: the scan now mirrors BC's own request with permissive filters (a full or locked HQ still matches). It also no longer scans while you're on the room-search screen, where its query could hijack BC's pending search and replace your room list - the passive listener still reads BC's own results there, so the badge keeps updating.",
+            "Users tab: Rooms is now its own pill (People / Rooms / Notes / Settings), and the collapsible dropdowns inside each pill are opened automatically - the pill is the section header, so the extra dropdown was redundant. The User Notes header is hidden entirely in pill mode.",
+            "Users tab decluttered: the stacked sections are now split behind three pills - People (rooms + friends), Notes, and Settings (chat/notifications + AFK auto-reply) - so only one area shows at a time and the chosen pill is remembered. The original single-page layout is still available: DEV tab → 'Users tab layout' → Classic.",
+            "Achievements: tier numerals switched from roman (I/II/III) to plain numbers (1/2/3) on the medals, names, toasts and shared plaques - the roman ones read as '|||' at small sizes.",
+            "Fix: NO achievement ever counted an activity (spanks, pats, kisses...). Root cause: the activity-message parser only understood old dictionary shapes - it looked for SourceCharacter/TargetCharacter as objects or Tag entries, and ActivityName behind a Tag. BC R128+ actually sends plain properties: { SourceCharacter: 130267 }, { TargetCharacter: 114395 }, { ActivityName: 'Spank' } and { Tag: 'FocusAssetGroup', FocusGroupName: 'ItemButt' } - so source, target, activity name and group all came back undefined and every counter stayed at 0. Fix: the parser now understands all shapes (plain number, object, and Tag styles). This also repairs XToys activity forwarding, which had been silently broken by the same bug.",
+            "Fix: the Boop achievements could never unlock, and booping wrongly counted as a headpat. Root cause: BC's 'Boop Nose' is not its own activity - it is the Pet activity performed on the ItemNose group, so the only way to tell a boop from a headpat is the group, which the achievement code ignored. Fix: the activity group is now passed through and used - Pet on ItemNose = boop, Pet anywhere else = headpat. Added a matching 'Boop Target' achievement (get your nose booped 5/25/100 times), and nose-nuzzles now count toward hugs.",
+            "Fix: turning achievements back ON didn't stick - after a relog you were opted out again, which also froze all tracking. Root cause: opting back in DELETED the setting key, but the settings flush only copies keys to the server and never removes them, so the old 'opted out' value survived and was reloaded at login. Fix: the flag is now written as an explicit true/false.",
+            "Users tab: 'People in Room' and 'Friend Rooms' merged into ONE 'Rooms' section - your current room is the green card at the top and now contains the full people rows (profile / chat / star / copy ID, EBC version, tags, relationship pills) that used to be their own section, while other rooms keep their compact member chips and Join buttons. One menu, all the features, and no more duplicate listing of the same people.",
+            "Emoji picker: new 🕒 Recent tab (first tab) with your 16 most recently used emoji, remembered across sessions. Picker greatly expanded: new Hands, Flowers, Food, and Symbols categories, and many more faces, hearts, animals, sparkles, and text emotes / kaomoji.",
+            "Text size: slider maximum raised from 200% to 250% for better readability on high-DPI screens.",
+            "Menu restructured into six broader tabs: ME (outfits, restraint sets, poses, combos, scenes, expressions, colours, nickname & title), SAFETY (release & unlock, active restraints, protected items, safewords, anti-restraint & auto-escape), SOCIAL (friends, rooms, notes, chat & notifications, AFK), BUTTONS (categories, fun actions, useful buttons), TOYS (Lovense, PiShock, XToys, plus the Dom tools that used to have their own tab) and SETTINGS (drawer preferences, EBC tags, storage & data, language, dev tools, logs, stats, credits). Nothing was removed or rewritten - each new tab simply calls the same section builders the old tabs used, so every feature behaves exactly as before.",
+            "The original eight tabs are still there: DEV -> Drawer -> 'Menu layout' -> 'Old layout' restores OUTFITS / BUTTONS / ANIMS / USERS / TOYS / CREDITS / DEV / DOM with their original content placement and stacked sections. The setting switches the whole menu live, without a reload, and each layout remembers its own active pill so switching back never lands on a section the other layout does not have.",
+            "The language pills moved out of the permanently pinned row and into SETTINGS -> Language, freeing a row of vertical space on every other tab. In the old layout they stay pinned under the tabs exactly where they were.",
+            "Tutorial: both the quick tour and the full guide now follow whichever layout you are on - every step opens the tab that actually holds the content it describes (storage points at SETTINGS, safewords at SAFETY when grouped). A new 'Menu Layout' step explains the six tabs and shows how to get the old eight back.",
+            "Fix: guide steps could spotlight an element hidden behind a different pill, so the highlight landed on nothing. Root cause: tab bodies are split into pill sections that hide everything except the active pill, and the guide only looked the element up without checking whether it was displayed. Fix: the guide now opens the pill that owns the target before highlighting it.",
+            "Fix: the guide never highlighted the ANIMS tab button. Root cause: a leftover id remap pointed the spotlight at '#ebc-tab-poses', which does not exist - the button's id is '#ebc-tab-anims'.",
+        ],
+    },
+    {
+        version: "8.3.1",
+        changes: [
+            "Removed: Auto-greet feature.",
+            "UX: AFK Auto-Reply is now a top-level section in the Notes tab instead of a hidden sub-section inside Chat and Notifications.",
+            "Dev: member 147036 now has access to the PiShock menu.",
+            "Fix: EBC no longer intercepts *emote sends before BC's hook chain runs, restoring UBC's whisper-emote feature. Root cause: EBC's capture-phase keydown listener and ChatRoomSendChat/ChatRoomKeyDown hooks were intercepting emotes and calling ServerSend directly, bypassing ChatRoomSendChat entirely so UBC's hook on that function never fired. Fix: removed EBC's emote interception entirely - BC's native emote handling runs the full hook chain as expected.",
+            "Fix: clicking a beep notification for a window that is already open (but minimized elsewhere) no longer snaps it to screen center. Root cause: openBeepWindow always repositioned existing windows to viewport center when re-opening. Fix: existing windows are now un-minimized and focused in place.",
+            "Removed: 'Member # to DM' input from Notes tab - AccountBeep is not reliably delivered to non-friends so the feature was not useful.",
+            "Fix: chat textarea now resets its height after sending a * emote message. Root cause: BC skips its own textarea height reset for emote sends; EBC now clears the inline height explicitly after every ChatRoomSendChat call.",
+            "Fix: resize handles on beep/DM windows are now hidden when the window is minimized, preventing the corner hitbox from covering the close button.",
+            "Anims: added 'Tight Back' pose (BackElbowTouch) to the Arms section and pose combos (Tight Back, Kneel+Tight).",
+            "Anims: pose buttons in the Anims tab now announce the action in room chat (e.g. 'kneels down', 'raises their arms above their head').",
+            "Action buttons: each button now has a Pose row in the editor - pick a body pose, arm pose, or both to apply automatically when the button fires.",
+            "Fix: dragging a minimized beep window to the top of the screen and then restoring it no longer pushes the header off-screen. Root cause: bottom was clamped to innerHeight-44 while minimized but not re-clamped to innerHeight-fullHeight on restore. Fix: re-clamp bottom in a rAF after removing the minimized class.",
+            "Fix: group chat windows can no longer be dragged off the top or sides of the screen. Root cause: the group window drag used unclamped top/left. Fix: clamp both axes to keep the window within the viewport.",
+            "Feedback form: added optional 'Include my name' checkbox (off by default) - when checked, appends the user's nickname and username to the version field in the submission.",
+            "Fix: resizing a beep window downward past the viewport bottom no longer causes the window to grow upward. Root cause: height was computed directly from the raw drag delta, so once the bottom anchor hit 0 it kept increasing. Fix: clamp bottom first, then derive height from how far the bottom actually moved.",
+            "Chat and notifications: added 'Keep beep popups until dismissed' toggle (sticky mode - popups stay until clicked) and 'Popup dismiss time' number input (1-60 s, default 5) to control how long beep toasts stay on screen.",
+            "XToys integration (Emery + Lucy only): new collapsible XToys section in the Toys tab. Paste a Webhook ID from xtoys.app, click Connect, and BC game events (activities on player, vibrator mode changes, shock collar triggers, item equip/remove) are forwarded to XToys in real time. Auto-connects on login if a webhook ID is saved and XToys is enabled. Includes a live event log.",
+            "Fix: XToys hooks crashed with 'getSettings is not defined' - getSettings was missing from the bcUtils import in main.ts.",
+            "Fix: XToys enabled-check moved into xtoys.ts as isXToysEnabled() - main.ts no longer calls getSettings() directly, following the same pattern as all other setting helpers. Eliminates any Rollup scope ambiguity that could cause the same ReferenceError.",
+            "Fix: beep window header buttons (close, minimize) could not be clicked in Firefox. Root cause: the right-edge resize handle strip (position:absolute; top:0; bottom:0; z-index:200) overlapped the header. Fix: added position:relative; z-index:201 to the header so it sits above the resize layer.",
+            "Fix: restoring a minimized beep window via incoming message (_restoreMin) could push the header off the top of the screen. Root cause: _restoreMin lacked the bottom-clamping rAF that the manual minimize button already had. Fix: same rAF clamp added to _restoreMin. Group chat windows had the same gap - both the minimize-button restore path and the _restore helper now also clamp.",
+            "Fix: dragging the right edge of a beep window could push the window's right border off-screen. Root cause: the width clamp used a fixed constant (innerWidth - 16) instead of accounting for the window's current left offset. Fix: capture startLeft at drag-start and clamp to innerWidth - startLeft - 8.",
+            "Fix: action button sidebar blocked clicks on BC native buttons (activity buttons, pose arrows) when the sidebar was repositioned to overlap them. Root cause: the category chip click handler returned true for any X coordinate in the chip's Y band, not just when the click was within the sidebar's column. Fix: added the missing mx >= sidebarX && mx <= sidebarX + CHIP_W guard to the outer condition.",
+            "Fix: dragging the beep window corner resize handle upward could push the header above the viewport. Root cause: newBottom was unclamped, so dragging far enough made newBottom > innerHeight - minHeight and the 200px height floor couldn't compensate. Fix: clamp newBottom to innerHeight - 204 so the header always stays on screen, and clamp height to innerHeight - newBottom - 4 for proportional sizing.",
+            "Fix: sidebar button hover tooltip was hidden behind BC's chat log when the sidebar was positioned in a corner. Root cause: BC renders hover text on its canvas, which sits below BC's DOM chat elements. Fix: replaced BC's canvas hover text with a DOM tooltip element (z-index: 10000000) that always floats above BC's chat overlay.",
         ],
     },
     {
@@ -5927,10 +6158,17 @@ function showChangelog(): void {
         appendLocalLogLine(`[EBC] v${MOD_VERSION} — no changelog.`, UI.gold);
         return;
     }
-    appendLocalLogLine(`[EBC] v${latest.version} — what's new:`, UI.gold);
-    for (const change of latest.changes) {
-        appendLocalLogLine(`  - ${change}`, UI.accent);
-    }
+    // One block with a close button, not one line per entry. The current
+    // version has well over a hundred entries behind it, so posting them
+    // individually buried the conversation with no way to clear it.
+    const MAX_SHOWN = 15;
+    const shown = latest.changes.slice(0, MAX_SHOWN);
+    const hidden = latest.changes.length - shown.length;
+    appendChangelogBlock(
+        `EBC v${latest.version} - what's new`,
+        shown,
+        hidden > 0 ? `+ ${hidden} more - the full list is in SETTINGS -> Credits.` : undefined,
+    );
 }
 
 // Last non-Inactive arousal level, so toggling off → on restores it.
@@ -6061,7 +6299,7 @@ function showKittyResistancePopup(
                 setTimeout(() => { if (elemVal) elemVal("InputChat", saved); }, 0);
             } else {
                 // Fallback: direct send (same as sendRoomEmote)
-                ServerSend("ChatRoomChat", { Type: "Emote", Content: emoteText.slice(1), Dictionary: [] });
+                sendRoomEmote(emoteText.slice(1));
             }
         } catch { /* ignore */ }
         close();
@@ -6085,7 +6323,7 @@ function showKittyResistancePopup(
                     : (hasItem
                         ? `squirms right up until the very end and goes still with a sulky pout — ends up with a ${itemName} anyway~`
                         : "squirms right up until the very end and goes still with a sulky exhale~");
-                ServerSend("ChatRoomChat", { Type: "Emote", Content: emote, Dictionary: [] });
+                sendRoomEmote(emote);
             }
         } catch { /* ignore */ }
         // Apply restraint items to self (with full craft/property/difficulty support)
@@ -6206,7 +6444,7 @@ function showKittyReactPopup(label: string): void {
     acceptBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #cf6f98;background:#cf6f9818;color:#cf6f98;";
     acceptBtn.textContent = "Accept~ 🥰";
     acceptBtn.addEventListener("click", () => {
-        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: "brightens up happily, tail wagging~ 💜", Dictionary: [] }); } catch { /* ignore */ }
+        try { sendRoomEmote("brightens up happily, tail wagging~ 💜"); } catch { /* ignore */ }
         close();
     });
 
@@ -6214,7 +6452,7 @@ function showKittyReactPopup(label: string): void {
     ignoreBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #7a5a6a;background:transparent;color:#7a5a6a;";
     ignoreBtn.textContent = "Ignore 🙈";
     ignoreBtn.addEventListener("click", () => {
-        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: "glances away shyly, pretending not to notice~", Dictionary: [] }); } catch { /* ignore */ }
+        try { sendRoomEmote("glances away shyly, pretending not to notice~"); } catch { /* ignore */ }
         close();
     });
 
@@ -6356,7 +6594,7 @@ function handleKittyCommand(msg: string): void {
                 // Lucy triggers a reaction emote sent from Emery — used by Pet Reactions buttons
                 if (arg) {
                     try {
-                        ServerSend("ChatRoomChat", { Type: "Emote", Content: arg, Dictionary: [] });
+                        sendRoomEmote(arg);
                     } catch { /* ignore */ }
                 }
                 break;
@@ -6443,6 +6681,41 @@ function handleKittyCommand(msg: string): void {
     } catch { /* ignore */ }
 }
 
+/**
+ * Every /ebc subcommand, in one place.
+ *
+ * Used for both the /ebc help listing and what is handed to BC's command system,
+ * so the two cannot drift - a command added to one and forgotten in the other is
+ * exactly how /ebc afk ended up listed with no handler behind it.
+ */
+interface EBCSubcommand {
+    tag: string;
+    desc: string;
+    /** Extra worked examples, listed under the command in /ebc help. */
+    examples?: Array<{ suffix: string; desc: string }>;
+    /** Argument hints handed to BC so Tab can suggest values. */
+    args?: Array<{ id: string; name: string; description?: string; suggestions?: string[] }>;
+}
+
+const EBC_SUBCOMMANDS: EBCSubcommand[] = [
+    { tag: "version",   desc: "Show current EBC version" },
+    { tag: "changelog", desc: "Show recent changelog entries" },
+    { tag: "release",   desc: "Release all restraints from yourself" },
+    { tag: "unlock",    desc: "Remove all locks from yourself" },
+    { tag: "ameter",    desc: "Toggle arousal meter on / off",
+      examples: [{ suffix: "50", desc: "Set arousal to a specific % (0-100)" }],
+      args: [{ id: "percent", name: "0-100", description: "Leave empty to toggle on / off",
+               suggestions: ["0", "25", "50", "75", "100"] }] },
+    { tag: "update",    desc: "Check GitHub for a newer version" },
+    { tag: "updates",   desc: "Turn update notifications on or off",
+      examples: [
+          { suffix: "on",  desc: "Enable update notifications" },
+          { suffix: "off", desc: "Disable update notifications" },
+      ],
+      args: [{ id: "state", name: "on|off", suggestions: ["on", "off"] }] },
+    { tag: "help",      desc: "List every EBC command" },
+];
+
 function handleMetaCommand(inputValue: string): boolean {
     const trimmed = inputValue.trim();
     if (!trimmed.startsWith("/")) return false;
@@ -6516,17 +6789,59 @@ function handleMetaCommand(inputValue: string): boolean {
         appendLocalLogLine(`[EBC] Unknown command "/ebc ${subcommand}". Type /ebc help for the command list.`, UI.danger);
         return true;
     }
-    appendLocalLogLine("[EBC] Commands — click any to fill the chat bar:", UI.gold);
-    appendClickableCmd("/ebc version",       "Show current EBC version");
-    appendClickableCmd("/ebc changelog",     "Show recent changelog entries");
-    appendClickableCmd("/ebc release",       "Release all restraints from yourself");
-    appendClickableCmd("/ebc unlock",        "Remove all locks from yourself");
-    appendClickableCmd("/ebc ameter",        "Toggle arousal meter on / off");
-    appendClickableCmd("/ebc ameter 50",     "Set arousal to a specific % (0–100)");
-    appendClickableCmd("/ebc update",        "Check GitHub for a newer version");
-    appendClickableCmd("/ebc updates on",    "Enable update notifications");
-    appendClickableCmd("/ebc updates off",   "Disable update notifications");
+    appendLocalLogLine("[EBC] Commands - click any to fill the chat bar:", UI.gold);
+    for (const c of EBC_SUBCOMMANDS) {
+        appendClickableCmd(`/ebc ${c.tag}`, c.desc);
+        for (const ex of c.examples ?? []) appendClickableCmd(`/ebc ${c.tag} ${ex.suffix}`, ex.desc);
+    }
     return true;
+}
+
+/**
+ * Registers /ebc with BC's own command system.
+ *
+ * EBC reads the chat box directly and acts on /ebc before BC's parser ever sees
+ * it, which works but leaves the command invisible to everything BC builds on
+ * that list: it is missing from /help, and tab completion does not know the word
+ * exists - so pressing Tab on "/ebc" looked for the nearest thing it did know and
+ * rewrote it to "/ebch", turning a valid command into a broken one.
+ *
+ * This is purely additive. The interception above still handles the command and
+ * clears the input, so Action here is a fallback that in practice does not run;
+ * what registration actually buys is the /help entry and Tab knowing "ebc" is a
+ * real word. If BC ever changes its command API this fails quietly and /ebc goes
+ * on working exactly as before.
+ *
+ * Subcommands and their arguments are declared too, so Tab completes "/ebc rel"
+ * to "/ebc release" and offers on/off after "/ebc updates". Built from
+ * EBC_SUBCOMMANDS, the same table /ebc help prints from.
+ */
+function registerEBCCommand(): void {
+    try {
+        const w = window as unknown as Record<string, unknown>;
+        const combine = w.CommandCombine;
+        if (typeof combine !== "function") return;
+
+        // Root and subcommands both hand the line straight back to
+        // handleMetaCommand instead of reimplementing anything, so whichever
+        // route BC takes behaves identically to typing the command normally.
+        // Not trimEnd() - the TS lib target here predates it.
+        const run = (line: string): void => {
+            try { handleMetaCommand(line.replace(/\s+$/, "")); } catch { /* ignore */ }
+        };
+
+        (combine as (add: unknown) => void)({
+            Tag: "ebc",
+            Description: "- EmeryBC. Type /ebc help for the full list.",
+            Action: (argumentsString: string): void => run(`/ebc ${argumentsString ?? ""}`),
+            Subcommands: EBC_SUBCOMMANDS.map(c => ({
+                Tag: c.tag,
+                Description: `- ${c.desc}`,
+                Action: (argumentsString: string): void => run(`/ebc ${c.tag} ${argumentsString ?? ""}`),
+                ...(c.args ? { Arguments: c.args } : {}),
+            })),
+        });
+    } catch { /* BC command system unavailable - interception still handles /ebc */ }
 }
 
 // -- Update notification -------------------------------------------------------
@@ -6534,6 +6849,10 @@ function handleMetaCommand(inputValue: string): boolean {
 // Uses localStorage to avoid re-notifying for a version the user has already seen.
 
 const EBC_PACKAGE_URL = "https://raw.githubusercontent.com/NekoEmery/EmeryBC/refs/heads/master/package.json";
+// Dev builds have to be compared against dev. Checking a dev build against the
+// stable branch always reports "up to date", because the dev version number is
+// ahead of stable by definition - which told you nothing at all.
+const EBC_PACKAGE_URL_DEV = "https://raw.githubusercontent.com/NekoEmery/EmeryBC/refs/heads/dev/package.json";
 const EBC_UPDATE_STORAGE_KEY = "EBC_NotifiedVersion";
 
 function isNewerVersion(remote: string, local: string): boolean {
@@ -6549,10 +6868,26 @@ function isNewerVersion(remote: string, local: string): boolean {
     return false;
 }
 
+/**
+ * The branch this build compares itself against, and what to call it.
+ *
+ * Both update paths ask for this rather than picking a URL themselves. They used
+ * to choose independently, and only one of them was taught about dev - so
+ * /ebc update reported correctly while the automatic hourly check went on
+ * comparing dev builds against stable, where the dev version is ahead by
+ * definition and therefore never looked like an update.
+ */
+function updateChannel(): { url: string; name: string } {
+    return IS_DEV_BUILD
+        ? { url: EBC_PACKAGE_URL_DEV, name: "dev" }
+        : { url: EBC_PACKAGE_URL,     name: "stable" };
+}
+
 async function checkForUpdateFromGitHub(): Promise<void> {
     try {
         if (!getUpdateNotify()) return;
-        const res = await fetch(`${EBC_PACKAGE_URL}?t=${Date.now()}`);
+        const { url, name: channel } = updateChannel();
+        const res = await fetch(`${url}?t=${Date.now()}`);
         if (!res.ok) return;
         const data = await res.json() as Record<string, unknown>;
         const remote = typeof data.version === "string" ? data.version : null;
@@ -6564,13 +6899,16 @@ async function checkForUpdateFromGitHub(): Promise<void> {
             return;
         }
 
-        // Only notify once per remote version
+        // Only notify once per remote version, per channel. Without the channel
+        // in the key, being told about dev v9.0.0 would silently suppress the
+        // notice when stable later reaches the same number.
+        const seenKey = `${channel}:${remote}`;
         try {
-            if (localStorage.getItem(EBC_UPDATE_STORAGE_KEY) === remote) return;
-            localStorage.setItem(EBC_UPDATE_STORAGE_KEY, remote);
-        } catch { /* localStorage unavailable — notify anyway */ }
+            if (localStorage.getItem(EBC_UPDATE_STORAGE_KEY) === seenKey) return;
+            localStorage.setItem(EBC_UPDATE_STORAGE_KEY, seenKey);
+        } catch { /* localStorage unavailable - notify anyway */ }
 
-        appendLocalLogLine(`[EBC] 🔔 Update available — v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
+        appendLocalLogLine(`[EBC] 🔔 Update available on ${channel} - v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
         appendLocalLogLine(`[EBC]    Refresh the page to get the latest version.`, UI.gold);
         appendLocalLogLine(`[EBC]    To silence these: /ebc updates off`, UI.textMuted);
     } catch { /* network error — ignore silently */ }
@@ -6580,7 +6918,8 @@ async function checkForUpdateFromGitHub(): Promise<void> {
 async function checkUpdateManual(): Promise<void> {
     appendLocalLogLine(`[EBC] Checking for updates…`, UI.textMuted);
     try {
-        const res = await fetch(`${EBC_PACKAGE_URL}?t=${Date.now()}`);
+        const { url, name: channel } = updateChannel();
+        const res = await fetch(`${url}?t=${Date.now()}`);
         if (!res.ok) {
             appendLocalLogLine(`[EBC] Could not reach GitHub to check for updates.`, UI.danger);
             return;
@@ -6593,13 +6932,16 @@ async function checkUpdateManual(): Promise<void> {
         }
 
         if (!isNewerVersion(remote, MOD_VERSION)) {
-            appendLocalLogLine(`[EBC] ✔ Up to date — you are on v${MOD_VERSION}, latest is v${remote}.`, UI.gold);
+            appendLocalLogLine(`[EBC] ✔ Up to date - you are on v${MOD_VERSION} (${channel}), latest ${channel} is v${remote}.`, UI.gold);
             return;
         }
 
         // Update available
-        try { localStorage.setItem(EBC_UPDATE_STORAGE_KEY, remote); } catch { /* ignore */ }
-        appendLocalLogLine(`[EBC] 🔔 Update available! v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
+        // Same key format the automatic check uses, so a manual check actually
+        // suppresses the next automatic notice for that version instead of the
+        // two disagreeing about what has already been seen.
+        try { localStorage.setItem(EBC_UPDATE_STORAGE_KEY, `${channel}:${remote}`); } catch { /* ignore */ }
+        appendLocalLogLine(`[EBC] 🔔 Update available on ${channel}! v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
         appendLocalLogLine(`[EBC]    Refresh the page to load the latest version.`, UI.gold);
         appendLocalLogLine(`[EBC]    To silence auto-notifications: /ebc updates off`, UI.textMuted);
     } catch {
@@ -7314,6 +7656,9 @@ function init(): void {
     // Attach hold-to-drag for the grip handle (mousedown/touchstart on canvas)
     try { initDragListener(); } catch { /* ignore */ }
 
+    // Put /ebc in BC's command list so /help and Tab know about it.
+    try { registerEBCCommand(); } catch { /* ignore */ }
+
     // Canvas listeners for badge repositioning drag mode
     try { initBadgeDragListeners(); } catch { /* ignore */ }
 
@@ -7327,12 +7672,16 @@ function init(): void {
         window.setTimeout(() => { try { drawer?.updateVisibility(); } catch { /* ignore */ } }, 400);
         // Bootstrap room history in case the addon loaded while already in a room
         // (ChatRoomSync won't fire again so we seed the current visit manually).
-        window.setTimeout(() => { try { onRoomSync(); detectNewJoins(); } catch { /* ignore */ } }, 600);
+        window.setTimeout(() => { try { onRoomSync(); detectNewJoins(); achievementScanRoom(); shareRoomIfEnabled(); } catch { /* ignore */ } }, 600);
         // Migrate any existing localStorage bundles into IndexedDB, then evict old entries.
         migrateLocalStorageBundles().then(() => evictOldBundles()).catch(() => {});
         // One-time migration: copy existing server peopleMet into localStorage
         // so the user's history isn't lost on the first run of the hybrid model.
         try { migratePeopleMetToLocal(); } catch { /* ignore */ }
+        try {
+            const n = dedupeSentBeeps();
+            if (n > 0) console.info(`[EBC] Removed ${n} duplicated sent beep${n === 1 ? "" : "s"} from history.`);
+        } catch { /* ignore */ }
         // Seed default badge settings for first-time users.
         window.setTimeout(() => { try { seedDefaultBadgeSettings(); } catch { /* ignore */ } }, 1500);
         // Register online-notification callback so friends.ts can trigger toasts.
@@ -7419,7 +7768,31 @@ function init(): void {
         try { snapshotForLog();             } catch { /* ignore */ }
         try { onRoomSync(args[0] as Record<string, unknown>); } catch { /* ignore */ }
         try { detectNewJoins();             } catch { /* ignore */ }
+        try { achievementScanRoom();        } catch { /* ignore */ }
+        try { shareRoomIfEnabled();         } catch { /* ignore */ }
         try { drawer?.refreshFriendList();  } catch { /* ignore */ }
+        // And again as the roster fills in.
+        //
+        // A friend in a PRIVATE room with you is only identifiable by being
+        // present in ChatRoomCharacter - the server strips a private room's name,
+        // so there is nothing else to go on. Classify before that array is
+        // populated and they come out as "in a private room" instead of under
+        // your room's name. Rejoining at login is when that ordering bites,
+        // because the friend data and the room roster land at once.
+        //
+        // Characters load after ChatRoomSync returns and how long they take
+        // depends on the connection, so a single fixed delay is a guess - the
+        // previous 2.5 s one covered the usual case and left a slow login wrong
+        // until the 30 s poll came round, which is exactly the "sometimes" in
+        // the report. Retried on a short ladder instead, so a slow roster is
+        // caught rather than waited out. Each call is debounced and does nothing
+        // unless the friends list is actually on screen, so the extra passes are
+        // close to free.
+        for (const delay of [300, 1000, 2500, 5000, 9000]) {
+            window.setTimeout(() => {
+                try { drawer?.refreshFriendList(); } catch { /* ignore */ }
+            }, delay);
+        }
         // Auto-apply default ★ face preset on room join if the toggle is enabled
         try {
             if (getAutoApplyDefaultFace()) {
@@ -7621,6 +7994,9 @@ function init(): void {
                 // via setPendingLogApplier when the Action message arrives.
                 try { checkRestraintChanges(); } catch { /* ignore */ }
                 antiRestraintOnPlayerRefresh();
+                // BC has just recomputed the pose, so this is the moment the
+                // Body grid is stale - a restraint forcing a pose lands here.
+                try { drawer?.refreshPoseButtons(); } catch { /* ignore */ }
             } else if (C?.MemberNumber != null && C.MemberNumber !== Player.MemberNumber) {
                 // Record this person in the persistent "people met" list.
                 // seenThisSession guard prevents repeated syncs when CharacterRefresh
@@ -7687,6 +8063,8 @@ function init(): void {
                 onMemberJoin(char);
             }
             try { detectNewJoins(); } catch { /* ignore */ }
+            try { achievementScanRoom(); } catch { /* ignore */ }
+            try { shareRoomIfEnabled(); } catch { /* ignore */ }
         } catch { /* ignore */ }
         return result;
     });
@@ -7696,84 +8074,6 @@ function init(): void {
         try { timerCheckRestraints(); } catch { /* ignore */ }
         return next(args);
     });
-
-    // ── Curse storage (runs on Lucy's client when she receives curse beeps from Emery) ──
-    const getCurseKey = (): string => `EBC_curses_${Player.MemberNumber ?? ""}`;
-    const getCurseItemKey = (): string => `EBC_curseItems_${Player.MemberNumber ?? ""}`;
-    const getCursePauseKey = (): string => `EBC_curse_pauses_${Player.MemberNumber ?? ""}`;
-    const getCursePauses = (): Record<string, number> => {
-        try { const r = localStorage.getItem(getCursePauseKey()); return r ? JSON.parse(r) as Record<string, number> : {}; } catch { return {}; }
-    };
-    const saveCursePauses = (p: Record<string, number>): void => {
-        try { localStorage.setItem(getCursePauseKey(), JSON.stringify(p)); } catch {}
-    };
-    const isCursePaused = (group: string): boolean => { const p = getCursePauses(); return !!(p[group] && Date.now() < p[group]); };
-    const getCurseExpiryKey = (): string => `EBC_curse_expiry_${Player.MemberNumber ?? ""}`;
-    const getCurseExpiry = (): number | null => {
-        try { const r = localStorage.getItem(getCurseExpiryKey()); return r ? parseInt(r) : null; } catch { return null; }
-    };
-    const saveCurseExpiry = (ts: number | null): void => {
-        try { if (ts == null) localStorage.removeItem(getCurseExpiryKey()); else localStorage.setItem(getCurseExpiryKey(), String(ts)); } catch {}
-    };
-    const getCursedGroups = (): Set<string> => {
-        try {
-            const raw = localStorage.getItem(getCurseKey());
-            if (!raw) return new Set();
-            const parsed = JSON.parse(raw) as unknown;
-            if (Array.isArray(parsed)) return new Set(parsed.filter((v): v is string => typeof v === "string"));
-        } catch { /* ignore */ }
-        return new Set();
-    };
-    const saveCursedGroups = (groups: Set<string>): void => {
-        try { localStorage.setItem(getCurseKey(), JSON.stringify([...groups])); } catch { /* ignore */ }
-    };
-    const getCurseItemMap = (): Record<string, string> => {
-        try {
-            const raw = localStorage.getItem(getCurseItemKey());
-            return raw ? (JSON.parse(raw) as Record<string, string>) : {};
-        } catch { return {}; }
-    };
-    const saveCurseItemMap = (map: Record<string, string>): void => {
-        try { localStorage.setItem(getCurseItemKey(), JSON.stringify(map)); } catch { /* ignore */ }
-    };
-    const handleCurseCommand = (msg: string): void => {
-        const inner = msg.slice("[EBC-CURSE:".length).replace(/\]$/, "");
-        const current = getCursedGroups();
-        if (inner.startsWith("apply:")) {
-            const itemMap = getCurseItemMap();
-            for (const entry of inner.slice("apply:".length).split(",").filter(Boolean)) {
-                const eqIdx = entry.indexOf("=");
-                const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
-                const val = eqIdx >= 0 ? entry.slice(eqIdx + 1) : "";
-                if (g === "expiry") { saveCurseExpiry(parseInt(val) || null); continue; }
-                if (g) { current.add(g); if (val) itemMap[g] = val; }
-            }
-            saveCursedGroups(current);
-            saveCurseItemMap(itemMap);
-        } else if (inner.startsWith("pause:")) {
-            const pauses = getCursePauses();
-            for (const entry of inner.slice("pause:".length).split(",").filter(Boolean)) {
-                const eqIdx = entry.indexOf("=");
-                const g = eqIdx >= 0 ? entry.slice(0, eqIdx) : entry;
-                const ms = eqIdx >= 0 ? parseInt(entry.slice(eqIdx + 1)) : 0;
-                if (g && ms > 0) pauses[g] = Date.now() + ms;
-            }
-            saveCursePauses(pauses);
-        } else if (inner === "clear") {
-            saveCursedGroups(new Set());
-            saveCurseItemMap({});
-            saveCursePauses({});
-            saveCurseExpiry(null);
-        } else if (inner.startsWith("clear:")) {
-            const itemMap = getCurseItemMap();
-            for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) {
-                current.delete(g);
-                delete itemMap[g];
-            }
-            saveCursedGroups(current);
-            saveCurseItemMap(itemMap);
-        }
-    };
 
     // Auto-lift timed curses when expiry is reached (checked every 30s)
     window.setInterval(() => {
@@ -7970,6 +8270,28 @@ function init(): void {
         return next(args);
     });
 
+    /** Tells the people you chose which private room you are in. No-ops when
+     *  you have not turned sharing on for anyone. */
+    const shareRoomIfEnabled = (): void => {
+        try { broadcastRoom((to, msg) => sendBeep(to, msg)); } catch { /* ignore */ }
+    };
+
+    // BC builds the name in front of an emote with CharacterNickname, which is
+    // `Nickname ?? Name`. An EMPTY-STRING nickname is not null, so it does not
+    // fall back - the name comes out blank and BC renders "*pouts.*" with
+    // nobody in front of it. Characters arrive from the room sync with an empty
+    // nickname before it is populated, which is why it hit the first emote of a
+    // session and no others. Treat blank as absent, as BC clearly intended.
+    tryHookFunction(modAPI, "CharacterNickname", 5, (args, next) => {
+        const out = next(args);
+        if (typeof out === "string" && out.trim()) return out;
+        try {
+            const c = (args as unknown[])[0] as { Name?: string } | undefined;
+            if (c && typeof c.Name === "string" && c.Name.trim()) return c.Name;
+        } catch { /* ignore */ }
+        return out;
+    });
+
     // Record incoming beeps. The real BC function is ServerAccountBeep (a patchable global).
     tryHookFunction(modAPI, "ServerAccountBeep", 3, (args, next) => {
         try {
@@ -7981,6 +8303,20 @@ function init(): void {
                 beep.Message.startsWith("[EBC-KITTY:")) {
                 handleKittyCommand(beep.Message);
                 return; // suppress notification
+            }
+            // A friend telling us which private room they are in. Silent, and
+            // only accepted from people on our friend list - an unknown sender
+            // has no business writing into our room display.
+            if (typeof beep.Message === "string" && beep.Message.startsWith("[EBC-PRIVROOM:")) {
+                const fromNum3 = typeof beep.MemberNumber === "number"
+                    ? beep.MemberNumber
+                    : (parseInt(String(beep.MemberNumber), 10) || 0);
+                const fl3 = (Player.FriendList as number[] | undefined) ?? [];
+                if (fromNum3 && fl3.includes(fromNum3)) {
+                    const parsed3 = parseShareMessage(beep.Message);
+                    if (parsed3) noteSharedRoom(fromNum3, parsed3.name, parsed3.space);
+                }
+                return; // silent either way
             }
             // EBC protocol messages are always silent - never shown in IM or BC notification.
             // Curse commands only processed if sender is a friend (to prevent abuse).
@@ -8014,6 +8350,18 @@ function init(): void {
                 }
                 return; // sender not a friend - still suppress, just don't process
             }
+            // A rule addon on the recipient's side dropped our message and beeped
+            // back its automatic reply. Flag the message we sent so it stops
+            // looking delivered, and drop it from the offline retry queue - their
+            // rule will refuse it again. The reply itself still shows: it carries
+            // the owner's own wording and explains why nothing arrived.
+            if (typeof beep.Message === "string" && beep.Message.startsWith("[Automatic reply by BCX]")) {
+                const fromNum2 = typeof beep.MemberNumber === "number"
+                    ? beep.MemberNumber
+                    : (parseInt(String(beep.MemberNumber), 10) || 0);
+                if (fromNum2) { try { markLastSentBlocked(fromNum2); } catch { /* ignore */ } }
+            }
+
             // Skip non-IM beep types (grief reports, game invites, etc.).
             // Do NOT skip generic "Beep" type — BC uses it for chatroom pings which
             // can carry a text message and must be recorded in EBC's IM window.
@@ -8043,11 +8391,14 @@ function init(): void {
                     && Date.now() - (afkBeepCooldown.get(fromNum) ?? 0) > AFK_REPLY_COOLDOWN_MS) {
                     afkBeepCooldown.set(fromNum, Date.now());
                     const replyMsg = `[AFK] ${getAfkMessage()}`;
-                    ServerSend("AccountBeep", { MemberNumber: fromNum, Message: replyMsg, BeepType: "" });
-                    addBeepEntry({ from: Player.MemberNumber ?? 0, to: fromNum, message: replyMsg, ts: Date.now() });
-                    const senderLabel = (typeof beep.MemberName === "string" && beep.MemberName) ? beep.MemberName : String(fromNum);
-                    appendLocalLogLine(`[AFK] Replied to ${senderLabel}`, UI.gold);
-                    try { drawer?.refreshBeepWindow(fromNum); } catch { /* ignore */ }
+                    // An auto-reply is still this player sending a beep, so it
+                    // goes through BC's function and a rule can refuse it.
+                    if (sendBeepViaBC(fromNum, replyMsg, false)) {
+                        addBeepEntry({ from: Player.MemberNumber ?? 0, to: fromNum, message: replyMsg, ts: Date.now() });
+                        const senderLabel = (typeof beep.MemberName === "string" && beep.MemberName) ? beep.MemberName : String(fromNum);
+                        appendLocalLogLine(`[AFK] Replied to ${senderLabel}`, UI.gold);
+                        try { drawer?.refreshBeepWindow(fromNum); } catch { /* ignore */ }
+                    }
                 }
             } catch { /* ignore */ }
 
@@ -8139,6 +8490,9 @@ function init(): void {
     // so they are invisible to EBC's IM window unless we hook here.
     tryHookFunction(modAPI, "ServerSendBeepMessage", 3, (args, next) => {
         try {
+            // sendBeep records its own message and handles its own window
+            // refresh. This hook exists purely for beeps EBC did not send.
+            if (isEbcOriginatedBeep()) return next(args);
             const [target, msg] = args as [number, string | undefined, unknown];
             const toNum = typeof target === "number" ? target : (parseInt(String(target), 10) || 0);
             if (toNum && typeof msg === "string" && msg.trim() && !msg.startsWith("[EBC-")) {
@@ -8357,6 +8711,35 @@ function init(): void {
         return _r;
     });
 
+    // Achievements feed (credits crew only): watch activities done to/by the
+    // player and item applies. Independent of the XToys gates above.
+    // Shared achievement plaques render for EVERY EBC user - and suppress the
+    // plain emote fallback that non-EBC clients see.
+    modAPI.hookFunction("ChatRoomMessage", 0, (args, next) => {
+        try {
+            if (handleAchievementShareMessage(args[0] as Record<string, unknown>)) return;
+        } catch { /* ignore */ }
+        const _r = next(args);
+        try {
+            if (!isAchievementUser(Player.MemberNumber)) return _r;
+            const data = args[0] as Record<string, unknown>;
+            if (data?.Type !== "Activity" && data?.Type !== "Action") return _r;
+            const dict = Array.isArray(data.Dictionary)
+                ? data.Dictionary as Record<string, unknown>[]
+                : [];
+            // One parser for both paths - it understands every dictionary shape
+            // BC has used (plain-number SourceCharacter, Tag entries, objects).
+            const { targetNum, sourceNum, actGroup, actName } = parseXToysActivity(dict);
+            const content = String(data.Content ?? "");
+            if (actName) {
+                achievementOnActivity(sourceNum, targetNum, actName, actGroup);
+            } else if (content.startsWith("ActionUse") || content.startsWith("ActionSwap")) {
+                achievementOnItemApply(sourceNum, targetNum, actGroup);
+            }
+        } catch { /* ignore */ }
+        return _r;
+    });
+
     tryHookFunction(modAPI, "VibratorModePublish", 0, (args, next) => {
         const _r = next(args);
         if (!isXToysUser(Player.MemberNumber)) return _r;
@@ -8463,7 +8846,7 @@ function init(): void {
     }, 5000 + Math.floor(Math.random() * 3000));
 
     startUpdateChecker();
-    console.log(`[${MOD_NAME}] v${MOD_VERSION} loaded`);
+    console.log(`[${MOD_NAME}] v${MOD_VERSION} (build ${SAL_VERSION}) loaded`);
 }
 
 const readyInterval = setInterval(() => {

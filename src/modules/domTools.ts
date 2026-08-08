@@ -3,6 +3,8 @@
 // chat command, and announce text template.
 
 import { SerializedItem, RESTRAINT_GROUPS } from "./outfitManager";
+import { activityDenial } from "./activityGate";
+import { hasCreatorAccess } from "./crew";
 import { callBC, getDisplayName, getSettings, syncSettings } from "./bcUtils";
 import { getDomSetAnnounce } from "./settings";
 
@@ -63,7 +65,7 @@ function saveConfig(cfg: DomConfig): void {
 // ── Public API ───────────────────────────────────────────────────────────────
 
 export function isDomEnabled(): boolean {
-    try { return Player.MemberNumber === DOM_CREATOR_ID; } catch { return false; }
+    try { return hasCreatorAccess(Player.MemberNumber); } catch { return false; }
 }
 
 export function getDomConfig(): DomConfig { return loadConfig(); }
@@ -753,6 +755,13 @@ export function performActivityOnTarget(targetId: number, activityName: string, 
     try {
         const target = findRoomChar(targetId);
         if (!target) return false;
+
+        // Same rules BC's own dialog applies before offering the activity. The
+        // emote fallback below is refused too - announcing the action to the room
+        // without permission is the same bypass wearing different clothes.
+        const bcName = BC_ACTIVITY_NAME[activityName] ?? activityName;
+        if (zone && activityDenial(target, zone, bcName) !== null) return false;
+
         const win = window as unknown as Record<string, unknown>;
         const ActivityRun = win.ActivityRun as
             ((actor: Character, acted: Character, group: { Name: string }, item: { Activity: unknown; Item: null }) => void) | undefined;
@@ -760,7 +769,6 @@ export function performActivityOnTarget(targetId: number, activityName: string, 
             ((family: string, name: string) => unknown) | undefined;
         if (ActivityRun && AssetGetActivity && zone) {
             const family = (Player as unknown as Record<string, unknown>).AssetFamily as string ?? "Female3DCG";
-            const bcName = BC_ACTIVITY_NAME[activityName] ?? activityName;
             const act = AssetGetActivity(family, bcName);
             if (act) {
                 ActivityRun(Player, target, { Name: zone }, { Activity: act, Item: null });

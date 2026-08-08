@@ -1,5 +1,6 @@
 ﻿// Action buttons drawn in the chatroom sidebar below BCAR's buttons.
 import { UI } from "./ui";
+import { sendRoomEmote } from "./bcSpeech";
 import { callBC, getSettings, syncSettings } from "./bcUtils";
 import { applyExprPresetWithRevert } from "./expressions";
 import { applyPoses, getCurrentPoses, KNOWN_POSES } from "./poses";
@@ -154,10 +155,19 @@ export function normalizeHex(value: string | undefined, fallback = "#c2185b"): s
 // --- Display name helper -----------------------------------------------------
 
 export function getDisplayName(): string {
-    // CharacterNickname is a BC global not always in the type declarations
+    // CharacterNickname is a BC global not always in the type declarations.
+    // It returns `Nickname ?? Name`, so an EMPTY-STRING nickname short-circuits
+    // to "" instead of falling back to the account name - and an action built
+    // from that goes out with no name in front of it. Treat blank as a miss.
     const nickFn = (window as unknown as Record<string, unknown>).CharacterNickname;
-    if (typeof nickFn === "function") return (nickFn as (c: Character) => string)(Player);
-    return (Player as unknown as Record<string, unknown>).Nickname as string || Player.Name || "Player";
+    if (typeof nickFn === "function") {
+        try {
+            const n = (nickFn as (c: Character) => string)(Player);
+            if (typeof n === "string" && n.trim()) return n.trim();
+        } catch { /* fall through */ }
+    }
+    const nick = (Player as unknown as Record<string, unknown>).Nickname as string | undefined;
+    return (nick && nick.trim()) || Player.Name || "Player";
 }
 
 // --- Sequence runner ----------------------------------------------------------
@@ -227,7 +237,7 @@ export function startBCSlowLeave(durMs: number, introEmote = ""): void {
     const intro = introEmote.trim().replace(/^\*/, "").trim();
     if (intro) {
         try {
-            ServerSend("ChatRoomChat", { Type: "Emote", Content: intro, Dictionary: [] });
+            sendRoomEmote(intro);
         } catch { /* ignore */ }
         slowLeaveIntroId = window.setTimeout(sendAttemptThenLeave, INTRO_DELAY_MS);
     } else {
@@ -457,7 +467,7 @@ export function sendAction(emote: string, style: ActionStyle = "action", include
 
     if (style === "emote") {
         // BC natively formats Emote as:  * Name text *
-        ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] });
+        sendRoomEmote(text);
         return;
     }
 
@@ -498,7 +508,12 @@ try {
     const _saved = localStorage.getItem(SIDEBAR_POS_KEY);
     if (_saved) {
         const _p = JSON.parse(_saved) as { x?: number; y?: number };
-        sidebarX = Math.max(0, Math.min(SIDEBAR_MAX_X_FALLBACK, _p.x ?? SIDEBAR_DEFAULT_X));
+        // NOT clamped to the fallback here. This runs at module load, before the
+        // chat window exists, so the real limit is unknown - and squeezing a
+        // saved position through a 700px guess is what moved the buttons
+        // leftwards on every reload for anyone on a wide screen. Kept as saved
+        // and clamped at draw time, where the live limit is available.
+        sidebarX = Math.max(0, Math.min(10000, _p.x ?? SIDEBAR_DEFAULT_X));
         sidebarY = Math.max(GRIP_H + 2, Math.min(900, _p.y ?? SIDEBAR_DEFAULT_Y));
     }
 } catch { /* ignore */ }
@@ -513,7 +528,13 @@ export function resetSidebarPos(): void {
     try { localStorage.removeItem(SIDEBAR_POS_KEY); } catch { /* ignore */ }
 }
 
-let sidebarCollapsed = false;
+// Persisted: this was a plain variable, so the sidebar sprang back open on
+// every reload no matter how you left it. Device-local rather than synced -
+// whether a panel is folded away is about this screen, not this account.
+const SIDEBAR_COLLAPSE_LS = "EBC_sidebarCollapsed";
+let sidebarCollapsed = (() => {
+    try { return localStorage.getItem(SIDEBAR_COLLAPSE_LS) === "1"; } catch { return false; }
+})();
 
 // Per-button spam cooldown.
 // Up to SPAM_FREE_PRESSES consecutive rapid presses are allowed; the next press
@@ -552,11 +573,20 @@ function screenToCanvas(clientX: number, clientY: number): { x: number; y: numbe
 
 function isInGrip(cx: number, cy: number): boolean {
     const gripY = sidebarY - GRIP_H - 2;
-    return cx >= sidebarX && cx <= sidebarX + CHIP_W &&
-           cy >= gripY    && cy <= gripY + GRIP_H;
+    const sbX = effectiveSidebarX();
+    return cx >= sbX && cx <= sbX + CHIP_W &&
+           cy >= gripY && cy <= gripY + GRIP_H;
 }
 
-/** Returns the maximum canvas-X the sidebar left edge may reach before overlapping the chat. */
+/**
+ * Maximum canvas-X the sidebar's left edge may reach before overlapping the
+ * chat, or NaN when that cannot be measured yet.
+ *
+ * NaN rather than the fallback on purpose. Returning a guess made every caller
+ * unable to tell "the limit is 700" from "I have no idea", and the draw loop
+ * runs on frames where BC has not built the chat log yet - so the guess was
+ * treated as fact and clamped a far-right panel to 700 on every reload.
+ */
 function getSidebarMaxX(): number {
     // Try to read the left edge of BC's chat log (or EBC drawer) in real time.
     // "#TextAreaChatLog" is BC's native chat log element; we also check the EBC drawer.
@@ -576,17 +606,38 @@ function getSidebarMaxX(): number {
             if (canvasX > 50) return Math.max(0, canvasX - CHIP_W - 8);
         }
     }
-    return SIDEBAR_MAX_X_FALLBACK;
+    return NaN;   // nothing measurable - callers must not invent a limit
+}
+
+/**
+ * Where the panel is actually drawn and clicked.
+ *
+ * sidebarX is what the user chose and is never overwritten by this: a window
+ * that is temporarily narrow, or simply not measurable yet, must not silently
+ * become their new saved position. It is clamped for display only, so the panel
+ * stays reachable while a narrow window is up and returns to where they put it
+ * as soon as there is room again.
+ */
+function effectiveSidebarX(): number {
+    const maxX = getSidebarMaxX();
+    return Number.isFinite(maxX) && maxX > 0 && sidebarX > maxX ? maxX : sidebarX;
 }
 
 function startDrag(cx: number, cy: number): void {
     isDragging = true;
     dragAnchorMouseX = cx;
     dragAnchorMouseY = cy;
-    dragAnchorPanelX = sidebarX;
+    // Anchored to the drawn position, not the stored one, so grabbing a panel
+    // that is being held back by a narrow window does not make it jump first.
+    dragAnchorPanelX = effectiveSidebarX();
     dragAnchorPanelY = sidebarY;
     let hasMoved = false;
-    const maxX = getSidebarMaxX();
+    // A drag only happens with the chat window on screen, so the measurement
+    // all but always succeeds - the fallback is here for the case it does not,
+    // and this is the one place a guess is harmless because the user is
+    // watching the panel move and can put it where they want.
+    const liveMax = getSidebarMaxX();
+    const maxX = Number.isFinite(liveMax) ? liveMax : SIDEBAR_MAX_X_FALLBACK;
 
     const onMove = (e: MouseEvent | TouchEvent): void => {
         const pt = "touches" in e ? e.touches[0] : e as MouseEvent;
@@ -693,7 +744,7 @@ function _showTooltip(text: string, canvasAnchorY: number): void {
     const tt = _ensureTooltip();
     if (text !== _tooltipLastText) { tt.textContent = text; _tooltipLastText = text; }
     const { scaleX, scaleY, left, top } = getCanvasScale();
-    const sx = left + (sidebarX + CHIP_W + 6) / scaleX;
+    const sx = left + (effectiveSidebarX() + CHIP_W + 6) / scaleX;
     const sy = top  + canvasAnchorY / scaleY;
     tt.style.left    = `${Math.max(0, Math.min(window.innerWidth - 220, sx))}px`;
     tt.style.top     = `${Math.max(4, sy)}px`;
@@ -829,6 +880,11 @@ function withAlpha(hex: string, alpha: number): string {
 export function drawActionButtons(): void {
     if (CurrentScreen !== "ChatRoom") { _hideTooltip(); return; }
 
+    // Drawn position, resolved once per frame. Everything below - including the
+    // hover hit-tests - uses this rather than the stored position, so what is on
+    // screen and what responds to the mouse cannot drift apart.
+    const sbX = effectiveSidebarX();
+
     // Derived Y positions
     const gripY      = sidebarY - GRIP_H - 2;
     const catChipY   = sidebarY + CHIP_H + 4;
@@ -841,16 +897,16 @@ export function drawActionButtons(): void {
     const bgInactive = withAlpha("#1a0a14",       0.88);
 
     // Drag grip — hold & drag to reposition
-    DrawRect(sidebarX, gripY, CHIP_W, GRIP_H,
+    DrawRect(sbX, gripY, CHIP_W, GRIP_H,
         isDragging ? bgActive : bgNormal);
-    DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H,
+    DrawEmptyRect(sbX, gripY, CHIP_W, GRIP_H,
         isDragging ? UI.accent : UI.panelEdge, 1);
     // 2×3 dot grid
     const dotCol    = isDragging ? UI.accent : UI.accentDeep;
     const dotSize   = 3;
     const dotGapX   = 6;
     const dotGapY   = 5;
-    const dotStartX = sidebarX + CHIP_W / 2 - dotGapX / 2 - dotSize / 2;
+    const dotStartX = sbX + CHIP_W / 2 - dotGapX / 2 - dotSize / 2;
     const dotStartY = gripY + GRIP_H / 2 - dotGapY - dotSize / 2;
     for (let row = 0; row < 3; row++) {
         for (let col = 0; col < 2; col++) {
@@ -859,15 +915,15 @@ export function drawActionButtons(): void {
     }
 
     // Collapse toggle — same palette as grip; lit pink when collapsed so user knows it's there
-    DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H,
+    DrawRect(sbX, sidebarY, CHIP_W, CHIP_H,
         sidebarCollapsed ? bgActive : bgNormal);
-    DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H,
+    DrawEmptyRect(sbX, sidebarY, CHIP_W, CHIP_H,
         sidebarCollapsed ? UI.accent : UI.panelEdge, 1);
     // Two short bars centered — subtle when open, bright when closed
     const bCol = sidebarCollapsed ? UI.accent : UI.accentSoft;
     const bW   = Math.floor(CHIP_W * 0.55);
     const bH   = 2;
-    const bX   = sidebarX + Math.floor((CHIP_W - bW) / 2);
+    const bX   = sbX + Math.floor((CHIP_W - bW) / 2);
     const bMid = sidebarY + Math.floor(CHIP_H / 2);
     DrawRect(bX, bMid - 4, bW, bH, bCol);
     DrawRect(bX, bMid + 2, bW, bH, bCol);
@@ -881,15 +937,15 @@ export function drawActionButtons(): void {
         ? cats[idx].name.slice(0, 5)
         : cats[idx].name.slice(0, 7);
 
-    DrawButton(sidebarX, catChipY, CAT_ARR_W, CAT_CHIP_H,
+    DrawButton(sbX, catChipY, CAT_ARR_W, CAT_CHIP_H,
         "◀", idx > 0 ? bgChip : bgInactive, "", "");
     if (cats.length > 1) {
-        DrawButton(sidebarX + CAT_ARR_W, catChipY, CHIP_W - CAT_ARR_W * 2, CAT_CHIP_H,
+        DrawButton(sbX + CAT_ARR_W, catChipY, CHIP_W - CAT_ARR_W * 2, CAT_CHIP_H,
             label, bgChip, "", "");
-        DrawButton(sidebarX + CHIP_W - CAT_ARR_W, catChipY, CAT_ARR_W, CAT_CHIP_H,
+        DrawButton(sbX + CHIP_W - CAT_ARR_W, catChipY, CAT_ARR_W, CAT_CHIP_H,
             "▶", idx < cats.length - 1 ? bgChip : bgInactive, "", "");
     } else {
-        DrawButton(sidebarX, catChipY, CHIP_W, CAT_CHIP_H, label, bgChip, "", "");
+        DrawButton(sbX, catChipY, CHIP_W, CAT_CHIP_H, label, bgChip, "", "");
     }
 
     const buttons = getButtons();
@@ -901,9 +957,9 @@ export function drawActionButtons(): void {
         const remainMs  = BUTTON_COOLDOWN_MS - (now - (_btnCooldowns.get(cdKey) ?? 0));
         const onCooldown = remainMs > 0;
         if (onCooldown) {
-            drawCooldownButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, remainMs);
+            drawCooldownButton(sbX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, remainMs);
         } else {
-            drawActionButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE,
+            drawActionButton(sbX, btnStartY + i * BTN_SIZE, BTN_SIZE,
                 btn.label, withAlpha(btn.color || "#c2185b", 0.90));
         }
     }
@@ -914,10 +970,10 @@ export function drawActionButtons(): void {
     let ttText: string | null = null;
     let ttY = catChipY;
 
-    if (my2 >= catChipY && my2 <= catChipY + CAT_CHIP_H && mx2 >= sidebarX && mx2 <= sidebarX + CHIP_W) {
+    if (my2 >= catChipY && my2 <= catChipY + CAT_CHIP_H && mx2 >= sbX && mx2 <= sbX + CHIP_W) {
         if (cats.length > 1) {
-            if (mx2 <= sidebarX + CAT_ARR_W)                             { ttText = idx > 0 ? "Previous category" : null; }
-            else if (mx2 >= sidebarX + CHIP_W - CAT_ARR_W)              { ttText = idx < cats.length - 1 ? "Next category" : null; }
+            if (mx2 <= sbX + CAT_ARR_W)                             { ttText = idx > 0 ? "Previous category" : null; }
+            else if (mx2 >= sbX + CHIP_W - CAT_ARR_W)              { ttText = idx < cats.length - 1 ? "Next category" : null; }
             else                                                          { ttText = cats[idx].name; }
         }
     }
@@ -926,7 +982,7 @@ export function drawActionButtons(): void {
             const tbtn = buttons[ti];
             if (!tbtn?.enabled || !tbtn.label || !tbtn.emote) continue;
             const ty = btnStartY + ti * BTN_SIZE;
-            if (mx2 >= sidebarX && mx2 <= sidebarX + BTN_SIZE && my2 >= ty && my2 <= ty + BTN_SIZE) {
+            if (mx2 >= sbX && mx2 <= sbX + BTN_SIZE && my2 >= ty && my2 <= ty + BTN_SIZE) {
                 ttText = tbtn.emote;
                 ttY = ty;
                 break;
@@ -939,6 +995,8 @@ export function drawActionButtons(): void {
 }
 
 export function handleActionButtonClick(): boolean {
+    // Same resolved position the frame was drawn at - see effectiveSidebarX.
+    const sbX = effectiveSidebarX();
     if (CurrentScreen !== "ChatRoom") return false;
 
     const mx = (window as unknown as Record<string, number>).MouseX ?? 0;
@@ -949,9 +1007,10 @@ export function handleActionButtonClick(): boolean {
     const btnStartY = catChipY + CAT_CHIP_H + 4;
 
     // Collapse toggle
-    if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
+    if (mx >= sbX && mx <= sbX + CHIP_W &&
         my >= sidebarY  && my <= sidebarY + CHIP_H) {
         sidebarCollapsed = !sidebarCollapsed;
+        try { localStorage.setItem(SIDEBAR_COLLAPSE_LS, sidebarCollapsed ? "1" : "0"); } catch { /* ignore */ }
         return true;
     }
 
@@ -961,13 +1020,13 @@ export function handleActionButtonClick(): boolean {
     const cats = getCategories();
     const idx  = getActiveCategoryIndex();
     if (my >= catChipY && my <= catChipY + CAT_CHIP_H &&
-        mx >= sidebarX && mx <= sidebarX + CHIP_W) {
+        mx >= sbX && mx <= sbX + CHIP_W) {
         if (cats.length > 1) {
-            if (mx >= sidebarX && mx <= sidebarX + CAT_ARR_W) {
+            if (mx >= sbX && mx <= sbX + CAT_ARR_W) {
                 if (idx > 0) setActiveCategoryIndex(idx - 1);
                 return true;
             }
-            if (mx >= sidebarX + CHIP_W - CAT_ARR_W && mx <= sidebarX + CHIP_W) {
+            if (mx >= sbX + CHIP_W - CAT_ARR_W && mx <= sbX + CHIP_W) {
                 if (idx < cats.length - 1) setActiveCategoryIndex(idx + 1);
                 return true;
             }
@@ -981,7 +1040,7 @@ export function handleActionButtonClick(): boolean {
         const btn = buttons[i];
         if (!btn?.enabled || !btn.label) continue;
         const y = btnStartY + i * BTN_SIZE;
-        if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
+        if (mx >= sbX && mx <= sbX + BTN_SIZE &&
             my >= y         && my <= y + BTN_SIZE) {
             const cdKey = idx * 100 + i;
 

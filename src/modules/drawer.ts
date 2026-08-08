@@ -8,6 +8,7 @@
  * UI pattern inspired by CRABS by Sin (https://github.com/sin-1337/CRABS).
  * Thank you Sin for the open design!
  */
+import { sendRoomEmote, ruleAddonName } from "./bcSpeech";
 import {
     getOutfits,
     applyOutfit,
@@ -18,6 +19,7 @@ import {
     exportOutfitById,
     importOutfitFromJSON,
     importOutfitFromBCCode,
+    importRestraintSetFromBCCode,
     type BCImportMode,
     setOutfitPreserveRestraints,
     setOutfitPreserveClothing,
@@ -54,12 +56,24 @@ import {
     addToOutfitWhitelist,
     removeFromOutfitWhitelist,
     setOutfitNameInAnnounce,
+    setOutfitStorage,
+    setRestraintStorage,
+    getOutfitStorageUsage,
+    reloadLocalLists,
+    setAllOutfitsStorage,
+    setAllRestraintsStorage,
+    OUTFITS_BUDGET,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
-import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo } from "./poses";
+import { getCursedGroups, getCurseExpiry, describeCursedGroups } from "./curse";
+import { CREDITED, CREDITED_THANKS, isCredited, hasCreatorAccess } from "./crew";
+import { getShareWithAllFriends, setShareWithAllFriends, getShareWithStarred, setShareWithStarred,
+         getReceiveShared, setReceiveShared, getShareList, addToShareList, removeFromShareList,
+         shareRecipients, shareRecipientsDetailed, PRIVATE_ROOM_SHARING_ENABLED } from "./privateRooms";
+import { KNOWN_POSES, applyPoses, applyPosesSequential, applyCombo, getCurrentPoses, clearArmPose, getPoseCombos, createCombo, updateCombo, deleteCombo, canTakePose, getEffectivePoses } from "./poses";
 import { Scene, SceneStep, StepType, getScenes, createScene, updateScene, deleteScene, runScene, exportScene, importScene } from "./scenes";
 import { getOnlineTime, getRoomTime, getRestraintTime, getRestraintItemDuration, isTimerGroupExcluded, setTimerGroupExcluded, NECK_TIMER_GROUPS, timerCheckRestraints } from "./timer";
-import { getNotes, saveNote, type CharacterNote } from "./notes";
+import { getNotes, saveNote, deleteNote, type CharacterNote } from "./notes";
 import {
     getButtons,
     getSlotCount,
@@ -93,15 +107,16 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, type EBCGroup, type GroupBeepEntry } from "./friends";
+import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, getPendingMessagesCleaned, cancelPendingMessage, isBeepBlocked, deleteBeepEntry, setQueueDeliveredCallback, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom } from "./bcUtils";
+import { isAchievementUser, isAchievementCrewMember, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
+import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
     isDomEnabled,
@@ -171,6 +186,7 @@ import {
 } from "./whisperLog";
 import { t, getLanguage, setLanguage, onLangChange, LANG_CODES, LANG_NAMES, LANG_LABELS } from "./i18n";
 import { appendLocalLogLine } from "./notify";
+import { runActivityOn, activityDenial, describeSkipped } from "./activityGate";
 import { UI } from "./ui";
 
 // -- Shared UI helpers ---------------------------------------------------------
@@ -447,19 +463,36 @@ function savePanelOpacity(v: number): void {
 
 // -- Panel zoom (persisted to localStorage) ------------------------------------
 // Scales the entire EBC panel (text, buttons, spacing - everything).
-// Range: 0.6 – 2.0. Default 1.0 (matches native BC text density).
+// Range: 0.7 – 2.5. Default 1.0 (matches native BC text density).
 
 const PANEL_ZOOM_KEY = "EBC_panelZoom";
 
 function loadPanelZoom(): number {
     try {
         const v = parseFloat(localStorage.getItem(PANEL_ZOOM_KEY) ?? "1");
-        return isNaN(v) ? 1 : Math.max(0.7, Math.min(2.0, v));
+        return isNaN(v) ? 1 : Math.max(0.7, Math.min(2.5, v));
     } catch { return 1; }
 }
 
 function savePanelZoom(v: number): void {
     try { localStorage.setItem(PANEL_ZOOM_KEY, String(Math.round(v * 100) / 100)); } catch { /* ignore */ }
+}
+
+// -- Recently used emoji (beep window picker) ----------------------------------
+const RECENT_EMOJI_KEY = "EBC_recentEmoji";
+
+function loadRecentEmoji(): string[] {
+    try {
+        const v = JSON.parse(localStorage.getItem(RECENT_EMOJI_KEY) ?? "[]") as unknown;
+        return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 16) : [];
+    } catch { return []; }
+}
+
+function pushRecentEmoji(em: string): void {
+    try {
+        const list = [em, ...loadRecentEmoji().filter(x => x !== em)].slice(0, 16);
+        localStorage.setItem(RECENT_EMOJI_KEY, JSON.stringify(list));
+    } catch { /* ignore */ }
 }
 
 // -- Panel size (width / height) persisted to localStorage ---------------------
@@ -813,7 +846,20 @@ const CSS = `
     -webkit-overflow-scrolling: touch; /* momentum scroll - needed on some Android builds */
 }
 
-/* -- EBC tags strip body (scrollable, capped height so footer stays visible) -- */
+@keyframes ebcAchCrawl {
+    from { background-position: 0 0, 0 0; }
+    to   { background-position: 0 0, 30px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ebc-ach-bar > div { animation: none !important; transition: none !important; }
+}
+
+/* -- EBC tags strip body (scrollable, capped height so footer stays visible) --
+   The cap exists for the CLASSIC layout, where this strip is pinned above every
+   tab and must not push the footer off screen. Inside a pill it owns the whole
+   page, so the cap only produced a small scrollbox with a screen of dead space
+   under it - .ebc-full-height opts out and lets the panel do the scrolling. */
+.ebc-full-height { max-height: none !important; }
 .ebc-tags-body {
     max-height: 210px;
     overflow-y: auto;
@@ -836,6 +882,125 @@ const CSS = `
 .ebc-tags-body::-webkit-scrollbar-thumb:hover,
 .ebc-beep-win-history::-webkit-scrollbar-thumb:hover { background: #e890b8; }
 .ebc-beep-win-history { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
+
+/* Achievements popup - same slim pink scrollbar as the panel body */
+.ebc-ach-scroll::-webkit-scrollbar { width: 5px; }
+.ebc-ach-scroll::-webkit-scrollbar-track { background: #1a0814; border-radius: 3px; }
+.ebc-ach-scroll::-webkit-scrollbar-thumb { background: #cf6f98; border-radius: 3px; }
+.ebc-ach-scroll::-webkit-scrollbar-thumb:hover { background: #e890b8; }
+.ebc-ach-scroll { scrollbar-width: thin; scrollbar-color: #cf6f98 #1a0814; }
+
+/* Achievement cards - tiered plates with depth (t0 locked, t1-t3 bronze/silver/gold) */
+.ebc-ach-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    border: 1px solid #2a1421;
+    background: linear-gradient(160deg, rgba(40,19,32,0.75), rgba(16,7,13,0.92));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 3px rgba(0,0,0,0.45);
+    transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+.ebc-ach-card:hover {
+    transform: translateY(-1px);
+    border-color: #4a2438;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 12px rgba(0,0,0,0.5);
+}
+.ebc-ach-card.t0 { opacity: 0.88; }
+.ebc-ach-card.t1 {
+    border-color: #9a6636;
+    background: linear-gradient(160deg, rgba(122,72,32,0.32), rgba(32,15,9,0.94));
+    box-shadow: inset 0 1px 0 rgba(255,190,130,0.10), 0 1px 3px rgba(0,0,0,0.45);
+}
+.ebc-ach-card.t2 {
+    border-color: #aab4c2;
+    background: linear-gradient(160deg, rgba(142,154,170,0.26), rgba(24,26,33,0.94));
+    box-shadow: inset 0 1px 0 rgba(230,240,255,0.12), 0 1px 3px rgba(0,0,0,0.45);
+}
+.ebc-ach-card.t3 {
+    border-color: #ffd700;
+    background: linear-gradient(160deg, rgba(150,118,0,0.30), rgba(42,32,2,0.94));
+    box-shadow: inset 0 1px 0 rgba(255,235,150,0.16), 0 0 12px rgba(255,215,0,0.12);
+}
+.ebc-ach-card.t3:hover { box-shadow: inset 0 1px 0 rgba(255,235,150,0.2), 0 0 16px rgba(255,215,0,0.22); }
+
+/* Medal coin at the card's left */
+.ebc-ach-medal {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Trebuchet MS", serif;
+    font-size: 12px;
+    font-weight: bold;
+    border: 2px solid #331a2a;
+    background: radial-gradient(circle at 35% 30%, #261120, #120810);
+    color: #5e3c50;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.65);
+}
+.t1 .ebc-ach-medal {
+    border-color: #b57a42;
+    background: radial-gradient(circle at 35% 30%, #dc9d60, #8a5426 62%, #5e3717);
+    color: #38200a;
+    box-shadow: inset 0 1px 1px rgba(255,220,180,0.55), 0 1px 3px rgba(0,0,0,0.5);
+}
+.t2 .ebc-ach-medal {
+    border-color: #ccd4e0;
+    background: radial-gradient(circle at 35% 30%, #f2f6fc, #a8b2c0 60%, #6f7a8a);
+    color: #2c3340;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.6), 0 1px 3px rgba(0,0,0,0.5);
+}
+.t3 .ebc-ach-medal {
+    border-color: #ffe066;
+    background: radial-gradient(circle at 35% 30%, #fff3b0, #f0c420 56%, #a07800);
+    color: #4a3800;
+    box-shadow: inset 0 1px 1px rgba(255,255,220,0.7), 0 0 9px rgba(255,215,0,0.45);
+}
+
+/* Progress bar - inset trough, gradient fill toward the NEXT metal */
+.ebc-ach-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: #150911;
+    border: 1px solid #2a1421;
+    overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.55);
+}
+.ebc-ach-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #8a5426, #cd7f32); }
+.t1 .ebc-ach-fill { background: linear-gradient(90deg, #8f99a8, #dfe6ee); }
+.t2 .ebc-ach-fill { background: linear-gradient(90deg, #c09a20, #ffd700); }
+.t3 .ebc-ach-fill { background: linear-gradient(90deg, #e8c020, #ffe680); box-shadow: 0 0 6px rgba(255,215,0,0.6); }
+
+/* Class section header with a fading divider line */
+.ebc-ach-clshead {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 9px 2px 3px;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #b98aa0;
+}
+.ebc-ach-clsline { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(207,111,152,0.45), transparent); }
+/* The per-class tally. It was 10px in a dim grey at 0.14em tracking, which made
+   the one number on the row that carries information the hardest thing on it to
+   read. Bigger, brighter, and tracking reset so the digits sit together. */
+.ebc-ach-clscnt {
+    color: #d8a8bc;
+    font-weight: bold;
+    letter-spacing: 0;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
 
 /* -- Section label -- */
 .ebc-section-label {
@@ -2774,7 +2939,16 @@ const CSS = `
     border-bottom: 1px solid rgba(45,18,32,0.60);
     flex-shrink: 0;
 }
-.ebc-beep-room-drawer.open { max-height: 130px; }
+.ebc-beep-room-drawer.open { max-height: 180px; }
+.ebc-beep-room-drawer-btnrow { display: flex; gap: 5px; }
+.ebc-beep-room-drawer-with {
+    font-family: "Trebuchet MS", serif;
+    font-size: 9px;
+    color: #7a5a6a;
+    align-self: center;
+    flex-shrink: 0;
+    user-select: none;
+}
 .ebc-beep-room-drawer-inner {
     padding: 7px 10px 8px;
     display: flex;
@@ -2798,29 +2972,140 @@ const CSS = `
 .ebc-beep-room-drawer-join {
     background: #3a1028;
     border: 1px solid #cf6f98;
-    border-radius: 4px;
+    border-radius: 9px;
     color: #cf6f98;
     font-size: 10px;
     font-family: "Trebuchet MS", serif;
     padding: 4px 0;
     cursor: pointer;
-    width: 100%;
+    flex: 1;
     transition: background 0.12s, color 0.12s;
 }
 .ebc-beep-room-drawer-join:hover { background: #cf6f98; color: #fff; }
 .ebc-beep-room-drawer-copy {
     background: transparent;
     border: 1px solid #4a2038;
-    border-radius: 4px;
+    border-radius: 9px;
     color: #9a6080;
     font-size: 10px;
     font-family: "Trebuchet MS", serif;
-    padding: 3px 0;
+    padding: 4px 0;
     cursor: pointer;
-    width: 100%;
+    flex: 1;
     transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .ebc-beep-room-drawer-copy:hover { background: rgba(80,30,50,0.4); border-color: #cf6f98; color: #cf6f98; }
+
+/* Room bar dropdown hint - hidden when there is nothing to drop down */
+.ebc-beep-room-bar:not(.no-drawer)::after { content: " ▼"; font-size: 7px; opacity: 0.55; }
+
+/* Friend Rooms section (Users tab) - room cards with member chips */
+.ebc-friend-rooms-card {
+    background: rgba(30,13,26,0.40);
+    border: 1px solid rgba(58,25,40,0.55);
+    border-radius: 8px;
+    padding: 5px 8px 6px;
+    margin-bottom: 5px;
+}
+.ebc-friend-rooms-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ebc-friend-rooms-icon { font-size: 11px; flex-shrink: 0; line-height: 1; }
+.ebc-friend-rooms-name {
+    font-family: "Trebuchet MS", serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: #e0b0c8;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ebc-friend-rooms-cnt {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    font-weight: bold;
+    color: #e8b4c4;
+    background: rgba(192,100,130,0.18);
+    border: 1px solid rgba(192,100,130,0.35);
+    border-radius: 9px;
+    padding: 0 6px;
+    line-height: 14px;
+    flex-shrink: 0;
+}
+.ebc-friend-rooms-join {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10.5px;
+    padding: 1px 9px;
+    border-radius: 9px;
+    border: 1px solid #cf6f98;
+    background: #1e0c18;
+    color: #cf6f98;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.12s, color 0.12s;
+}
+.ebc-friend-rooms-join:hover { background: #cf6f98; color: #fff; }
+.ebc-friend-rooms-chips { display: flex; flex-wrap: wrap; gap: 3px; padding-top: 4px; }
+.ebc-friend-rooms-chip {
+    font-family: "Trebuchet MS", serif;
+    font-size: 10px;
+    color: #c0a0b0;
+    background: rgba(38,14,26,0.65);
+    border: 1px solid rgba(80,30,50,0.55);
+    border-radius: 9px;
+    padding: 1px 7px;
+    cursor: pointer;
+    line-height: 15px;
+    transition: color 0.12s, border-color 0.12s;
+}
+.ebc-friend-rooms-chip:hover { color: #e8c0d4; border-color: #cf6f98; }
+/* Your current room - green-tinted so it never blends with joinable rooms */
+.ebc-friend-rooms-card.current {
+    border-color: rgba(121,168,133,0.7);
+    background: linear-gradient(160deg, rgba(52,98,66,0.24), rgba(14,10,13,0.92));
+    box-shadow: inset 0 1px 0 rgba(160,220,175,0.08);
+}
+.ebc-friend-rooms-card.current .ebc-friend-rooms-name { color: #a8e0b0; }
+.ebc-friend-rooms-card.current .ebc-friend-rooms-cnt {
+    color: #a8e0b0;
+    background: rgba(121,168,133,0.16);
+    border-color: rgba(121,168,133,0.4);
+}
+.ebc-friend-rooms-chip.self {
+    border-color: rgba(121,168,133,0.6);
+    color: #a8e0b0;
+    cursor: default;
+}
+/* Full people rows embedded in your current room's card */
+.ebc-friend-rooms-card.current .ebc-friend-wrap { margin-top: 4px; }
+.ebc-friend-rooms-card.current .ebc-friend-wrap:first-of-type { margin-top: 5px; }
+.ebc-friend-rooms-del {
+    background: transparent;
+    border: 1px solid #4a2038;
+    border-radius: 9px;
+    color: #9a6080;
+    font-size: 11px;
+    line-height: 1;
+    padding: 3px 7px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.12s, border-color 0.12s;
+}
+.ebc-friend-rooms-del:hover { color: #cf6f98; border-color: #cf6f98; }
+.ebc-friend-rooms-add {
+    width: 100%;
+    font-family: "Trebuchet MS", serif;
+    font-size: 10.5px;
+    padding: 3px 0;
+    border-radius: 9px;
+    border: 1px dashed #4a2038;
+    background: transparent;
+    color: #9a7080;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s;
+    margin-bottom: 2px;
+}
+.ebc-friend-rooms-add:hover { color: #cf6f98; border-color: #cf6f98; }
 
 /* Message wrap */
 .ebc-beep-msg-wrap { position: relative; }
@@ -3034,7 +3319,13 @@ const CSS = `
 .ebc-free-mode .ebc-header {
     cursor: grab;
     border-radius: 8px 8px 0 0;
+    padding: 5px 8px;
 }
+/* Floating panels are often narrower - drop the subtitle and tighten the
+   header buttons so the title and controls never overlap or half-clip. */
+.ebc-free-mode .ebc-title-sub { display: none; }
+.ebc-free-mode .ebc-icon-btn { padding: 4px 6px; }
+.ebc-free-mode .ebc-header-btns { gap: 3px; }
 .ebc-free-mode .ebc-header:active { cursor: grabbing; }
 .ebc-reset-loc-btn {
     background: transparent;
@@ -3579,7 +3870,7 @@ export function showConfirmOverlay(
     ].join(";");
 
     const msg = document.createElement("div");
-    msg.style.cssText = "font-size:12px;color:#cf6f98;line-height:1.55;";
+    msg.style.cssText = "font-size:12px;color:#cf6f98;line-height:1.55;white-space:pre-wrap;";
     msg.textContent = message;
     overlay.appendChild(msg);
 
@@ -3702,6 +3993,16 @@ const EBC_USER_TABS      = ["outfits", "buttons", "anims", "notes", "toys", "tha
 const EBC_TAB_LABELS: Record<string, string> = {
     outfits: "OUTFITS", buttons: "BUTTONS", anims: "ANIMS",
     notes: "USERS", toys: "TOYS", thanks: "CREDITS", dev: "DEV",
+};
+
+// ── Grouped ("new") layout ───────────────────────────────────────────────
+// The same features, regrouped behind six broader tabs. Nothing is removed:
+// every old renderX() still exists and the classic 8-tab set is restored the
+// moment the user flips "Menu layout" back to the old layout in DEV -> Drawer.
+const EBC_GROUPED_TABS   = ["me", "safety", "social", "buttons", "toys", "settings", "thanks"] as const;
+const EBC_GROUPED_TAB_LABELS: Record<string, string> = {
+    me: "ME", safety: "SAFETY", social: "SOCIAL",
+    buttons: "BUTTONS", toys: "TOYS", settings: "SETTINGS", thanks: "CREDITS",
 };
 
 // The 9 user-facing colour slots. All derived colours are computed from these.
@@ -3827,13 +4128,25 @@ function buildCSS(c: CoreColors): string {
 
 // -- VIP members (highlighted in Notes tab when present in the room) -----------
 
-const VIP_MEMBERS: Record<number, { label: string; color: string; gradient: [string, string] }> = {
-    130267: { label: "creator", color: "#f77ec0", gradient: ["#f77ec0", "#40d8c8"] },  // Emery  - pink → turquoise
-    143776: { label: "Sin",     color: "#ff9dd0", gradient: ["#ff9dd0", "#d4407a"] },  // Sin    - light pink → hot pink
-    124264: { label: "Lara",    color: "#d898f0", gradient: ["#d898f0", "#8840d0"] },  // Lara   - lilac → deep purple
-    230466: { label: "Lucy",    color: "#70e0d8", gradient: ["#70e0d8", "#2098a8"] },  // Lucy   - light teal → dark teal
-        80: { label: "Sybil",   color: "#98e8a8", gradient: ["#98e8a8", "#30a870"] },  // Sybil  - mint → forest green
-};
+// Room occupancy (name -> count/limit), harvested from any ChatRoomSearchResult
+// that passes by. Friend-presence data carries no counts, so this is the only
+// source for rooms the player is not standing in. Entries older than 5 minutes
+// are treated as stale and not shown.
+const _roomCounts = new Map<string, { count: number; limit: number; ts: number }>();
+const ROOM_COUNT_TTL_MS = 5 * 60 * 1000;
+
+function getRoomCount(name: string): { count: number; limit: number } | null {
+    const e = _roomCounts.get(name.trim().toLowerCase());
+    if (!e || Date.now() - e.ts > ROOM_COUNT_TTL_MS) return null;
+    return { count: e.count, limit: e.limit };
+}
+
+// Built straight from the credits roster, so anyone added there gets their
+// animated name everywhere it appears without a second list to remember.
+const VIP_MEMBERS: Record<number, { label: string; color: string; gradient: [string, string] }> = {};
+for (const _p of CREDITED) {
+    VIP_MEMBERS[_p.num] = { label: _p.vipLabel ?? _p.name, color: _p.color, gradient: _p.gradient };
+}
 
 /** Apply an animated flowing gradient as text fill colour to an element. */
 function applyGradientText(el: HTMLElement, from: string, to: string): void {
@@ -3906,7 +4219,27 @@ function addPointerTracking(
 
 // -- Class ---------------------------------------------------------------------
 
-type DrawerTab = "outfits" | "anims" | "buttons" | "notes" | "toys" | "thanks" | "dev" | "dom" | "puppy" | "kitty";
+type DrawerTab = "outfits" | "anims" | "buttons" | "notes" | "toys" | "thanks" | "dev" | "dom" | "puppy" | "kitty"
+    // Grouped-layout tabs. "buttons" and "toys" are shared by both layouts.
+    | "me" | "safety" | "social" | "settings";
+
+/** true when the user is on the new grouped 6-tab layout ("tabs"), false for
+ *  the original 8-tab stacked layout ("classic"). Same setting that already
+ *  drives pill sub-navigation, so one toggle switches the whole menu. */
+function isGroupedLayout(): boolean {
+    return getUsersLayout() === "tabs";
+}
+
+/** Nearest grouped-layout tab for a classic tab id, and vice versa. Used when
+ *  the layout is switched while sitting on a tab the other layout lacks. */
+const EBC_TAB_TO_GROUPED: Record<string, DrawerTab> = {
+    outfits: "me", anims: "me", notes: "social", thanks: "thanks",
+    dev: "settings", dom: "toys", buttons: "buttons", toys: "toys",
+};
+const EBC_TAB_TO_CLASSIC: Record<string, DrawerTab> = {
+    me: "outfits", safety: "outfits", social: "notes", settings: "dev",
+    buttons: "buttons", toys: "toys", thanks: "thanks",
+};
 
 // ── Pinned-strip tab-filter helpers ──────────────────────────────────────────
 // Each pinned section (Safewords, EBC Tags) stores a Set of tab IDs it should
@@ -3957,6 +4290,35 @@ interface LovenseTouchState {
 }
 
 const TOUCH_DEFS: ReadonlyArray<{ key: string; label: string; activity: string; group?: string; dflt: boolean }> = [];
+
+/**
+ * Outfits and restraint sets are stored per item, not per settings key: each one
+ * carries its own `local` flag. Everything that reports on outfit storage - the
+ * size bar, the Account/Local pill on each row, the save budget - reads that
+ * flag, so the storage manager's category switch has to drive it rather than the
+ * generic device-key mechanism, which would move the key and leave every flag
+ * (and therefore every reading) exactly as it was.
+ *
+ * Matched on the settings key rather than the label so a rename cannot silently
+ * detach this.
+ */
+function catOwnLocalSetter(cat: DataCategory): ((local: boolean) => boolean) | null {
+    if (cat.keys.includes("outfits"))    return setAllOutfitsStorage;
+    if (cat.keys.includes("restraints")) return setAllRestraintsStorage;
+    return null;
+}
+
+/** Where that category currently lives, by the same per-item flag. */
+function catOwnLocalLocation(cat: DataCategory): "account" | "device" | "mixed" | null {
+    const list = cat.keys.includes("outfits")    ? getOutfits()
+               : cat.keys.includes("restraints") ? getRestraints()
+               : null;
+    if (!list) return null;
+    if (list.length === 0) return "account";   // empty - nothing has moved anywhere
+    const anyAccount = list.some(o => !o.local);
+    const anyLocal   = list.some(o => o.local === true);
+    return anyAccount && anyLocal ? "mixed" : anyAccount ? "account" : "device";
+}
 
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
@@ -4009,6 +4371,9 @@ export class EBCDrawer {
     private friendRefreshDebounce: ReturnType<typeof window.setTimeout> | null = null;
     private offlineFriendsCollapsed = true;
     private roomPeopleCollapsed = false;
+    private friendRoomsCollapsed = false;
+    private _refreshTrophyVis: (() => void) | null = null;
+    private _roomsSectionEl: HTMLElement | null = null;
     private friendSort   = "status"; // persisted in localStorage as EBC_friendSort
     private friendSearch = "";       // live search query - not persisted
     // Tracks what colors were last written into inline styles by repaintTheme() so that
@@ -4071,7 +4436,23 @@ export class EBCDrawer {
     private _hqScreenWatchTimer: ReturnType<typeof setInterval> | null = null;
     // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
     private safewordRowEl: HTMLElement | null = null;
+    private quickActionsEl: HTMLElement | null = null;
+    private selfPickPanelEl: HTMLElement | null = null;
     private ebcTagsStripEl: HTMLElement | null = null;
+    private langRowEl: HTMLElement | null = null;
+    private tabBarEl: HTMLElement | null = null;
+    private notesBadgeEl: HTMLElement | null = null;
+    /** While set, every tab renderer builds into this element instead of
+     *  #ebc-body. The grouped layout uses it to run several existing renderX()
+     *  methods one after another without them wiping each other's output. */
+    private bodyOverride: HTMLElement | null = null;
+    /** Suppresses a tab's own _pillifyTab() call while it is being composed into
+     *  a grouped tab - the grouped tab pillifies the combined result once. */
+    private noPillify = false;
+    /** Pill sub-navigation of the tab currently on screen: which button owns
+     *  which elements. Lets the guide open the right pill before spotlighting.
+     *  Rebuilt on every renderCurrentTab(). */
+    private pillGroups: Array<{ btn: HTMLButtonElement; els: HTMLElement[] }> = [];
     // i18n - references to static header/tab/qa elements updated by updateStaticTranslations()
     private _langUnsubscribe: (() => void) | null = null;
     private _langPillsRefresh: (() => void) | null = null;
@@ -4092,6 +4473,11 @@ export class EBCDrawer {
         tabPuppy?: HTMLButtonElement;
         tabKitty?: HTMLButtonElement;
         tabToys?: HTMLButtonElement;
+        // grouped-layout tabs
+        tabMe?: HTMLButtonElement;
+        tabSafety?: HTMLButtonElement;
+        tabSocial?: HTMLButtonElement;
+        tabSettings?: HTMLButtonElement;
         // quick-actions static elements
         releaseBtn?: HTMLButtonElement;
         unlockBtn?: HTMLButtonElement;
@@ -4109,6 +4495,13 @@ export class EBCDrawer {
         this.isDev      = isDev;
         this.salVersion = salVersion;
         registerOpenBeepCallback((n) => this.openBeepWindow(n));
+        // When queued offline messages get handed to the server (recipient came
+        // online), refresh that member's open beep window so ⏳ markers disappear.
+        setQueueDeliveredCallback((n) => {
+            const entry = this.beepWins.get(n);
+            const refresh = (entry?.el as unknown as Record<string, unknown> | undefined)?._refresh as (() => void) | undefined;
+            if (refresh) try { refresh(); } catch { /* ignore */ }
+        });
         // Live-update the DEV tab whisper log section when new messages arrive
         setWhisperUpdateCallback(() => {
             if (this.isOpen && this.currentTab === "dev") {
@@ -4307,12 +4700,14 @@ export class EBCDrawer {
         title.style.gap = "5px";
 
         const titleMain = document.createElement("span");
+        titleMain.style.cssText = "flex-shrink:0;white-space:nowrap;";
         this._versionTitleEl = titleMain;
         this._updateVersionTitle();
 
         const titleSub = document.createElement("span");
+        titleSub.className = "ebc-title-sub";
         titleSub.textContent = "EmeryBC";
-        titleSub.style.cssText = "font-size:11px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;";
+        titleSub.style.cssText = "font-size:11px;color:#7a5060;font-weight:normal;letter-spacing:0.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
 
         title.appendChild(titleMain);
         title.appendChild(titleSub);
@@ -4320,7 +4715,7 @@ export class EBCDrawer {
         if (this.isDev) {
             const devChip = document.createElement("span");
             devChip.textContent = "DEV";
-            devChip.style.cssText = "font-size:11px;font-weight:bold;letter-spacing:1px;padding:1px 5px;border-radius:3px;background:#2a0e1a;border:1px solid #cf6f98;color:#f0a0c0;";
+            devChip.style.cssText = "flex-shrink:0;font-size:11px;font-weight:bold;letter-spacing:1px;padding:1px 5px;border-radius:3px;background:#2a0e1a;border:1px solid #cf6f98;color:#f0a0c0;";
             title.appendChild(devChip);
         }
 
@@ -4356,6 +4751,25 @@ export class EBCDrawer {
         this._i18nRefs.resetLocBtn = resetLocBtn;
         this._i18nRefs.closeBtn    = closeBtn;
 
+        const trophyBtn = document.createElement("button");
+        trophyBtn.className = "ebc-icon-btn";
+        trophyBtn.title = "Achievements";
+        trophyBtn.textContent = "🏆";
+        trophyBtn.addEventListener("click", () => this.showAchievementsOverlay());
+        // The header is built before login completes, so Player.MemberNumber may
+        // not exist yet - re-check visibility until it does (or give up quietly).
+        const refreshTrophyVis = (): void => {
+            trophyBtn.style.display = isAchievementCrewMember((Player as { MemberNumber?: number })?.MemberNumber) ? "" : "none";
+        };
+        refreshTrophyVis();
+        this._refreshTrophyVis = refreshTrophyVis;
+        let trophyTries = 0;
+        const trophyTimer = window.setInterval(() => {
+            refreshTrophyVis();
+            if (trophyBtn.style.display === "" || ++trophyTries > 40) window.clearInterval(trophyTimer);
+        }, 2000);
+
+        headerBtns.appendChild(trophyBtn);
         headerBtns.appendChild(refreshBtn);
         headerBtns.appendChild(moveHandle);
         headerBtns.appendChild(resetLocBtn);
@@ -4456,6 +4870,8 @@ export class EBCDrawer {
         notesBadgeEl.id = "ebc-notes-tab-badge";
         notesBadgeEl.style.cssText = "display:none;position:absolute;top:3px;right:2px;min-width:14px;height:14px;background:#cf6f98;color:#fff;border-radius:7px;font-size:11px;font-weight:bold;line-height:14px;text-align:center;padding:0 3px;pointer-events:none;box-sizing:border-box;";
         notesTabBtn.appendChild(notesBadgeEl);
+        // Moved onto whichever tab button hosts the friends list (USERS or SOCIAL).
+        this.notesBadgeEl = notesBadgeEl;
 
         const toysTabBtn = document.createElement("button");
         toysTabBtn.className = "ebc-tab-btn";
@@ -4501,7 +4917,34 @@ export class EBCDrawer {
         kittyTabBtn.title = t("tabs.kitty");
         kittyTabBtn.style.display = "none"; // revealed in open() for Lucy only
 
+        // ── Grouped-layout tabs ──────────────────────────────────────────────
+        // Created alongside the classic ones and shown/hidden by applyLayoutMode().
+        // BUTTONS and TOYS are shared, so only four extra buttons are needed.
+        const mkGroupedTab = (id: string, labelKey: string, titleKey: string): HTMLButtonElement => {
+            const b = document.createElement("button");
+            b.className = "ebc-tab-btn";
+            b.id = `ebc-tab-${id}`;
+            b.style.position = "relative";   // SOCIAL hosts the unread badge
+            // The label lives in its own span so re-translating a tab never wipes
+            // a badge that has been appended to the button.
+            const lbl = document.createElement("span");
+            lbl.className = "ebc-tab-label";
+            lbl.textContent = t(labelKey);
+            b.appendChild(lbl);
+            b.title = t(titleKey);
+            b.style.display = "none"; // applyLayoutMode() decides
+            return b;
+        };
+        const meTabBtn       = mkGroupedTab("me",       "tabs.me",       "tabs.meTitle");
+        const safetyTabBtn   = mkGroupedTab("safety",   "tabs.safety",   "tabs.safetyTitle");
+        const socialTabBtn   = mkGroupedTab("social",   "tabs.social",   "tabs.socialTitle");
+        const settingsTabBtn = mkGroupedTab("settings", "tabs.settings", "tabs.settingsTitle");
+
         // Store tab refs for language updates
+        this._i18nRefs.tabMe       = meTabBtn;
+        this._i18nRefs.tabSafety   = safetyTabBtn;
+        this._i18nRefs.tabSocial   = socialTabBtn;
+        this._i18nRefs.tabSettings = settingsTabBtn;
         this._i18nRefs.tabOutfits = outfitTabBtn;
         this._i18nRefs.tabButtons = btnsTabBtn;
         this._i18nRefs.tabAnims   = posesTabBtn;
@@ -4523,24 +4966,39 @@ export class EBCDrawer {
         tabBar.appendChild(domTabBtn);
         tabBar.appendChild(puppyTabBtn);
         tabBar.appendChild(kittyTabBtn);
+        tabBar.appendChild(meTabBtn);
+        tabBar.appendChild(safetyTabBtn);
+        tabBar.appendChild(socialTabBtn);
+        tabBar.appendChild(settingsTabBtn);
+        this.tabBarEl = tabBar;
 
         // ── Language picker row - sits between tab bar and quick-actions ─────
         const langRow = document.createElement("div");
         langRow.className = "ebc-lang-row";
 
         const langPills: HTMLButtonElement[] = [];
+        const langNameEls: HTMLElement[] = [];
+        // Two shapes for one row. Pinned under the tab bar in the classic layout
+        // it must stay a thin strip, but inside the SETTINGS pill it has a whole
+        // page to itself - so there it becomes a grid of cards that name each
+        // language, rather than seven tiny codes floating in empty space.
         const refreshLangPills = (): void => {
             const cur = getLanguage();
-            for (const pill of langPills) {
+            const grid = isGroupedLayout();
+            langRow.style.cssText = grid
+                ? "display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:7px;padding:3px 0;"
+                : "";
+            for (let i = 0; i < langPills.length; i++) {
+                const pill = langPills[i];
                 const active = pill.dataset.lang === cur;
+                langNameEls[i].style.display = grid ? "block" : "none";
                 pill.style.cssText = [
                     "font-family:'Trebuchet MS',serif",
-                    "font-size:11px",
-                    "padding:4px 10px",
-                    "border-radius:12px",
                     "cursor:pointer",
-                    "flex-shrink:0",
                     "transition:background 0.12s,color 0.12s,border-color 0.12s",
+                    grid
+                        ? "font-size:12px;padding:9px 8px;border-radius:9px;text-align:center;line-height:1.3;"
+                        : "font-size:11px;padding:4px 10px;border-radius:12px;flex-shrink:0;",
                     active
                         ? "border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;font-weight:bold;"
                         : "border:1px solid #3a1928;background:transparent;color:#8a5070;",
@@ -4551,21 +5009,32 @@ export class EBCDrawer {
             const pill = document.createElement("button");
             pill.dataset.lang = code;
             pill.className = "ebc-lang-pill"; // enables touch-mode CSS targeting
-            pill.textContent = LANG_LABELS[code];
+            const codeEl = document.createElement("div");
+            codeEl.textContent = LANG_LABELS[code];
+            const nameEl = document.createElement("div");
+            nameEl.textContent = LANG_NAMES[code];
+            nameEl.style.cssText = "font-size:9.5px;font-weight:normal;opacity:0.72;margin-top:2px;";
+            pill.appendChild(codeEl);
+            pill.appendChild(nameEl);
             pill.title = LANG_NAMES[code]; // full name on hover
             pill.addEventListener("click", () => {
                 setLanguage(code);
                 refreshLangPills();
             });
             langPills.push(pill);
+            langNameEls.push(nameEl);
             langRow.appendChild(pill);
         }
         refreshLangPills();
         this._langPillsRefresh = refreshLangPills;
+        // Kept as a ref so applyLayoutMode() can move it: pinned under the tab
+        // bar in the classic layout, inside the SETTINGS tab when grouped.
+        this.langRowEl = langRow;
 
         // Quick actions bar (always visible below tabs)
         const quickActions = document.createElement("div");
         quickActions.className = "ebc-quick-actions";
+        this.quickActionsEl = quickActions;
         quickActions.style.cssText = quickActions.style.cssText + ";flex-direction:column;gap:4px;";
 
         // Row 1: all-at-once danger buttons
@@ -4648,6 +5117,7 @@ export class EBCDrawer {
 
         // Self-picker panel (collapsed by default, sits between quickActions and badgeRow)
         const selfPickPanel = document.createElement("div");
+        this.selfPickPanelEl = selfPickPanel;
         selfPickPanel.style.cssText = "display:none;flex-direction:column;gap:5px;flex-shrink:0;background:rgba(20,8,16,0.85);border-top:1px solid #2a1421;padding:7px 8px;max-height:220px;overflow-y:auto;";
 
         const selfPickStatus = document.createElement("div");
@@ -5155,10 +5625,15 @@ export class EBCDrawer {
         panel.appendChild(header);
         panel.appendChild(tabBar);
         panel.appendChild(langRow);
-        panel.appendChild(quickActions);
-        panel.appendChild(selfPickPanel);
-        panel.appendChild(safewordRow);
-        panel.appendChild(ebcTagsStrip);
+        // Pinned above every tab unless the user moved them into Buttons.
+        if (!getQuickActionsInButtons()) {
+            panel.appendChild(quickActions);
+            panel.appendChild(selfPickPanel);
+        }
+        // Safewords and EBC Tags are no longer pinned above every tab - they live
+        // in the DEV tab as their own pill sections (see renderDev). They are kept
+        // as detached elements here and re-appended on each DEV render, so all
+        // their existing handlers and refs stay valid.
         panel.appendChild(body);
         panel.appendChild(footer);
 
@@ -5245,18 +5720,29 @@ export class EBCDrawer {
             );
         });
 
-        // Right-click on tab resets to auto-position (follow CRABS / default)
+        // Right-click on the tab resets it to auto-position. It used to do that
+        // silently, so anyone who right-clicked it - for a browser menu, or by
+        // accident - watched the button they had carefully placed jump somewhere
+        // else with no explanation and no way to undo it. Ask first. The same
+        // reset is on the header's Reset button for anyone who wants it there.
         tab.addEventListener("contextmenu", (e: MouseEvent) => {
             e.preventDefault();
-            this.userTabOffset = null;
-            this.tabOffsetChecked = true; // no need to re-poll - user explicitly reset
-            this.lastCrabsBottom = -1;
-            // Clear inline fixed-position overrides so CSS absolute layout takes over
-            tab.style.position = "";
-            tab.style.left = "";
-            tab.style.top  = "";
-            this.saveTabOffset(null); // null = reset to auto
-            this.updateCrabsPosition();
+            if (this.userTabOffset === null) return;   // already where it belongs
+            showConfirmOverlay(
+                "Put the EBC button back where it started?\n\nIt will go back to following the chat window, and the position you dragged it to is forgotten.",
+                "Keep it here", "Reset it",
+                () => {
+                    this.userTabOffset = null;
+                    this.tabOffsetChecked = true; // no need to re-poll - explicit reset
+                    this.lastCrabsBottom = -1;
+                    // Clear inline fixed-position overrides so CSS layout takes over
+                    tab.style.position = "";
+                    tab.style.left = "";
+                    tab.style.top  = "";
+                    this.saveTabOffset(null); // null = reset to auto
+                    this.updateCrabsPosition();
+                },
+            );
         });
 
         resetLocBtn.addEventListener("click", () => {
@@ -5299,6 +5785,10 @@ export class EBCDrawer {
         domTabBtn.addEventListener("click",      () => this.switchTab("dom"));
         puppyTabBtn.addEventListener("click",    () => this.switchTab("puppy"));
         kittyTabBtn.addEventListener("click",    () => this.switchTab("kitty"));
+        meTabBtn.addEventListener("click",       () => this.switchTab("me"));
+        safetyTabBtn.addEventListener("click",   () => this.switchTab("safety"));
+        socialTabBtn.addEventListener("click",   () => this.switchTab("social"));
+        settingsTabBtn.addEventListener("click", () => this.switchTab("settings"));
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && this.isOpen) { this.close(); return; }
@@ -5312,24 +5802,114 @@ export class EBCDrawer {
         });
     }
 
+    /** The tab ids that exist in the layout the user is currently on. */
+    private activeTabSet(): readonly string[] {
+        return isGroupedLayout() ? EBC_GROUPED_TABS : EBC_USER_TABS;
+    }
+
+    /** The one tab that can never be hidden - it holds the layout toggle. */
+    private lockedTabId(): string {
+        return isGroupedLayout() ? "settings" : "dev";
+    }
+
     private applyTabVisibility(): void {
         if (!this.rootEl) return;
-        const hidden = getHiddenTabs();
-        // dev tab can never be hidden - repair if it somehow got stored as hidden
-        if (hidden.includes("dev")) {
-            setHiddenTabs(hidden.filter(t => t !== "dev"));
+        const grouped   = isGroupedLayout();
+        const activeSet = this.activeTabSet();
+        const locked    = this.lockedTabId();
+        const hidden    = getHiddenTabs();
+        // The locked tab can never be hidden - repair if it got stored as hidden
+        if (hidden.includes(locked)) {
+            setHiddenTabs(hidden.filter(t => t !== locked));
             return this.applyTabVisibility();
         }
-        for (const tabId of EBC_USER_TABS) {
+        // Walk BOTH tab sets so the tabs belonging to the other layout are always
+        // hidden - "buttons"/"toys" appear in both and are handled once via the Set.
+        for (const tabId of new Set<string>([...EBC_USER_TABS, ...EBC_GROUPED_TABS])) {
             const btn = this.rootEl.querySelector(`#ebc-tab-${tabId}`) as HTMLElement | null;
             if (!btn) continue;
-            btn.style.display = (tabId === "dev" || !hidden.includes(tabId)) ? "" : "none";
+            const inLayout = activeSet.includes(tabId);
+            btn.style.display = (inLayout && (tabId === locked || !hidden.includes(tabId))) ? "" : "none";
         }
-        // If the active tab was hidden, fall back to the first visible tab
-        if (hidden.includes(this.currentTab)) {
-            const first = EBC_USER_TABS.find(id => !hidden.includes(id)) ?? "outfits";
-            this.switchTab(first);
+        // DOM tools are merged into the TOYS tab in the grouped layout, so the
+        // The creator-only DOM tab is its own tab in BOTH layouts.
+        const domBtn = this.rootEl.querySelector("#ebc-tab-dom") as HTMLElement | null;
+        if (domBtn) domBtn.style.display = isDomEnabled() ? "" : "none";
+        // Fall back to another tab only when the current one is hidden, belongs
+        // exclusively to the other layout, or is the DOM tab in the grouped
+        // layout. The puppy/kitty tabs exist in both layouts and are left alone.
+        const otherSet: readonly string[] = grouped ? EBC_USER_TABS : EBC_GROUPED_TABS;
+        const stranded = !activeSet.includes(this.currentTab) && otherSet.includes(this.currentTab);
+        if (stranded || hidden.includes(this.currentTab)) {
+            const mapped = (grouped ? EBC_TAB_TO_GROUPED : EBC_TAB_TO_CLASSIC)[this.currentTab];
+            const usable = (id: string | undefined): boolean =>
+                !!id && activeSet.includes(id) && (id === locked || !hidden.includes(id));
+            const first = usable(mapped)
+                ? mapped
+                : (activeSet.find(id => id === locked || !hidden.includes(id)) ?? (grouped ? "me" : "outfits"));
+            this.switchTab(first as DrawerTab);
         }
+    }
+
+    /**
+     * Show the tab bar for the layout the user picked and put the shared
+     * singleton elements where that layout expects them. Called on open, after
+     * setup, and whenever the "Menu layout" toggle in DEV -> Drawer is flipped.
+     */
+    private applyLayoutMode(): void {
+        const grouped = isGroupedLayout();
+        const bar = this.tabBarEl;
+
+        // Re-order the tab bar. appendChild moves existing nodes, so no button is
+        // ever recreated and every click handler stays attached.
+        const order = grouped
+            ? ["me", "safety", "social", "buttons", "toys", "settings", "thanks", "dom", "puppy", "kitty"]
+            : ["outfits", "buttons", "anims", "notes", "toys", "thanks", "dev", "dom", "puppy", "kitty",
+               "me", "safety", "social", "settings"];
+        if (bar) {
+            for (const id of order) {
+                const el = this.rootEl?.querySelector(`#ebc-tab-${id}`) as HTMLElement | null;
+                if (el) bar.appendChild(el);
+            }
+        }
+
+        // Quick actions: pinned above every tab, or hosted inside a tab. This is
+        // re-evaluated here rather than only at build time - the panel is
+        // constructed before the account settings have loaded, so the build-time
+        // read saw the default and the choice appeared not to survive a login.
+        const qa = this.quickActionsEl;
+        if (qa && this.rootEl) {
+            const panelEl = this.rootEl.querySelector(".ebc-panel") as HTMLElement | null;
+            const wantPinned = !getQuickActionsInButtons();
+            const isPinned = !!panelEl && qa.parentElement === panelEl;
+            if (wantPinned && !isPinned && panelEl && this.tabBarEl) {
+                const after = this.langRowEl?.parentElement === panelEl ? this.langRowEl : this.tabBarEl;
+                after.after(qa);
+                if (this.selfPickPanelEl) qa.after(this.selfPickPanelEl);
+            } else if (!wantPinned && isPinned) {
+                qa.remove();
+                this.selfPickPanelEl?.remove();
+            }
+        }
+
+        // Language pills: pinned under the tab bar in classic, moved into the
+        // SETTINGS tab when grouped (renderSettingsTab re-attaches them).
+        const lang = this.langRowEl;
+        if (lang) {
+            if (grouped) lang.remove();
+            else if (bar) bar.after(lang);
+        }
+
+        // The unread-beeps badge follows the tab that hosts the friends list.
+        const badge = this.notesBadgeEl;
+        const badgeHost = this.rootEl?.querySelector(
+            grouped ? "#ebc-tab-social" : "#ebc-tab-notes") as HTMLElement | null;
+        if (badge && badgeHost && badge.parentElement !== badgeHost) {
+            badgeHost.style.position = "relative";
+            badgeHost.appendChild(badge);
+        }
+
+        this.applyTabVisibility();
     }
 
     private injectStyles(): void {
@@ -5719,9 +6299,29 @@ export class EBCDrawer {
         // drawer is first built, so we refresh any toggles that depend on them.
         try { this.refreshConfirmToggle?.(); } catch { /* ignore */ }
         try { this.refreshSwEnableBtn?.();   } catch { /* ignore */ }
+
+        // Build the tab bar for the layout the user chose (classic 8 tabs vs the
+        // grouped 6). Done last so every button already has its click handler.
+        try { this.applyLayoutMode(); } catch { /* ignore */ }
     }
 
     // -- Interactive guide ─────────────────────────────────────────────────────
+
+    /**
+     * Guide steps are written against the classic tab ids. Translate one to the
+     * tab that actually holds that content in the layout the user is on, so the
+     * guide never tries to open a tab the current layout does not have.
+     *
+     * A step may set `groupedTab` when the grouped layout moved that content to
+     * a tab the generic old-tab -> new-tab map would not predict (storage went
+     * to SETTINGS, safewords to SAFETY).
+     */
+    private static guideTab(step: { tab: DrawerTab | null; groupedTab?: DrawerTab }): DrawerTab | null {
+        if (!isGroupedLayout()) return step.tab ?? null;
+        if (step.groupedTab) return step.groupedTab;
+        if (!step.tab) return null;
+        return EBC_TAB_TO_GROUPED[step.tab] ?? step.tab;
+    }
 
     // Guide steps. Use [[text]] for pink highlighted chips, ((text)) for a small italic note line.
     private static readonly SVG_CHEV_UP   = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 10 10"><polyline points="2,7 5,3 8,7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -5735,6 +6335,13 @@ export class EBCDrawer {
             text: t("guide.fast.s1.text"),
             spotlight: ["[data-guide-target='btn-new-outfit']"],
             autoExpand: ["btn-new-outfit"],
+        },
+        {
+            tab: "outfits",
+            groupedTab: "settings",   // storage lives in SETTINGS in the grouped layout
+            label: t("guide.fast.sStor.label"),
+            text: t("guide.fast.sStor.text"),
+            spotlight: ["[data-guide-target='section-storage']"],
         },
         {
             tab: "buttons",
@@ -5761,12 +6368,20 @@ export class EBCDrawer {
             autoExpand: ["section-dev-prefs"],
         },
         {
+            tab: "dev",
+            label: t("guide.layout.label"),
+            text: t("guide.layout.text"),
+            spotlight: ["[data-guide-target='section-dev-prefs']"],
+            autoExpand: ["section-dev-prefs"],
+        },
+        {
             tab: null,
+            groupedTab: "safety",     // safewords live on the SAFETY tab when grouped
             label: t("guide.fast.s6.label"),
             text: t("guide.fast.s6.text"),
             spotlight: ["[data-guide-target='strip-safewords']"],
         },
-    ] as Array<{ tab: DrawerTab | null; label: string; text: string; spotlight?: string[]; autoExpand?: string[] }>;
+    ] as Array<{ tab: DrawerTab | null; groupedTab?: DrawerTab; label: string; text: string; spotlight?: string[]; autoExpand?: string[] }>;
     }
 
     private static get INDEPTH_STEPS() {
@@ -5847,12 +6462,20 @@ export class EBCDrawer {
             autoExpand: ["section-dev-logs"],
         },
         {
+            tab: "dev",
+            label: t("guide.layout.label"),
+            text: t("guide.layout.text"),
+            spotlight: ["[data-guide-target='section-dev-prefs']"],
+            autoExpand: ["section-dev-prefs"],
+        },
+        {
             tab: null,
+            groupedTab: "safety",     // safewords live on the SAFETY tab when grouped
             label: t("guide.deep.s13.label"),
             text: t("guide.deep.s13.text"),
             spotlight: ["[data-guide-target='strip-safewords']"],
         },
-    ] as Array<{ tab: DrawerTab | null; label: string; text: string; spotlight?: string[]; autoExpand?: string[] }>;
+    ] as Array<{ tab: DrawerTab | null; groupedTab?: DrawerTab; label: string; text: string; spotlight?: string[]; autoExpand?: string[] }>;
     }
 
     private renderGuideModeSelect(): void {
@@ -6022,9 +6645,12 @@ export class EBCDrawer {
         if (this.guideSpotlightIndex >= spotCount) this.guideSpotlightIndex = 0;
         const spotIdx = this.guideSpotlightIndex;
 
-        // Switch to the relevant tab (only on first spotlight of the step)
-        if (spotIdx === 0 && step.tab && step.tab !== this.currentTab) {
-            this.switchTab(step.tab);
+        // Switch to the relevant tab (only on first spotlight of the step).
+        // guideTab() maps the classic tab id onto whichever tab holds that
+        // content in the layout the user is currently using.
+        const stepTab = EBCDrawer.guideTab(step);
+        if (spotIdx === 0 && stepTab && stepTab !== this.currentTab) {
+            this.switchTab(stepTab);
         }
 
         card.innerHTML = "";
@@ -6132,15 +6758,18 @@ export class EBCDrawer {
         card.appendChild(nav);
 
         // ── Spotlight UI elements this step is describing ─────────────────────
-        // Tab button: whenever the guide is on a tab-specific step, glow the tab
-        if (step.tab) {
-            const tabIdMap: Record<string, string> = { anims: "poses" };
-            const tabBtnId = tabIdMap[step.tab] ?? step.tab;
-            window.setTimeout(() => this.spotlightEl(`#ebc-tab-${tabBtnId}`), 60);
+        // Tab button: whenever the guide is on a tab-specific step, glow the tab.
+        // The button id always matches the tab id (the old "anims" -> "poses"
+        // remap pointed at #ebc-tab-poses, which does not exist).
+        if (stepTab) {
+            window.setTimeout(() => this.spotlightEl(`#ebc-tab-${stepTab}`), 60);
         }
-        // Spotlight only the current sub-step element (one at a time)
+        // Spotlight only the current sub-step element (one at a time). Both tab
+        // layouts split their content behind pills, so open the pill that owns
+        // the target first - otherwise the spotlight lands on a hidden element.
         if (spotCount > 0) {
             window.setTimeout(() => {
+                this.revealGuideTarget(step.spotlight![spotIdx]);
                 this.spotlightEl(step.spotlight![spotIdx]);
             }, 80);
         }
@@ -6188,6 +6817,26 @@ export class EBCDrawer {
             .forEach(el => el.classList.remove("ebc-guide-spotlight"));
     }
 
+    /**
+     * Bring a guide target on screen. Tab bodies are split into pill sections,
+     * and only the active pill's elements are displayed - so if the target sits
+     * behind another pill, click that pill before the spotlight is applied.
+     */
+    private revealGuideTarget(selector: string): void {
+        try {
+            const el = this.rootEl?.querySelector(selector) as HTMLElement | null;
+            if (!el) return;
+            for (const g of this.pillGroups) {
+                if (!g.els.some(x => x === el || x.contains(el))) continue;
+                // Hidden group -> its pill is not the active one.
+                if (g.els.some(x => x.style.display === "none")) {
+                    try { g.btn.click(); } catch { /* ignore */ }
+                }
+                return;
+            }
+        } catch { /* ignore invalid selectors or detached nodes */ }
+    }
+
     private spotlightEl(selector: string): void {
         try {
             const el = this.rootEl?.querySelector(selector);
@@ -6204,12 +6853,63 @@ export class EBCDrawer {
         }
     }
 
+    /** The element a tab renderer should build into. Normally the real
+     *  #ebc-body; a detached container while a grouped tab is composing. */
+    private tabBody(): HTMLElement | null {
+        return this.bodyOverride ?? (this.rootEl?.querySelector("#ebc-body") as HTMLElement | null);
+    }
+
+    /**
+     * Run an existing tab renderer into a detached container and move whatever
+     * it produced into `dest`. This is the whole trick behind the grouped
+     * layout: no renderX() is rewritten, they are just re-hosted.
+     *
+     * The children are moved individually (not the wrapper) so `dest` keeps a
+     * flat list of sections and _pillifyTab() can still classify them.
+     */
+    private composeInto(dest: HTMLElement, fn: () => void): void {
+        const tmp = document.createElement("div");
+        const prevBody   = this.bodyOverride;
+        const prevNoPill = this.noPillify;
+        this.bodyOverride = tmp;
+        this.noPillify    = true;
+        try {
+            fn();
+        } catch (err) {
+            // A single broken section must not blank the whole grouped tab.
+            try { console.error("[EBC] grouped layout: section build failed", err); } catch { /* ignore */ }
+        } finally {
+            this.bodyOverride = prevBody;
+            this.noPillify    = prevNoPill;
+        }
+        while (tmp.firstChild) dest.appendChild(tmp.firstChild);
+    }
+
+    /** Wrap an element that carries no section header of its own (the safeword
+     *  strip, the language pills...) so _pillifyTab() sees it as a section. */
+    private addLabelledSection(dest: HTMLElement, label: string, el: HTMLElement): void {
+        const hdr = document.createElement("div");
+        hdr.className = "ebc-section-label";
+        hdr.textContent = label;
+        dest.appendChild(hdr);
+        const wrap = document.createElement("div");
+        wrap.style.marginBottom = "6px";
+        wrap.appendChild(el);
+        dest.appendChild(wrap);
+    }
+
+    /** True for the tab that hosts the friends/rooms list - "notes" in the
+     *  classic layout, "social" in the grouped one. */
+    private static isSocialTab(tab: DrawerTab): boolean {
+        return tab === "notes" || tab === "social";
+    }
+
     private switchTab(tab: DrawerTab): void {
         this.stopDevLogPoller();
         if (this._syncStatusPoller !== null) { window.clearInterval(this._syncStatusPoller); this._syncStatusPoller = null; }
-        if (tab !== "notes") this.friendsSectionEl = null;
+        if (!EBCDrawer.isSocialTab(tab)) this.friendsSectionEl = null;
         this.currentTab = tab;
-        if (tab === "notes") {
+        if (EBCDrawer.isSocialTab(tab)) {
             this.friendPollTick = 0;
             try { ServerSend("AccountQuery", { Query: "OnlineFriends" }); } catch { /* ignore */ }
         }
@@ -6225,6 +6925,10 @@ export class EBCDrawer {
             ["ebc-tab-dom",     "dom"],
             ["ebc-tab-puppy",   "puppy"],
             ["ebc-tab-kitty",   "kitty"],
+            ["ebc-tab-me",       "me"],
+            ["ebc-tab-safety",   "safety"],
+            ["ebc-tab-social",   "social"],
+            ["ebc-tab-settings", "settings"],
         ] as [string, DrawerTab][]) {
             const el = this.rootEl?.querySelector(`#${id}`);
             if (el) el.className = "ebc-tab-btn" + (tab === name ? " ebc-tab-active" : "");
@@ -6235,31 +6939,216 @@ export class EBCDrawer {
     }
 
     private renderCurrentTab(): void {
+        this.pillGroups = [];   // repopulated by whichever tab builds pill nav
         if      (this.currentTab === "outfits")  this.renderOutfits();
         else if (this.currentTab === "anims")    this.renderPoses();
         else if (this.currentTab === "buttons")  this.renderButtons();
         else if (this.currentTab === "notes")    this.renderNotes();
-        else if (this.currentTab === "toys")     this.renderToys();
+        else if (this.currentTab === "toys")     this.renderToysTab();
         else if (this.currentTab === "thanks")   this.renderThanks();
         else if (this.currentTab === "dev")      this.renderDev();
         else if (this.currentTab === "dom")      this.renderDomTools();
         else if (this.currentTab === "puppy")    this.renderPuppy();
         else if (this.currentTab === "kitty")    this.renderKittyTab();
+        // Grouped layout - each of these composes existing renderX() methods.
+        else if (this.currentTab === "me")       this.renderMeTab();
+        else if (this.currentTab === "safety")   this.renderSafetyTab();
+        else if (this.currentTab === "social")   this.renderNotes();
+        else if (this.currentTab === "settings") this.renderSettingsTab();
         // Fix inline styles that bypass CSS class rules by hardcoding the default palette
         this.repaintTheme();
+    }
+
+    // -- Grouped layout tabs ---------------------------------------------------
+    // Composition only: every section below is built by a method that the classic
+    // layout also uses, so there is exactly one implementation of each feature.
+
+    /**
+     * Build a section into its own container and drop its collapsible header,
+     * so a grouped pill never turns into a dropdown inside a dropdown.
+     * Mirrors what _pillifyTab() does for "wrapper"-shaped sections.
+     */
+    private buildFlatSection(build: (c: HTMLElement) => void): HTMLElement {
+        const c = document.createElement("div");
+        build(c);
+        for (const wrap of Array.from(c.children) as HTMLElement[]) {
+            const lbl = wrap.classList.contains("ebc-section-label")
+                ? wrap
+                : wrap.querySelector(":scope > .ebc-section-label") as HTMLElement | null;
+            if (!lbl) continue;
+            // Some sections only build their content once expanded, so run their
+            // own toggle rather than forcing display.
+            if ((wrap.textContent ?? "").includes("▶")) { try { lbl.click(); } catch { /* ignore */ } }
+            const host = lbl.parentElement ?? wrap;
+            for (const sub of Array.from(host.children) as HTMLElement[]) {
+                if (sub !== lbl && sub.style.display === "none") sub.style.display = "";
+            }
+            lbl.style.display = "none";
+        }
+        return c;
+    }
+
+    /** Re-host one of the pinned singleton strips (safewords, EBC tags) inside a
+     *  grouped tab as a pill section - the pill becomes its header. */
+    private attachStripSection(dest: HTMLElement, label: string, el: HTMLElement | null, flex = false): void {
+        if (!el) return;
+        el.style.display = flex ? "flex" : "";
+        const kids  = Array.from(el.children) as HTMLElement[];
+        const hdr   = kids.find(c => c.style.cursor === "pointer");
+        const inner = kids.find(c => c !== hdr);
+        if (hdr && inner && inner.style.display === "none") { try { hdr.click(); } catch { /* ignore */ } }
+        if (hdr) hdr.style.display = "none";
+        this.addLabelledSection(dest, label, el);
+    }
+
+    /** ME - everything that is about the player's own look and animation:
+     *  outfits, restraint sets, poses, scenes, expressions, colours, identity. */
+    private renderMeTab(): void {
+        const body = this.tabBody();
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        this.buildIdentitySection(body, true);
+        this.buildSavedOutfitsSection(body);
+        this.buildOutfitTagsSection(body);
+        this.buildScheduleSection(body);
+        this.buildRestraintSection(body);
+        this.renderPalettes(body);
+        // The whole classic ANIMS tab: poses, combos, scenes, expression
+        // sequences and expressions - composed in unchanged.
+        this.composeInto(body, () => this.renderPoses());
+
+        this._pillifyTab(body, "EBC_meView", [
+            { pill: "Outfits",     match: [t("grouped.nicknameTitle"), t("outfits.savedOutfits"),
+                                           t("outfits.outfitSchedule")] },
+            // Tags get their own pill rather than sitting under Outfits. On its
+            // own it is a single-section pill, so the header is hidden entirely
+            // and the chips show directly - no dropdown inside the pill.
+            { pill: "Tags",        match: ["TAGS", t("outfits.tagsN", { n: 0 })] },
+            { pill: "Restraints",  match: [t("outfits.savedRestraints")] },
+            { pill: "Poses",       match: [t("anims.poses"), t("anims.poseCombos")] },
+            { pill: "Scenes",      match: [t("anims.scenes")] },
+            { pill: "Expressions", match: [t("expr.sequences"), t("anims.expressions")] },
+            { pill: "Colours",     match: [t("outfits.colours"), t("outfits.coloursN", { n: 0 })] },
+        ]);
+    }
+
+    /** SAFETY - getting out of things: release buttons, what is on you right
+     *  now, protected items, safewords and auto-escape. */
+    private renderSafetyTab(): void {
+        const body = this.tabBody();
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        // Release Restraints / Remove Locks / picker. When they are pinned above
+        // every tab (the default) they are already on screen, so they are only
+        // re-hosted here if the user moved them off the pinned strip.
+        if (getQuickActionsInButtons() && this.quickActionsEl) {
+            const qaWrap = document.createElement("div");
+            this.quickActionsEl.style.display = "";
+            qaWrap.appendChild(this.quickActionsEl);
+            if (this.selfPickPanelEl) qaWrap.appendChild(this.selfPickPanelEl);
+            this.addLabelledSection(body, t("grouped.releaseUnlock"), qaWrap);
+        }
+
+        this.renderRestraintInfo(body);    // ACTIVE RESTRAINTS (+ timers)
+        this.renderOutfitWhitelist(body);  // PROTECTED ITEMS
+        this.attachStripSection(body, t("grouped.safewords"), this.safewordRowEl, true);
+        // Auto-escape deliberately does NOT live here. It lives on the DOM tab,
+        // which is creator-gated in both layouts - the grouped layout used to
+        // surface it on SAFETY, which exposed it to everyone.
+
+        this._pillifyTab(body, "EBC_safetyView", [
+            { pill: "Restraints", match: [t("grouped.releaseUnlock"), t("dev.activeRestraints")] },
+            { pill: "Protected", match: [t("outfits.protectedItems")] },
+            { pill: "Safewords", match: [t("grouped.safewords")] },
+        ]);
+    }
+
+    /** Splits the Toys page into pills: IRL setup, in-game toys, triggers and
+     *  sharing. Sections tag themselves via data-toy-group; anything untagged is
+     *  physical-toy setup and falls into "irl". No-ops in classic layout so the
+     *  original single scrolling page is untouched. */
+    private _pillifyToys(host: HTMLElement): void {
+        if (!isGroupedLayout()) return;
+        const GROUPS: Array<{ id: string; label: string }> = [
+            { id: "game", label: "Game toys" },
+            { id: "irl",  label: "IRL toys" },
+        ];
+        const kids = Array.from(host.children) as HTMLElement[];
+        if (kids.length === 0) return;
+        for (const el of kids) {
+            if (!el.dataset.toyGroup) el.dataset.toyGroup = "irl";
+        }
+        const present = GROUPS.filter(g => kids.some(el => el.dataset.toyGroup === g.id));
+        if (present.length < 2) return;
+
+        // A pill holding a single section makes that section's own collapsible
+        // header redundant - the pill IS the header. Open it and hide the header.
+        // Groups with several sections keep theirs so they stay distinguishable.
+        for (const g of present) {
+            const own = kids.filter(el => el.dataset.toyGroup === g.id);
+            if (own.length !== 1) continue;
+            const parts = Array.from(own[0].children) as HTMLElement[];
+            const hdr = parts.find(c => c.style.cursor === "pointer");
+            const bodyEl = parts.find(c => c !== hdr);
+            if (hdr && bodyEl && bodyEl.style.display === "none") {
+                try { hdr.click(); } catch { /* ignore */ }
+            }
+            if (hdr) hdr.style.display = "none";
+        }
+
+        let active = "";
+        try { active = localStorage.getItem("EBC_toysView") ?? ""; } catch { /* ignore */ }
+        if (!present.some(g => g.id === active)) active = present[0].id;
+
+        const nav = document.createElement("div");
+        nav.style.cssText = "display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap;";
+        const pills: HTMLButtonElement[] = [];
+        const paint = (): void => {
+            for (let i = 0; i < present.length; i++) {
+                const on = present[i].id === active;
+                pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:6px 15px;border-radius:13px;cursor:pointer;transition:all 0.12s;min-height:30px;" +
+                    (on
+                        ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                        : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+            }
+            for (const el of kids) el.style.display = el.dataset.toyGroup === active ? "" : "none";
+        };
+        for (const g of present) {
+            const pill = document.createElement("button");
+            pill.textContent = g.label;
+            pill.addEventListener("click", () => {
+                active = g.id;
+                try { localStorage.setItem("EBC_toysView", active); } catch { /* ignore */ }
+                paint();
+            });
+            pills.push(pill);
+            nav.appendChild(pill);
+        }
+        host.insertBefore(nav, host.firstChild);
+        paint();
+    }
+
+    /** TOYS - Lovense / PiShock / XToys. Dom keeps its own creator-only tab in
+     *  both layouts, so nothing extra is composed in here. */
+    private renderToysTab(): void {
+        this.renderToys();
+    }
+
+    /** SETTINGS - drawer prefs, EBC tags, storage, language, dev tools, credits.
+     *  renderDev() builds all of it; the grouped flag adds the extra sections. */
+    private renderSettingsTab(): void {
+        this.renderDev(true);
     }
 
     /** Show or hide each pinned strip based on the active tab and the stored filter. */
     private updatePinnedStrips(): void {
         const tab = this.currentTab;
-        if (this.safewordRowEl) {
-            const f = loadStripTabFilter("EBC_swTabFilter");
-            this.safewordRowEl.style.display = (!f || f.has(tab)) ? "flex" : "none";
-        }
-        if (this.ebcTagsStripEl) {
-            const f = loadStripTabFilter("EBC_tagsTabFilter");
-            this.ebcTagsStripEl.style.display = (!f || f.has(tab)) ? "" : "none";
-        }
+        // Safewords / EBC Tags now live inside the DEV tab, so the old pinned-strip
+        // per-tab filters no longer apply - keep them visible wherever they sit.
+        if (this.safewordRowEl) this.safewordRowEl.style.display = "flex";
+        if (this.ebcTagsStripEl) this.ebcTagsStripEl.style.display = "";
     }
 
     /**
@@ -6482,15 +7371,55 @@ export class EBCDrawer {
      * Tab *switches* intentionally bypass this and call renderCurrentTab()
      * directly so the new tab always starts at the top.
      */
+    /**
+     * Repaints the Body pose grid. Held here so the appearance-change hook can
+     * call it - the grid has to follow poses set by restraints, and a poll was
+     * the wrong tool: it depended on finding the container in the document, and
+     * when that check was wrong it stopped silently with nothing to show for it.
+     */
+    private _refreshPoseButtons: (() => void) | null = null;
+
+    /** Called whenever the player's appearance changes. */
+    public refreshPoseButtons(): void {
+        try { this._refreshPoseButtons?.(); } catch { /* grid is gone; harmless */ }
+    }
+
+    private _rerenderTimer: number | null = null;
+    /** True while _pillifyTab is synthesising header clicks. */
+    private _pillifying = false;
+
     private rerender(delay = 0): void {
         const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
         const scroll = body?.scrollTop ?? 0;
         const doRender = (): void => {
+            this._rerenderTimer = null;
             this.renderCurrentTab();
             if (body) body.scrollTop = scroll;
         };
-        if (delay > 0) window.setTimeout(doRender, delay);
+        // Only ever one render pending. These used to be bare setTimeouts, so
+        // clicking several buttons in a row queued a full tab rebuild for each
+        // one and they all landed a moment later - the panel visibly stuttered
+        // and anything the user touched in between got torn down and rebuilt.
+        if (this._rerenderTimer !== null) {
+            window.clearTimeout(this._rerenderTimer);
+            this._rerenderTimer = null;
+        }
+        // Never render synchronously while pillifying. _pillifyTab clicks
+        // collapsed headers to materialise their content, and a header handler
+        // that rerenders would otherwise re-enter the render it is running
+        // inside. Deferring converges: the second pass finds the sections
+        // already open, so it clicks nothing.
+        if (delay > 0 || this._pillifying) this._rerenderTimer = window.setTimeout(doRender, delay);
         else doRender();
+    }
+
+    /** Drop a queued rerender - used when the user navigates, so their click
+     *  isn't undone by a rebuild that was scheduled before it. */
+    private cancelPendingRerender(): void {
+        if (this._rerenderTimer !== null) {
+            window.clearTimeout(this._rerenderTimer);
+            this._rerenderTimer = null;
+        }
     }
 
     /** Update every static element that was built once in setup() and never re-rendered. */
@@ -6518,6 +7447,18 @@ export class EBCDrawer {
         if (r.tabDom)     { r.tabDom.textContent = t("tabs.dom"); r.tabDom.title = t("tabs.domTitle"); }
         if (r.tabPuppy)   r.tabPuppy.title = t("tabs.puppy");
         if (r.tabKitty)   r.tabKitty.title = t("tabs.kitty");
+        // Grouped tabs keep their label in a .ebc-tab-label span so the unread
+        // badge on SOCIAL survives a language change.
+        const setGroupedTab = (btn: HTMLButtonElement | undefined, labelKey: string, titleKey: string): void => {
+            if (!btn) return;
+            const lbl = btn.querySelector(".ebc-tab-label");
+            if (lbl) lbl.textContent = t(labelKey);
+            btn.title = t(titleKey);
+        };
+        setGroupedTab(r.tabMe,       "tabs.me",       "tabs.meTitle");
+        setGroupedTab(r.tabSafety,   "tabs.safety",   "tabs.safetyTitle");
+        setGroupedTab(r.tabSocial,   "tabs.social",   "tabs.socialTitle");
+        setGroupedTab(r.tabSettings, "tabs.settings", "tabs.settingsTitle");
         // Quick actions
         if (r.releaseBtn) { r.releaseBtn.textContent = t("qa.releaseRestraints"); r.releaseBtn.title = t("qa.releaseTitle"); }
         if (r.unlockBtn)  { r.unlockBtn.textContent = t("qa.removeLocks"); r.unlockBtn.title = t("qa.removeLocksTitle"); }
@@ -6948,28 +7889,26 @@ export class EBCDrawer {
         let text = `🌐 ${t("footer.onlineLabel")}: ${online}`;
         if (room)  text += `  🕒 ${t("footer.roomLabel")}: ${room}`;
         if (bound) text += `  ⛓ ${t("footer.boundLabel")}: ${bound}`;
+        this.timerEl.textContent = text;
+
+        // Cursed slots. Read-only on purpose: a curse the wearer can undo is not
+        // a curse, so there is no lift control here. The red safeword still
+        // clears them - that is the emergency exit, not a convenience button.
         try {
-            const mn = (Player as { MemberNumber?: number }).MemberNumber;
-            if (mn) {
-                const curseRaw = localStorage.getItem(`EBC_curses_${mn}`);
-                const isCursed = curseRaw ? (JSON.parse(curseRaw) as unknown[]).length > 0 : false;
-                if (isCursed) {
-                    const expiryRaw = localStorage.getItem(`EBC_curse_expiry_${mn}`);
-                    if (expiryRaw) {
-                        const rem = parseInt(expiryRaw) - Date.now();
-                        if (rem > 0) {
-                            const h = Math.floor(rem / 3600000), m = Math.floor((rem % 3600000) / 60000);
-                            text += `  🔒 Cursed: ${h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`}`;
-                        } else {
-                            text += `  🔒 Cursed`;
-                        }
-                    } else {
-                        text += `  🔒 Cursed`;
-                    }
+            if (getCursedGroups().size > 0) {
+                const expiry = getCurseExpiry();
+                const rem = expiry === null ? -1 : expiry - Date.now();
+                let when = "";
+                if (rem > 0) {
+                    const h = Math.floor(rem / 3600000), m = Math.floor((rem % 3600000) / 60000);
+                    when = `: ${h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`}`;
                 }
+                const label = document.createElement("span");
+                label.textContent = `  \u{1F512} Cursed${when} (${describeCursedGroups()})`;
+                label.title = "These slots cannot be removed until whoever cursed them lifts it.";
+                this.timerEl.appendChild(label);
             }
         } catch { /* ignore */ }
-        this.timerEl.textContent = text;
         try { checkAndApplySchedules(); } catch { /* ignore */ }
     }
 
@@ -7090,11 +8029,500 @@ export class EBCDrawer {
 
     // -- Outfits tab -----------------------------------------------------------
 
-    private renderOutfits(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
-        if (!body) return;
-        while (body.firstChild) body.removeChild(body.firstChild);
+    /** Collapsible storage meter - account outfit/restraint budgets, the whole
+     *  EBC settings blob vs the sync cap, and this-device (localStorage) usage. */
+    private renderStorageUsage(body: HTMLElement): void {
+        const usage = getOutfitStorageUsage();
+        const total = getSettingsBlobSize();
+        const kb = (n: number): string => (n / 1000).toFixed(1);
 
+        const wrap = document.createElement("div");
+        wrap.style.marginBottom = "8px";
+
+        let open = false;
+        try { open = localStorage.getItem("EBC_storageOpen") === "1"; } catch { /* ignore */ }
+
+        const totalPct = Math.min(100, (total / SETTINGS_FLUSH_CAP) * 100);
+        const headCol  = totalPct >= 90 ? "#e05a5a" : totalPct >= 70 ? "#d8a04a" : "#9a7080";
+
+        const toggleBtn = document.createElement("button");
+        toggleBtn.className = "ebc-section-label";
+        toggleBtn.style.cssText = "display:block;width:100%;background:transparent;border:none;cursor:pointer;text-align:left;padding:4px 4px 5px;margin-bottom:3px;transition:color 0.12s;";
+        toggleBtn.setAttribute("data-guide-target", "section-storage");
+        const paintToggle = (): void => {
+            toggleBtn.innerHTML = "";
+            const arrow = document.createTextNode((open ? "▼" : "▶") + " STORAGE ");
+            toggleBtn.appendChild(arrow);
+            const pill = document.createElement("span");
+            pill.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;font-weight:normal;color:${headCol};`;
+            pill.textContent = `${kb(total)} / ${kb(SETTINGS_FLUSH_CAP)} KB account`;
+            toggleBtn.appendChild(pill);
+        };
+        paintToggle();
+
+        const content = document.createElement("div");
+        content.style.cssText = "display:" + (open ? "block" : "none") + ";padding:2px 4px 6px;";
+
+        const mkBar = (label: string, used: number, cap: number): HTMLElement => {
+            const pct = Math.min(100, (used / cap) * 100);
+            const col = pct >= 90 ? "#e05a5a" : pct >= 70 ? "#d8a04a" : "#79a885";
+            const row = document.createElement("div");
+            row.style.cssText = "margin:5px 0;";
+            const lblRow = document.createElement("div");
+            lblRow.style.cssText = "display:flex;justify-content:space-between;gap:8px;font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a7080;margin-bottom:2px;";
+            const l = document.createElement("span");
+            l.textContent = label;
+            const r = document.createElement("span");
+            r.textContent = `${kb(used)} / ${kb(cap)} KB`;
+            r.style.cssText = `color:${col};flex-shrink:0;`;
+            lblRow.appendChild(l);
+            lblRow.appendChild(r);
+            const trough = document.createElement("div");
+            trough.style.cssText = "height:6px;border-radius:3px;background:#160812;border:1px solid #2a1421;overflow:hidden;";
+            const fill = document.createElement("div");
+            fill.style.cssText = `height:100%;width:${pct}%;background:${col};border-radius:3px;`;
+            trough.appendChild(fill);
+            row.appendChild(lblRow);
+            row.appendChild(trough);
+            return row;
+        };
+
+        content.appendChild(mkBar("Outfits (account)", usage.accountOutfits, OUTFITS_BUDGET));
+        content.appendChild(mkBar("Restraint sets (account)", usage.accountRestraints, OUTFITS_BUDGET));
+        content.appendChild(mkBar("All EBC settings (account sync cap)", total, SETTINGS_FLUSH_CAP));
+
+        const devRow = document.createElement("div");
+        devRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11.5px;color:#d0aec0;margin-top:7px;";
+        devRow.textContent = `This device: ${kb(usage.deviceBytes)} KB (no account limit)`;
+        content.appendChild(devRow);
+
+        const hint = document.createElement("div");
+        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a88898;margin-top:4px;line-height:1.45;";
+        hint.textContent = "Full bars? Switch items to Local (this device) storage or delete unused ones. Crafted items take the most space.";
+        content.appendChild(hint);
+
+        // ── Manage saved items - biggest first, move between stores or delete ─
+        // Open state persists so moving/deleting (which re-renders the tab)
+        // doesn't snap the list shut.
+        let manageOpen = false;
+        try { manageOpen = localStorage.getItem("EBC_storageManageOpen") === "1"; } catch { /* ignore */ }
+        const manageBtn = document.createElement("button");
+        manageBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10.5px;padding:3px 0;border-radius:7px;border:1px dashed #4a2038;background:transparent;color:#9a7080;cursor:pointer;margin-top:6px;transition:color 0.12s,border-color 0.12s;";
+        const manageBody = document.createElement("div");
+        manageBody.style.cssText = "margin-top:5px;";
+        const paintManageBtn = (): void => {
+            manageBtn.textContent = (manageOpen ? "▼" : "▶") + " Manage saved items";
+            manageBody.style.display = manageOpen ? "block" : "none";
+        };
+
+        const buildManage = (): void => {
+            while (manageBody.firstChild) manageBody.removeChild(manageBody.firstChild);
+            const jsize = (v: unknown): number => { try { return JSON.stringify(v).length; } catch { return 0; } };
+            const entries = [
+                ...getOutfits().map(o => ({ kind: "outfit" as const, id: o.id, name: o.displayName, isLocal: o.local === true, bytes: jsize(o) })),
+                ...getRestraints().map(r => ({ kind: "set" as const, id: r.id, name: r.displayName, isLocal: r.local === true, bytes: jsize(r) })),
+            ].sort((a, b) => b.bytes - a.bytes);
+            if (entries.length === 0) {
+                const none = document.createElement("div");
+                none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;padding:4px;";
+                none.textContent = "Nothing saved yet.";
+                manageBody.appendChild(none);
+                return;
+            }
+            for (const e of entries) {
+                const isOutfit = e.kind === "outfit";
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px;border-bottom:1px solid rgba(42,20,33,0.6);min-width:0;";
+
+                // Kind pill - Clothing / Restraint
+                const kindPill = document.createElement("span");
+                kindPill.textContent = isOutfit ? "Clothing" : "Restraint";
+                kindPill.style.cssText =
+                    "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:9px;font-weight:bold;letter-spacing:0.04em;padding:1px 7px;border-radius:9px;line-height:14px;" +
+                    (isOutfit
+                        ? "background:rgba(207,111,152,0.16);border:1px solid rgba(207,111,152,0.45);color:#e0a0c0;"
+                        : "background:rgba(150,150,170,0.14);border:1px solid rgba(150,150,170,0.4);color:#b8b8cc;");
+
+                const nm = document.createElement("span");
+                nm.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11px;color:#c8a0b4;";
+                nm.textContent = e.name;
+
+                const sz = document.createElement("span");
+                sz.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;";
+                sz.textContent = kb(e.bytes) + " KB";
+
+                // Storage pill - toggles between Account (blue) and Local (green)
+                const store = document.createElement("button");
+                store.textContent = e.isLocal ? "Local" : "Account";
+                store.title = e.isLocal
+                    ? "Saved on this device only (shared by your accounts in this browser). Click to move to your BC account."
+                    : "Saved on your BC account (synced across devices, uses account storage). Click to move to this device.";
+                store.style.cssText =
+                    "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:2px 9px;border-radius:10px;cursor:pointer;transition:filter 0.12s;" +
+                    (e.isLocal
+                        ? "background:rgba(80,150,100,0.18);border:1px solid #79a885;color:#98d0a8;"
+                        : "background:rgba(90,130,170,0.18);border:1px solid #5a82aa;color:#8ab0d0;");
+                store.addEventListener("mouseenter", () => { store.style.filter = "brightness(1.35)"; });
+                store.addEventListener("mouseleave", () => { store.style.filter = ""; });
+                store.addEventListener("click", () => {
+                    const ok = e.kind === "outfit" ? setOutfitStorage(e.id, !e.isLocal) : setRestraintStorage(e.id, !e.isLocal);
+                    if (ok) this.rerender();
+                });
+
+                // Delete - explicit label, red on hover, confirm before removing
+                const del = document.createElement("button");
+                del.textContent = "Delete";
+                del.title = "Delete this " + (isOutfit ? "outfit" : "restraint set");
+                del.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:10px;border:1px solid #5a2838;background:transparent;color:#b07888;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;";
+                del.addEventListener("mouseenter", () => { del.style.background = "#a02838"; del.style.borderColor = "#d04858"; del.style.color = "#fff"; });
+                del.addEventListener("mouseleave", () => { del.style.background = "transparent"; del.style.borderColor = "#5a2838"; del.style.color = "#b07888"; });
+                del.addEventListener("click", () => {
+                    showConfirmOverlay(`Delete "${e.name}"? This cannot be undone.`, "Cancel", "Delete", () => {
+                        if (e.kind === "outfit") deleteOutfit(e.id); else deleteRestraint(e.id);
+                        this.rerender();
+                    });
+                });
+
+                row.appendChild(kindPill);
+                row.appendChild(nm);
+                row.appendChild(sz);
+                row.appendChild(store);
+                row.appendChild(del);
+                manageBody.appendChild(row);
+            }
+        };
+        manageBtn.addEventListener("click", () => {
+            manageOpen = !manageOpen;
+            try { localStorage.setItem("EBC_storageManageOpen", manageOpen ? "1" : "0"); } catch { /* ignore */ }
+            if (manageOpen) buildManage();
+            paintManageBtn();
+        });
+        paintManageBtn();
+        if (manageOpen) buildManage();
+        content.appendChild(manageBtn);
+        content.appendChild(manageBody);
+
+        // ── All stored EBC data - every category, biggest first, clearable ───
+        let dataOpen = false;
+        try { dataOpen = localStorage.getItem("EBC_storageDataOpen") === "1"; } catch { /* ignore */ }
+        const dataBtn = document.createElement("button");
+        dataBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10.5px;padding:3px 0;border-radius:7px;border:1px dashed #4a2038;background:transparent;color:#9a7080;cursor:pointer;margin-top:6px;transition:color 0.12s,border-color 0.12s;";
+        const dataBody = document.createElement("div");
+        dataBody.style.cssText = "margin-top:5px;";
+        const paintDataBtn = (): void => {
+            dataBtn.textContent = (dataOpen ? "▼" : "▶") + " All stored EBC data";
+            dataBody.style.display = dataOpen ? "block" : "none";
+        };
+
+        const buildData = (): void => {
+            while (dataBody.firstChild) dataBody.removeChild(dataBody.firstChild);
+            const rows = EBC_DATA_CATEGORIES
+                .map(cat => ({ cat, size: getDataCategorySize(cat) }))
+                .filter(r => r.size > 0)
+                .sort((a, b) => b.size - a.size);
+            if (rows.length === 0) {
+                const none = document.createElement("div");
+                none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;padding:4px;";
+                none.textContent = "No stored data yet.";
+                dataBody.appendChild(none);
+                return;
+            }
+            const total = rows.reduce((n, r) => n + r.size, 0);
+            for (const { cat, size } of rows) {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px;border-bottom:1px solid rgba(42,20,33,0.6);min-width:0;";
+                const nm = document.createElement("span");
+                nm.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11px;color:#c8a0b4;";
+                nm.textContent = cat.label;
+                const sz = document.createElement("span");
+                sz.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;min-width:52px;text-align:right;";
+                sz.textContent = kb(size) + " KB";
+                sz.title = `${Math.round((size / Math.max(1, total)) * 100)}% of EBC's stored data`;
+                // Account <-> device switch. Moving is destructive on one side,
+                // so the confirm names which copy is about to become the only one.
+                // Outfits and restraint sets keep their own per-item Account/Local
+                // flag, and that flag is what the size bar, the per-item pills and
+                // the save budget all read. The generic device-key switch moves the
+                // settings KEY and leaves those flags alone, so using it here turned
+                // this button green while nothing anyone could see actually moved -
+                // and the "storage is full" refusal carried on unchanged. These two
+                // categories go through the mechanism the rest of the outfit code
+                // agrees on instead.
+                const ownLoc = catOwnLocalLocation(cat);
+                const loc = ownLoc ?? getDataCategoryLocation(cat);
+                const onDevice = loc === "device";
+                const locBtn = document.createElement("button");
+                locBtn.textContent = loc === "mixed" ? "Mixed" : onDevice ? "Device" : "Account";
+                locBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:2px 9px;border-radius:10px;cursor:pointer;transition:filter 0.12s;" +
+                    (onDevice
+                        ? "background:rgba(80,150,100,0.18);border:1px solid #79a885;color:#98d0a8;"
+                        : loc === "mixed"
+                            ? "background:rgba(150,130,80,0.18);border:1px solid #a8925a;color:#d8c890;"
+                            : "background:rgba(90,130,170,0.18);border:1px solid #5a82aa;color:#8ab0d0;");
+                locBtn.title = onDevice
+                    ? "Saved on this browser only - uses no account space, and other devices cannot see it. Click to move it back to your account."
+                    : "Synced with your BC account across devices. Click to keep it on this browser only."
+                        + (DEVICE_SUGGESTED.has(cat.label) ? "\n\nSuggested: this one is usually better kept on the device." : "");
+                locBtn.addEventListener("mouseenter", () => { locBtn.style.filter = "brightness(1.35)"; });
+                locBtn.addEventListener("mouseleave", () => { locBtn.style.filter = ""; });
+                locBtn.addEventListener("click", () => {
+                    const toDevice = !onDevice;
+                    const devSize = getDataCategoryDeviceSize(cat);
+                    const msg = toDevice
+                        ? `Move "${cat.label}" to this device?\n\nYour account copy (${kb(size)} KB) will be cleared and this browser\'s copy becomes the only one. Your other devices will no longer see it.`
+                        : `Move "${cat.label}" to your account?\n\nThis browser\'s copy (${kb(devSize || size)} KB) will be uploaded and becomes the version all your devices see, replacing anything currently stored on the account.`;
+                    const apply = (): void => {
+                        const own = catOwnLocalSetter(cat);
+                        if (own) own(toDevice); else setDataCategoryLocation(cat, toDevice ? "device" : "account");
+                        this.rerender();
+                    };
+                    // Nothing to lose when the category is empty - just switch.
+                    if (size === 0 && devSize === 0) { apply(); return; }
+                    showConfirmOverlay(msg, "Cancel", toDevice ? "Use device" : "Use account", apply);
+                });
+
+                const exp = document.createElement("button");
+                exp.textContent = "Save";
+                exp.title = `Download a backup file of your ${cat.label.toLowerCase()} data`;
+                exp.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:10px;border:1px solid #3f5a48;background:transparent;color:#8ab898;cursor:pointer;transition:background 0.12s,color 0.12s;";
+                exp.addEventListener("mouseenter", () => { exp.style.background = "#2a4030"; exp.style.color = "#c0e8cc"; });
+                exp.addEventListener("mouseleave", () => { exp.style.background = "transparent"; exp.style.color = "#8ab898"; });
+                exp.addEventListener("click", () => { this.downloadBackup(exportDataCategories([cat]), cat.label); });
+
+                const del = document.createElement("button");
+                del.textContent = "Clear";
+                del.title = `Delete all ${cat.label.toLowerCase()} data`;
+                del.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 9px;border-radius:10px;border:1px solid #5a2838;background:transparent;color:#b07888;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;";
+                del.addEventListener("mouseenter", () => { del.style.background = "#a02838"; del.style.borderColor = "#d04858"; del.style.color = "#fff"; });
+                del.addEventListener("mouseleave", () => { del.style.background = "transparent"; del.style.borderColor = "#5a2838"; del.style.color = "#b07888"; });
+                del.addEventListener("click", () => {
+                    showConfirmOverlay(
+                        `Delete ALL "${cat.label}" data (${kb(size)} KB)?
+
+This cannot be undone.`,
+                        "Cancel", "Delete",
+                        () => { clearDataCategory(cat); this.rerender(); },
+                    );
+                });
+                row.appendChild(nm);
+                row.appendChild(sz);
+                // Click rather than hover: a tooltip is unreachable on a phone,
+                // and these labels are jargon unless you already know them.
+                if (cat.help) {
+                    const q = document.createElement("button");
+                    q.textContent = "?";
+                    q.title = "What is this?";
+                    q.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;width:18px;height:18px;padding:0;border-radius:50%;border:1px solid #4a3040;background:transparent;color:#9a7080;cursor:pointer;transition:all 0.12s;";
+                    q.addEventListener("mouseenter", () => { q.style.borderColor = "#cf6f98"; q.style.color = "#cf6f98"; });
+                    q.addEventListener("mouseleave", () => { q.style.borderColor = "#4a3040"; q.style.color = "#9a7080"; });
+                    const helpEl = document.createElement("div");
+                    helpEl.style.cssText = "display:none;font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;line-height:1.5;padding:2px 4px 6px 4px;border-bottom:1px solid rgba(42,20,33,0.6);";
+                    helpEl.textContent = cat.help;
+                    q.addEventListener("click", () => {
+                        const open = helpEl.style.display === "none";
+                        helpEl.style.display = open ? "block" : "none";
+                        q.style.background = open ? "#3a1028" : "transparent";
+                    });
+                    row.appendChild(q);
+                    row.appendChild(locBtn);
+                    row.appendChild(exp);
+                    row.appendChild(del);
+                    dataBody.appendChild(row);
+                    dataBody.appendChild(helpEl);
+                    continue;
+                }
+                row.appendChild(locBtn);
+                row.appendChild(exp);
+                row.appendChild(del);
+                dataBody.appendChild(row);
+            }
+        };
+        dataBtn.addEventListener("click", () => {
+            dataOpen = !dataOpen;
+            try { localStorage.setItem("EBC_storageDataOpen", dataOpen ? "1" : "0"); } catch { /* ignore */ }
+            if (dataOpen) buildData();
+            paintDataBtn();
+        });
+        paintDataBtn();
+        if (dataOpen) buildData();
+        content.appendChild(dataBtn);
+        content.appendChild(dataBody);
+
+        // ── Backup: take everything with you, restore it anywhere ─────────
+        // Deliberately storage-agnostic. A backup holds whatever you have,
+        // account-synced or device-only alike, and restoring puts each category
+        // wherever THIS device is set to keep it - so it survives clearing your
+        // browser data and moves cleanly between machines.
+        let backupOpen = false;
+        try { backupOpen = localStorage.getItem("EBC_storageBackupOpen") === "1"; } catch { /* ignore */ }
+        const backupBtn = document.createElement("button");
+        backupBtn.style.cssText = "width:100%;font-family:'Trebuchet MS',serif;font-size:10.5px;padding:3px 0;border-radius:7px;border:1px dashed #4a2038;background:transparent;color:#9a7080;cursor:pointer;margin-top:6px;transition:color 0.12s,border-color 0.12s;";
+        const backupBody = document.createElement("div");
+        backupBody.style.cssText = "margin-top:5px;display:flex;flex-direction:column;gap:6px;";
+        const paintBackupBtn = (): void => {
+            backupBtn.textContent = (backupOpen ? "\u25bc" : "\u25b6") + " Backup - export & import";
+            backupBody.style.display = backupOpen ? "flex" : "none";
+        };
+
+        const status = document.createElement("div");
+        status.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;line-height:1.5;min-height:13px;";
+        const say = (msg: string, ok = true): void => {
+            status.textContent = msg;
+            status.style.color = ok ? "#8ab898" : "#c08a8a";
+        };
+
+        const runImport = (text: string): void => {
+            let label = "this backup";
+            try {
+                const meta = JSON.parse(text) as { categories?: string[] };
+                if (Array.isArray(meta.categories) && meta.categories.length) {
+                    label = meta.categories.join(", ");
+                }
+            } catch {
+                say("That is not valid JSON - copy the whole file, including the braces.", false);
+                return;
+            }
+            showConfirmOverlay(
+                `Import ${label}?\n\nAnything you already have in those categories is replaced. Everything else is left alone.`,
+                "Cancel", "Import",
+                () => {
+                    try {
+                        const r = importDataBackup(text);
+                        if (r.keys === 0) { say("Nothing imported - that backup held no EBC data.", false); return; }
+                        // A restore can write the device-stored outfit lists
+                        // straight to localStorage, which the in-memory copies
+                        // know nothing about. Drop them so the restored outfits
+                        // actually show up instead of waiting for a reload.
+                        reloadLocalLists();
+                        const extra = r.skipped.length ? ` ${r.skipped.length} unrecognised entr${r.skipped.length === 1 ? "y was" : "ies were"} ignored.` : "";
+                        say(`Restored ${r.categories.length} categor${r.categories.length === 1 ? "y" : "ies"}: ${r.categories.join(", ")}.${extra}`);
+                        window.setTimeout(() => this.rerender(), 2500);
+                    } catch (err) {
+                        say(`Could not read that backup: ${(err as Error).message}`, false);
+                    }
+                },
+            );
+        };
+
+        const buildBackup = (): void => {
+            while (backupBody.firstChild) backupBody.removeChild(backupBody.firstChild);
+
+            const hint = document.createElement("div");
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;line-height:1.5;";
+            hint.textContent = "Saves a file with everything EBC stores for you - whether it lives on your account or only on this browser. Keep it before clearing your browser data, or use it to move to another device. Importing puts each category wherever this device is set to keep it, so it does not matter where it came from. Use Save on a single row above to back up just that one.";
+            backupBody.appendChild(hint);
+
+            const btnRow = document.createElement("div");
+            btnRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+
+            const allBtn = document.createElement("button");
+            allBtn.textContent = "\u2193 Export everything";
+            allBtn.style.cssText = "flex:1;min-width:130px;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 10px;border-radius:6px;border:1px solid #79a885;background:transparent;color:#98d0a8;cursor:pointer;";
+            allBtn.addEventListener("click", () => {
+                const json = exportAllData();
+                this.downloadBackup(json, "all-data");
+                say(`Exported ${Math.round(json.length / 1024)} KB. Keep the file somewhere safe.`);
+            });
+
+            const fileBtn = document.createElement("button");
+            fileBtn.textContent = "\u2191 Import from file";
+            fileBtn.style.cssText = "flex:1;min-width:130px;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:5px 10px;border-radius:6px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;";
+            const filePick = document.createElement("input");
+            filePick.type = "file";
+            filePick.accept = "application/json,.json";
+            filePick.style.display = "none";
+            filePick.addEventListener("change", () => {
+                const f = filePick.files?.[0];
+                if (!f) return;
+                const reader = new FileReader();
+                reader.onload = () => { runImport(String(reader.result ?? "")); filePick.value = ""; };
+                reader.onerror = () => { say("Could not read that file.", false); filePick.value = ""; };
+                reader.readAsText(f);
+            });
+            fileBtn.addEventListener("click", () => filePick.click());
+
+            btnRow.appendChild(allBtn);
+            btnRow.appendChild(fileBtn);
+            backupBody.appendChild(btnRow);
+            backupBody.appendChild(filePick);
+
+            const ta = document.createElement("textarea");
+            ta.className = "ebc-form-input";
+            ta.placeholder = "…or paste a backup here";
+            ta.style.cssText = "width:100%;box-sizing:border-box;height:52px;resize:vertical;font-size:10px;font-family:monospace;";
+            // Keep BC's document-level key handler out of the textarea, or
+            // typing here moves the character and swallows characters.
+            ta.addEventListener("keydown", (e) => { e.stopPropagation(); });
+            ta.addEventListener("keyup",   (e) => { e.stopPropagation(); });
+            const pasteBtn = document.createElement("button");
+            pasteBtn.textContent = "Import pasted text";
+            pasteBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;padding:4px 10px;border-radius:6px;border:1px solid #4a2038;background:transparent;color:#9a7080;cursor:pointer;align-self:flex-start;";
+            pasteBtn.addEventListener("click", () => {
+                const text = ta.value.trim();
+                if (!text) { say("Paste a backup into the box first.", false); return; }
+                runImport(text);
+            });
+            backupBody.appendChild(ta);
+            backupBody.appendChild(pasteBtn);
+            backupBody.appendChild(status);
+        };
+
+        backupBtn.addEventListener("click", () => {
+            backupOpen = !backupOpen;
+            try { localStorage.setItem("EBC_storageBackupOpen", backupOpen ? "1" : "0"); } catch { /* ignore */ }
+            if (backupOpen) buildBackup();
+            paintBackupBtn();
+        });
+        paintBackupBtn();
+        if (backupOpen) buildBackup();
+        content.appendChild(backupBtn);
+        content.appendChild(backupBody);
+
+        toggleBtn.addEventListener("click", () => {
+            open = !open;
+            try { localStorage.setItem("EBC_storageOpen", open ? "1" : "0"); } catch { /* ignore */ }
+            content.style.display = open ? "block" : "none";
+            paintToggle();
+        });
+
+        wrap.appendChild(toggleBtn);
+        wrap.appendChild(content);
+        body.appendChild(wrap);
+    }
+
+    /** Offers a JSON string to the browser as a download. Used for backups -
+     *  a file is what survives clearing your browser data, which is the whole
+     *  point of the feature. */
+    private downloadBackup(json: string, label: string): void {
+        try {
+            const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "backup";
+            const day = new Date().toISOString().slice(0, 10);
+            const blob = new Blob([json], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `ebc-${slug}-${day}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+        } catch { /* ignore */ }
+    }
+
+    // -- Sections shared by the classic OUTFITS tab and the grouped ME tab -----
+    // These were inline inside renderOutfits(); they are pure moves so the
+    // classic tab renders exactly as before, and the grouped layout can place
+    // each one on a different tab.
+
+    /** Default nickname + default title rows. `withHeader` adds a section
+     *  label so the grouped layout can turn it into its own pill. */
+    private buildIdentitySection(body: HTMLElement, withHeader = false): void {
+        if (withHeader) {
+            const hdr = document.createElement("div");
+            hdr.className = "ebc-section-label";
+            hdr.textContent = t("grouped.nicknameTitle");
+            body.appendChild(hdr);
+        }
         // ── Default nickname (top of page) ───────────────────────────────────────
         const nickRow = document.createElement("div");
         nickRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:8px;";
@@ -7138,11 +8566,10 @@ export class EBCDrawer {
         defTitleRow.appendChild(defTitleLbl);
         defTitleRow.appendChild(defTitleSel);
         body.appendChild(defTitleRow);
+    }
 
-        this.renderRestraintInfo(body);
-        this.renderOutfitWhitelist(body);
-        this.renderPalettes(body);
-
+    /** Outfit tag management - chips plus the add-tag row. */
+    private buildOutfitTagsSection(body: HTMLElement): void {
         // ── Tag management ───────────────────────────────────────────────────────────
         const tagMgmtDiv = document.createElement("div");
         tagMgmtDiv.style.marginBottom = "8px";
@@ -7167,17 +8594,17 @@ export class EBCDrawer {
             // ── Existing tags as interactive chips ────────────────────────────
             if (tags.length) {
                 const chipsWrap = document.createElement("div");
-                chipsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px;";
+                chipsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px;align-items:flex-start;";
                 for (const tag of tags) {
                     const chip = document.createElement("div");
-                    chip.style.cssText = `display:inline-flex;align-items:center;gap:4px;padding:3px 7px 3px 5px;border-radius:20px;background:${tag.color};box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),0 1px 3px rgba(0,0,0,0.35);`;
+                    chip.style.cssText = `display:inline-flex;align-items:center;gap:6px;padding:5px 10px 5px 7px;border-radius:16px;background:${tag.color};box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),0 1px 3px rgba(0,0,0,0.35);max-width:190px;`;
 
                     // Color dot = native color input styled as a dot
                     const colorDot = document.createElement("input");
                     colorDot.type = "color";
                     colorDot.value = tag.color;
                     colorDot.title = "Change color";
-                    colorDot.style.cssText = "width:10px;height:10px;padding:0;border:1px solid rgba(255,255,255,0.35);border-radius:50%;cursor:pointer;flex-shrink:0;outline:none;";
+                    colorDot.style.cssText = "width:13px;height:13px;padding:0;border:1px solid rgba(255,255,255,0.45);border-radius:50%;cursor:pointer;flex-shrink:0;outline:none;";
                     colorDot.addEventListener("input", () => {
                         updateOutfitTag(tag.id, tag.name, colorDot.value);
                         tag.color = colorDot.value;
@@ -7186,7 +8613,7 @@ export class EBCDrawer {
 
                     const nameSpan = document.createElement("span");
                     nameSpan.textContent = tag.name;
-                    nameSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.55);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nameSpan.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.55);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
 
                     const delSpan = document.createElement("span");
                     delSpan.textContent = "×";
@@ -7266,10 +8693,21 @@ export class EBCDrawer {
             renderTagMgmt();
         });
 
+        // Build the contents NOW, not on first expand. Collapsing should only
+        // hide them. Building lazily meant that whenever the section was already
+        // marked open - which is exactly what happens once anyone has expanded it
+        // once - nothing ever called this, so the chips and the add-tag row were
+        // simply absent. Inside a pill, where the header is hidden, that left an
+        // empty category with no way to create a tag at all.
+        renderTagMgmt();
+
         tagMgmtDiv.appendChild(tagToggleBtn);
         tagMgmtDiv.appendChild(tagMgmtBody);
         body.appendChild(tagMgmtDiv);
+    }
 
+    /** Saved outfits: collapsible header, filter box, rows, new-outfit form. */
+    private buildSavedOutfitsSection(body: HTMLElement): void {
         const outfits = getOutfits();
 
         // ── Collapsible "Saved Outfits" header ───────────────────────────────────
@@ -7350,9 +8788,32 @@ export class EBCDrawer {
 
         this.buildNewOutfitSection(outfitsBody);
         body.appendChild(outfitsBody);
+    }
+
+    private renderOutfits(): void {
+        const body = this.tabBody();
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        this.buildIdentitySection(body);
+
+        this.renderRestraintInfo(body);
+        this.renderOutfitWhitelist(body);
+        this.renderPalettes(body);
+
+        this.buildOutfitTagsSection(body);
+
+        this.renderStorageUsage(body);
+        this.buildSavedOutfitsSection(body);
 
         this.buildRestraintSection(body);
         this.buildScheduleSection(body);
+        // Fewer, broader pills - eight sections was too many to scan.
+        this._pillifyTab(body, "EBC_outfitsView", [
+            { pill: "Outfits",    match: [t("outfits.savedOutfits"), t("outfits.outfitSchedule"), "TAGS", t("outfits.tagsN", { n: 0 })] },
+            { pill: "Restraints", match: [t("dev.activeRestraints"), t("outfits.protectedItems"), t("outfits.savedRestraints")] },
+            { pill: "Colours",    match: [t("outfits.colours"), t("outfits.coloursN", { n: 0 })] },
+        ]);
     }
 
     // -- Outfit Schedule section ------------------------------------------------
@@ -7832,7 +9293,7 @@ export class EBCDrawer {
             // ── Active chips ──────────────────────────────────────────────────
             if (current.length) {
                 const chipsWrap = document.createElement("div");
-                chipsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;";
+                chipsWrap.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px;align-items:flex-start;";
                 for (const group of current) {
                     // Resolve a readable label: try current worn item, fallback to cleaned group name
                     let chipLabel = group.replace(/^Item/, "");
@@ -7847,13 +9308,15 @@ export class EBCDrawer {
                         }
                     } catch { /* ignore */ }
 
-                    const chip = document.createElement("span");
-                    chip.style.cssText = "display:inline-flex;align-items:center;gap:3px;background:#1a0c16;border:1px solid #3a1928;border-radius:4px;padding:2px 6px;font-family:'Trebuchet MS',serif;font-size:11px;color:#c48aa8;";
+                    const chip = document.createElement("div");
+                    chip.style.cssText = "display:inline-flex;align-items:center;gap:6px;background:#1a0c16;border:1px solid #3a1928;border-left:3px solid #79a885;border-radius:6px;padding:5px 8px;font-family:'Trebuchet MS',serif;font-size:11px;color:#c48aa8;max-width:230px;";
                     const chipTxt = document.createElement("span");
+                    chipTxt.style.cssText = "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3;";
                     chipTxt.textContent = chipLabel;
+                    chipTxt.title = chipLabel;
                     const rmBtn = document.createElement("span");
                     rmBtn.textContent = "×";
-                    rmBtn.style.cssText = "cursor:pointer;color:#8a6070;font-size:11px;line-height:1;";
+                    rmBtn.style.cssText = "cursor:pointer;color:#8a6070;font-size:14px;line-height:1;flex-shrink:0;padding:0 2px;";
                     rmBtn.title = "Remove from protected items";
                     rmBtn.addEventListener("mouseenter", () => { rmBtn.style.color = "#cf6f98"; });
                     rmBtn.addEventListener("mouseleave", () => { rmBtn.style.color = "#8a6070"; });
@@ -7875,13 +9338,15 @@ export class EBCDrawer {
             }
 
             // ── Currently wearing picker (collapsible) ────────────────────────
-            let wornOpen = false;
-            try { wornOpen = localStorage.getItem("EBC_outfitWLWornOpen") === "1"; } catch { /* ignore */ }
+            // Open unless explicitly closed: this list is the only way to add
+            // anything here, so hiding it by default left the page looking empty.
+            let wornOpen = true;
+            try { wornOpen = localStorage.getItem("EBC_outfitWLWornOpen") !== "0"; } catch { /* ignore */ }
             const wornToggle = document.createElement("div");
             wornToggle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5060;cursor:pointer;user-select:none;margin-bottom:3px;";
             const wornBody = document.createElement("div");
+            wornBody.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;";
             wornBody.style.display = wornOpen ? "flex" : "none";
-            wornBody.style.cssText = "flex-wrap:wrap;gap:4px;";
 
             const updateWornToggle = (): void => {
                 wornToggle.textContent = (wornOpen ? "▼" : "▶") + " Current restraints - click to protect";
@@ -8513,9 +9978,18 @@ export class EBCDrawer {
         nameInAnnounceBtn.className = "ebc-flag-chip" + (isNameInAnnounce ? " on" : "");
         nameInAnnounceBtn.textContent = isNameInAnnounce ? "👤 With name" : "👤 No name";
 
+        const isLocalStore = o.local === true;
+        const storageBtn = document.createElement("button");
+        storageBtn.className = "ebc-flag-chip" + (isLocalStore ? " on" : "");
+        storageBtn.textContent = isLocalStore ? "💾 This device" : "☁ Account";
+        storageBtn.title = isLocalStore
+            ? "Stored in this browser only - no account storage used, visible to every account here. Click to move to your BC account."
+            : "Stored on your BC account (synced across devices, uses the account budget). Click to move to this device only.";
+
         flagsRow.appendChild(preserveBtn);
         flagsRow.appendChild(preserveClothingBtn);
         flagsRow.appendChild(nameInAnnounceBtn);
+        flagsRow.appendChild(storageBtn);
 
         info.appendChild(nameEl);
         info.appendChild(cmdEl);
@@ -8765,6 +10239,11 @@ export class EBCDrawer {
             nameInAnnounceBtn.className = "ebc-flag-chip" + (next ? " on" : "");
             nameInAnnounceBtn.textContent = next ? "👤 With name" : "👤 No name";
             setOutfitNameInAnnounce(o.id, next);
+        });
+
+        storageBtn.addEventListener("click", () => {
+            const next = !storageBtn.classList.contains("on");
+            if (setOutfitStorage(o.id, next)) this.rerender();
         });
 
         wearBtn.addEventListener("click", () => {
@@ -9268,11 +10747,14 @@ export class EBCDrawer {
             impRLoadBtn.addEventListener("click", () => {
                 impRError.textContent = "";
                 try {
-                    importOutfitFromBCCode(
+                    // Was importOutfitFromBCCode, which pulls the restraint
+                    // items out correctly and then files the result under
+                    // Outfits - so this button appeared to work while Restraint
+                    // Sets stayed permanently empty.
+                    importRestraintSetFromBCCode(
                         impRTextarea.value.trim(),
                         impRNameInput.value.trim() || "Imported Restraints",
                         impRCmdInput.value.trim() || "imported",
-                        "restraints",
                     );
                     closeImpRPanel();
                     renderRestraintList();
@@ -9635,6 +11117,19 @@ export class EBCDrawer {
             setOutfitNameInAnnounce(r.id, next);
         });
         rFlagsRow.appendChild(rNameInAnnounceBtn);
+
+        const rIsLocalStore = r.local === true;
+        const rStorageBtn = document.createElement("button");
+        rStorageBtn.className = "ebc-flag-chip" + (rIsLocalStore ? " on" : "");
+        rStorageBtn.textContent = rIsLocalStore ? "💾 This device" : "☁ Account";
+        rStorageBtn.title = rIsLocalStore
+            ? "Stored in this browser only - no account storage used, visible to every account here. Click to move to your BC account."
+            : "Stored on your BC account (synced across devices, uses the account budget). Click to move to this device only.";
+        rStorageBtn.addEventListener("click", () => {
+            const next = !rStorageBtn.classList.contains("on");
+            if (setRestraintStorage(r.id, next)) rerender();
+        });
+        rFlagsRow.appendChild(rStorageBtn);
         info.appendChild(rFlagsRow);
 
         if (r.items.length === 0) {
@@ -9873,105 +11368,85 @@ export class EBCDrawer {
     // Sends BC's native "Boop Nose" activity (Pet on ItemNose) to a single target.
     // This is the exact same event as clicking a character and selecting Boop Nose -
     // targets with reaction mods (BCX, LSCG, etc.) will respond accordingly.
-    private boopOne(target: Character): void {
-        try {
-            const win = window as unknown as Record<string, unknown>;
-            const ActivityRun = win.ActivityRun as ((actor: Character, acted: Character, group: { Name: string }, itemActivity: { Activity: unknown; Item: null }) => void) | undefined;
-            const AssetGetActivity = win.AssetGetActivity as ((family: string, name: string) => unknown) | undefined;
-            if (!ActivityRun || !AssetGetActivity) return;
-            const petActivity = AssetGetActivity("Female3DCG", "Pet");
-            if (!petActivity) return;
-            ActivityRun(Player, target, { Name: "ItemNose" }, { Activity: petActivity, Item: null });
-        } catch { /* ignore */ }
+    /** Returns false when BC's own rules would not have allowed it. */
+    private boopOne(target: Character): boolean {
+        return runActivityOn(target, "ItemNose", "Pet");
     }
 
-    private boopFriendsInRoom(): number {
+    /**
+     * Friends in the room this action is actually allowed on, and how many were
+     * refused. Filtered before scheduling rather than inside the per-person call
+     * so the button reports what really happened - it used to count everyone it
+     * was about to try, including people who would refuse.
+     */
+    private boopFriendsInRoom(): { done: number; skipped: number } {
         try {
             const friendList = (Player as unknown as Record<string, unknown>).FriendList as number[] | undefined;
-            if (!Array.isArray(friendList) || friendList.length === 0) return 0;
-
-            const friendSet = new Set(friendList);
-            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
-            const friends = room.filter(c =>
-                c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber!)
-            );
-            if (friends.length === 0) return 0;
-
-            let booped = 0;
-            for (const friend of friends) {
-                const delay = booped * 1800;
-                const target = friend; // capture for closure
-                window.setTimeout(() => { try { this.boopOne(target); } catch { /* ignore */ } }, delay);
-                booped++;
-            }
-            return booped;
-        } catch {
-            return 0;
-        }
-    }
-
-    private cuddleOne(target: Character): void {
-        try {
-            const win = window as unknown as Record<string, unknown>;
-            const ActivityRun = win.ActivityRun as ((actor: Character, acted: Character, group: { Name: string }, itemActivity: { Activity: unknown; Item: null }) => void) | undefined;
-            const AssetGetActivity = win.AssetGetActivity as ((family: string, name: string) => unknown) | undefined;
-            if (!ActivityRun || !AssetGetActivity) return;
-            const cuddleActivity = AssetGetActivity("Female3DCG", "Cuddle");
-            if (!cuddleActivity) return;
-            ActivityRun(Player, target, { Name: "ItemArms" }, { Activity: cuddleActivity, Item: null });
-        } catch { /* ignore */ }
-    }
-
-    private cuddleFriendsInRoom(): number {
-        try {
-            const friendList = (Player as unknown as Record<string, unknown>).FriendList as number[] | undefined;
-            if (!Array.isArray(friendList) || friendList.length === 0) return 0;
+            if (!Array.isArray(friendList) || friendList.length === 0) return { done: 0, skipped: 0 };
             const friendSet = new Set(friendList);
             const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
             const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber!));
-            if (friends.length === 0) return 0;
-            let count = 0;
-            for (const friend of friends) {
-                const target = friend;
-                window.setTimeout(() => { try { this.cuddleOne(target); } catch { /* ignore */ } }, count * 1800);
-                count++;
-            }
-            return count;
-        } catch { return 0; }
+            if (friends.length === 0) return { done: 0, skipped: 0 };
+
+            const allowed = friends.filter(c => activityDenial(c, "ItemNose", "Pet") === null);
+            allowed.forEach((friend, i) => {
+                window.setTimeout(() => { try { this.boopOne(friend); } catch { /* ignore */ } }, i * 1800);
+            });
+            return { done: allowed.length, skipped: friends.length - allowed.length };
+        } catch { return { done: 0, skipped: 0 }; }
+    }
+    private cuddleOne(target: Character): boolean {
+        return runActivityOn(target, "ItemArms", "Cuddle");
     }
 
-    private petOne(target: Character): void {
-        try {
-            const win = window as unknown as Record<string, unknown>;
-            const ActivityRun = win.ActivityRun as ((actor: Character, acted: Character, group: { Name: string }, itemActivity: { Activity: unknown; Item: null }) => void) | undefined;
-            const AssetGetActivity = win.AssetGetActivity as ((family: string, name: string) => unknown) | undefined;
-            if (!ActivityRun || !AssetGetActivity) return;
-            const petActivity = AssetGetActivity("Female3DCG", "Pet");
-            if (!petActivity) return;
-            ActivityRun(Player, target, { Name: "ItemHead" }, { Activity: petActivity, Item: null });
-        } catch { /* ignore */ }
-    }
-
-    private petFriendsInRoom(): number {
+    /**
+     * Friends in the room this action is actually allowed on, and how many were
+     * refused. Filtered before scheduling rather than inside the per-person call
+     * so the button reports what really happened - it used to count everyone it
+     * was about to try, including people who would refuse.
+     */
+    private cuddleFriendsInRoom(): { done: number; skipped: number } {
         try {
             const friendList = (Player as unknown as Record<string, unknown>).FriendList as number[] | undefined;
-            if (!Array.isArray(friendList) || friendList.length === 0) return 0;
+            if (!Array.isArray(friendList) || friendList.length === 0) return { done: 0, skipped: 0 };
             const friendSet = new Set(friendList);
             const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
             const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber!));
-            if (friends.length === 0) return 0;
-            let count = 0;
-            for (const friend of friends) {
-                const target = friend;
-                window.setTimeout(() => { try { this.petOne(target); } catch { /* ignore */ } }, count * 1800);
-                count++;
-            }
-            return count;
-        } catch { return 0; }
+            if (friends.length === 0) return { done: 0, skipped: 0 };
+
+            const allowed = friends.filter(c => activityDenial(c, "ItemArms", "Cuddle") === null);
+            allowed.forEach((friend, i) => {
+                window.setTimeout(() => { try { this.cuddleOne(friend); } catch { /* ignore */ } }, i * 1800);
+            });
+            return { done: allowed.length, skipped: friends.length - allowed.length };
+        } catch { return { done: 0, skipped: 0 }; }
+    }
+    private petOne(target: Character): boolean {
+        return runActivityOn(target, "ItemHead", "Pet");
     }
 
-    // -- Appearance diff -------------------------------------------------------
+    /**
+     * Friends in the room this action is actually allowed on, and how many were
+     * refused. Filtered before scheduling rather than inside the per-person call
+     * so the button reports what really happened - it used to count everyone it
+     * was about to try, including people who would refuse.
+     */
+    private petFriendsInRoom(): { done: number; skipped: number } {
+        try {
+            const friendList = (Player as unknown as Record<string, unknown>).FriendList as number[] | undefined;
+            if (!Array.isArray(friendList) || friendList.length === 0) return { done: 0, skipped: 0 };
+            const friendSet = new Set(friendList);
+            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+            const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber!));
+            if (friends.length === 0) return { done: 0, skipped: 0 };
 
+            const allowed = friends.filter(c => activityDenial(c, "ItemHead", "Pet") === null);
+            allowed.forEach((friend, i) => {
+                window.setTimeout(() => { try { this.petOne(friend); } catch { /* ignore */ } }, i * 1800);
+            });
+            return { done: allowed.length, skipped: friends.length - allowed.length };
+        } catch { return { done: 0, skipped: 0 }; }
+    }
     private renderDiff(panel: HTMLElement, outfit: ConfiguredOutfit): void {
         while (panel.firstChild) panel.removeChild(panel.firstChild);
 
@@ -10024,7 +11499,7 @@ export class EBCDrawer {
     // -- Poses tab -------------------------------------------------------------
 
     private renderPoses(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        const body = this.tabBody();
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
@@ -10284,6 +11759,45 @@ export class EBCDrawer {
         // ── Poses (collapsible) ───────────────────────────────────────────────
         const posesCnt = makeCollapse(t("anims.poses"), "EBC_posesCollapsed", false);
 
+        // Pose buttons repaint themselves rather than rerendering the tab. A full
+        // rebuild fired ~150ms after each click and tore down the pill nav with
+        // it, so a pill pressed in that window lagged behind its own highlight.
+        const poseBtnRefs: Array<{ btn: HTMLButtonElement; key: string; group: string }> = [];
+        const poseTitle = (key: string, grp: string, blocked: boolean): string =>
+            blocked ? "Your restraints stop you from taking this pose"
+            : key ? `Set ${grp.toLowerCase()} pose: ${key}`
+            : grp === "Arms" ? "Clear arm pose" : "Clear all poses";
+        // Poses change without the panel being touched - a restraint can force
+        // one, and someone else can pose you.
+        const refreshPoseBtns = (): void => {
+            // Effective, not chosen - so a restraint forcing a pose lights the
+            // right button without you touching anything.
+            const live = getEffectivePoses();
+            const armKeys2 = KNOWN_POSES.find(g => g.group === "Arms")?.poses.map(p => p.key).filter(Boolean) ?? [];
+            for (const ref of poseBtnRefs) {
+                const on = ref.key === "" && ref.group === "Arms"
+                    ? !live.some(p => armKeys2.includes(p))
+                    : ref.key === ""
+                    ? live.length === 0
+                    : live.includes(ref.key);
+                // A pose you are ALREADY IN is never dimmed. The dimming means
+                // "you cannot switch to this unaided", which is true of a hogtie
+                // - so being hogtied greyed out the very button that was meant
+                // to be lit, and the menu looked broken exactly when a restraint
+                // put you somewhere you could not have put yourself.
+                const blocked = !on && !canTakePose(ref.key);
+                ref.btn.className = "ebc-pose-btn" + (on ? " active" : "");
+                ref.btn.style.opacity = blocked ? "0.4" : "";
+                ref.btn.style.cursor  = blocked ? "not-allowed" : "";
+                ref.btn.title = poseTitle(ref.key, ref.group, blocked);
+            }
+        };
+
+        // Registered last, so it always points at the grid built by the most
+        // recent render. An older closure would repaint buttons that are no
+        // longer on screen.
+        this._refreshPoseButtons = refreshPoseBtns;
+
         for (const group of KNOWN_POSES) {
             const lbl = document.createElement("div");
             lbl.className = "ebc-section-label";
@@ -10305,10 +11819,24 @@ export class EBCDrawer {
                     : isPoseActive(preset.key);
                 btn.className = "ebc-pose-btn" + (isActive ? " active" : "");
                 btn.textContent = preset.label;
-                btn.title = preset.key
-                    ? `Set ${group.group.toLowerCase()} pose: ${preset.key}`
-                    : group.group === "Arms" ? "Clear arm pose" : "Clear all poses";
+                // Same rule on the first paint - see refreshPoseBtns.
+                const poseBlocked = !isActive && !canTakePose(preset.key);
+                if (poseBlocked) {
+                    btn.style.opacity = "0.4";
+                    btn.style.cursor = "not-allowed";
+                }
+                btn.title = poseTitle(preset.key, group.group, poseBlocked);
+                poseBtnRefs.push({ btn, key: preset.key, group: group.group });
                 btn.addEventListener("click", () => {
+                    // Re-check live - restraints may have changed since render.
+                    // Without this EBC forced the pose mapping and emoted the
+                    // announce even when the pose could never take.
+                    if (!canTakePose(preset.key)) {
+                        btn.style.opacity = "0.4";
+                        btn.style.cursor = "not-allowed";
+                        btn.title = "Your restraints stop you from taking this pose";
+                        return;
+                    }
                     // Always read fresh - the closure-captured currentPoses is stale
                     // if the user clicks a second button before the 150ms rerender fires.
                     const livePoses = getCurrentPoses();
@@ -10335,9 +11863,12 @@ export class EBCDrawer {
                         applyPoses([...bodyPoses, preset.key]);
                     }
                     if (preset.announceText) {
-                        try { ServerSend("ChatRoomChat", { Type: "Emote", Content: preset.announceText, Dictionary: [] }); } catch { /* ignore */ }
+                        try { sendRoomEmote(preset.announceText); } catch { /* ignore */ }
                     }
-                    this.rerender(150);
+                    // Repaint the grid only. The second pass catches BC settling
+                    // the pose (CharacterRefresh) a moment after we set it.
+                    refreshPoseBtns();
+                    window.setTimeout(refreshPoseBtns, 150);
                 });
                 grid.appendChild(btn);
             }
@@ -10982,6 +12513,7 @@ export class EBCDrawer {
         // ── EXPRESSIONS (collapsible) ────────────────────────────────────────
         const exprCnt = makeCollapse(t("anims.expressions"), "EBC_animsExprsCollapsed", true);
         this.renderExpressions(exprCnt);
+        this._pillifyTab(body, "EBC_animsView");
     }
 
     private renderScenes(body: HTMLElement): void {
@@ -12328,9 +13860,9 @@ export class EBCDrawer {
             dot.style.cursor = "pointer";
             dot.addEventListener("click", (e) => {
                 e.stopPropagation();
-                // Open panel on the USERS tab so the messages dropdown is visible
+                // Open panel on the USERS / SOCIAL tab so the messages dropdown is visible
                 if (!this.isOpen) this.open();
-                this.switchTab("notes");
+                this.switchTab(isGroupedLayout() ? "social" : "notes");
             });
             tab.appendChild(dot);
         } else if (!hasUnread && dot) {
@@ -12487,8 +14019,40 @@ export class EBCDrawer {
             window.setTimeout(() => { roomDrawerCopy.textContent = "Copy room name"; }, 1400);
         });
 
-        roomDrawerInner.appendChild(roomDrawerCopy);
-        roomDrawerInner.appendChild(roomDrawerJoin);
+        // Chips row - which of your friends are in the same room (click = open chat)
+        const roomDrawerChips = document.createElement("div");
+        roomDrawerChips.className = "ebc-beep-room-drawer-chips";
+        roomDrawerChips.style.display = "none";
+
+        const fillRoomChips = (nums: number[]): void => {
+            roomDrawerChips.innerHTML = "";
+            if (nums.length === 0) { roomDrawerChips.style.display = "none"; return; }
+            const withLbl = document.createElement("span");
+            withLbl.className = "ebc-beep-room-drawer-with";
+            withLbl.textContent = "Also here:";
+            roomDrawerChips.appendChild(withLbl);
+            for (const n of nums) {
+                const chip = document.createElement("button");
+                chip.className = "ebc-friend-rooms-chip";
+                chip.textContent = `${resolveName(n)} #${n}`;
+                chip.title = "Open chat";
+                chip.addEventListener("click", (ev: Event) => {
+                    ev.stopPropagation();
+                    this.beepUnread.delete(n);
+                    this.openBeepWindow(n);
+                });
+                roomDrawerChips.appendChild(chip);
+            }
+            roomDrawerChips.style.display = "";
+        };
+
+        const roomDrawerBtnRow = document.createElement("div");
+        roomDrawerBtnRow.className = "ebc-beep-room-drawer-btnrow";
+        roomDrawerBtnRow.appendChild(roomDrawerJoin);
+        roomDrawerBtnRow.appendChild(roomDrawerCopy);
+
+        roomDrawerInner.appendChild(roomDrawerChips);
+        roomDrawerInner.appendChild(roomDrawerBtnRow);
         roomDrawer.appendChild(roomDrawerInner);
 
         // Hover: open on mouseenter, close after short delay on mouseleave.
@@ -12544,39 +14108,60 @@ export class EBCDrawer {
                 roomBar.textContent = `📍 ${info.roomName}`;
                 roomBar.title = info.roomName;
                 roomBar.style.display = "";
+                roomBar.classList.remove("no-drawer");
                 roomDrawer.style.display = "";
                 roomDrawerJoin.style.display = "";
                 roomDrawerCopy.style.display = "";
-            } else if (info && isInCurrentRoom(memberNumber)) {
+                fillRoomChips(getFriendList().filter(n =>
+                    n !== memberNumber && getFriendOnlineInfo(n)?.roomName === info.roomName));
+            } else if (isInCurrentRoom(memberNumber)) {
                 // Friend is in our room but BC didn't return a room name - use our tracked name.
                 const sameRoomName = getCurrentRoomName();
                 if (sameRoomName) {
                     roomBar.textContent = `📍 ${sameRoomName}`;
                     roomBar.title = sameRoomName;
                     roomBar.style.display = "";
+                    roomBar.classList.remove("no-drawer");
                     roomDrawer.style.display = "";
                     roomDrawerJoin.style.display = "none"; // already in the same room
                     roomDrawerCopy.style.display = "";
+                    fillRoomChips(getFriendList().filter(n =>
+                        n !== memberNumber && getFriendStatus(n) === "room"));
                 } else {
                     roomBar.style.display = "none";
                     roomDrawer.classList.remove("open");
                     roomDrawer.style.display = "none";
                     roomDrawerCopy.style.display = "none";
+                    fillRoomChips([]);
                 }
             } else if (info?.isPrivate) {
                 // BC sets Private: true when the friend is in a private/restricted room.
-                roomBar.textContent = "📍 Private room";
+                // No actions possible (can't join or copy an unknown name) - no drawer.
+                roomBar.textContent = "🔒 In a private room";
                 roomBar.title = "Friend is in a private room";
                 roomBar.style.display = "";
-                roomDrawer.style.display = "";
-                roomDrawerJoin.style.display = "none"; // can't join by name
+                roomBar.classList.add("no-drawer");
+                roomDrawer.classList.remove("open");
+                roomDrawer.style.display = "none";
                 roomDrawerCopy.style.display = "none";
+                fillRoomChips([]);
+            } else if (s !== "away" && getFriendList().includes(memberNumber)) {
+                // Online friend with no room info = in the main hall / lobby.
+                roomBar.textContent = "🏛 In the lobby";
+                roomBar.title = "In the main hall (not in any room)";
+                roomBar.style.display = "";
+                roomBar.classList.add("no-drawer");
+                roomDrawer.classList.remove("open");
+                roomDrawer.style.display = "none";
+                roomDrawerCopy.style.display = "none";
+                fillRoomChips([]);
             } else {
-                // Private is falsy and no room name = friend is in the lobby
+                // Offline or status unknown - nothing to show
                 roomBar.style.display = "none";
                 roomDrawer.classList.remove("open");
                 roomDrawer.style.display = "none";
                 roomDrawerCopy.style.display = "none";
+                fillRoomChips([]);
             }
         };
         (win as unknown as Record<string, unknown>)._updateStatus = updateStatus;
@@ -12812,6 +14397,17 @@ export class EBCDrawer {
             history.appendChild(spacer);
             const entries = getConversation(memberNumber);
             const self = Player.MemberNumber ?? 0;
+            // Mark entries still queued for offline delivery. Matched newest-first so
+            // an older delivered message with identical text isn't marked instead of
+            // the newly queued one.
+            const pendingLeft  = getPendingMessagesCleaned(memberNumber);
+            const pendingMarks = new Set<BeepEntry>();
+            for (let pi = entries.length - 1; pi >= 0 && pendingLeft.length > 0; pi--) {
+                const pe = entries[pi];
+                if (pe.from !== self) continue;
+                const qIdx = pendingLeft.indexOf(stripBeepMetadata(pe.message));
+                if (qIdx !== -1) { pendingLeft.splice(qIdx, 1); pendingMarks.add(pe); }
+            }
             if (entries.length === 0) {
                 const hint = document.createElement("div");
                 hint.style.cssText = "text-align:center;color:#8a6070;font-size:11px;padding:20px 0;";
@@ -12855,12 +14451,14 @@ export class EBCDrawer {
                     nameLabel.appendChild(nameText);
                 }
 
-                // Apply gradient for VIP/Credits members or self; solid colour for everyone else.
+                // The flowing gradient is reserved for people in the credits -
+                // that is what it is meant to signal. Your own name used to get
+                // one too, which meant everybody saw an animated name and it read
+                // as a glitch rather than as anything special. Yours is still a
+                // distinct colour, just a solid one.
                 const vipEntry = VIP_MEMBERS[bubbleMember];
                 if (vipEntry) {
                     applyGradientText(nameText, vipEntry.gradient[0], vipEntry.gradient[1]);
-                } else if (bubbleMember === self) {
-                    applyGradientText(nameText, "#cf6f98", "#8090d0");
                 } else {
                     nameText.style.color = isSent ? "#e090b8" : "#80c0e0";
                 }
@@ -13014,6 +14612,55 @@ export class EBCDrawer {
 
                 wrap.appendChild(bubble);
 
+                // Undelivered marker + cancel button for messages still queued for
+                // offline delivery (recipient hasn't come online yet).
+                if (isSent && pendingMarks.has(e)) {
+                    bubble.style.opacity = "0.72";
+                    const pRow = document.createElement("div");
+                    pRow.style.cssText = "display:flex;align-items:center;gap:6px;padding:1px 3px 0;";
+                    const pLbl = document.createElement("span");
+                    pLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#c09a58;";
+                    pLbl.textContent = "⏳ Not delivered - sends when they come online";
+                    const pCancel = document.createElement("button");
+                    pCancel.className = "ebc-bubble-copy-btn";
+                    pCancel.textContent = "Cancel";
+                    pCancel.title = "Delete this message so it is never delivered";
+                    pCancel.addEventListener("click", () => {
+                        cancelPendingMessage(memberNumber, cleanMsg);
+                        deleteBeepEntry(e);
+                        renderHistory();
+                    });
+                    pRow.appendChild(pLbl);
+                    pRow.appendChild(pCancel);
+                    wrap.appendChild(pRow);
+                } else if (isSent && isBeepBlocked(e)) {
+                    // A proper block, not a footnote. This is the difference
+                    // between a message that went and one that never left, so it
+                    // is worth more than nine grey pixels under the bubble.
+                    const blockedBy = isBeepBlocked(e);
+                    const addon = ruleAddonName();
+                    bubble.style.opacity = "0.55";
+                    const bRow = document.createElement("div");
+                    bRow.style.cssText = "margin:3px 0 2px;padding:6px 9px;border-radius:7px;border:1px solid #7a3040;border-left:3px solid #c04858;background:rgba(70,14,26,0.45);max-width:100%;box-sizing:border-box;";
+                    const bHead = document.createElement("div");
+                    bHead.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.06em;color:#e88a96;text-transform:uppercase;";
+                    bHead.textContent = addon === "BCX"
+                        ? "⛔ Blocked by BCX"
+                        : "⛔ Blocked by a rule";
+                    const bWhy = document.createElement("div");
+                    bWhy.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#d0a8b0;line-height:1.45;margin-top:2px;";
+                    bWhy.textContent = blockedBy === "you"
+                        ? `A ${addon} rule on you forbids beeping them, so this was never sent.`
+                        : `They have a ${addon} rule that refuses beeps from you, so this never reached them.`;
+                    const bWho = document.createElement("div");
+                    bWho.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#9a7884;font-style:italic;margin-top:3px;";
+                    bWho.textContent = "Only you can see this.";
+                    bRow.appendChild(bHead);
+                    bRow.appendChild(bWhy);
+                    bRow.appendChild(bWho);
+                    wrap.appendChild(bRow);
+                }
+
                 // Reply button - only show on received messages
                 if (!isSent) {
                     const replyBtn = document.createElement("button");
@@ -13149,8 +14796,16 @@ export class EBCDrawer {
         // ── Emoji picker ─────────────────────────────────────────────────────
         const EMOTE_CATS: Array<{ icon: string; label: string; items: string[]; text?: true }> = [
             {
+                // items resolved live from localStorage at render time
+                icon: "🕒", label: "Recent",
+                items: [],
+            },
+            {
                 icon: "🐱", label: "Cats",
-                items: ["🐱","😺","😸","😹","😻","😼","😽","🙀","😿","😾"],
+                items: [
+                    "🐱","😺","😸","😹","😻","😼","😽","🙀",
+                    "😿","😾","🐈","🦁","🐯","🐅",
+                ],
             },
             {
                 icon: "😊", label: "Faces",
@@ -13161,6 +14816,11 @@ export class EBCDrawer {
                     "😅","😌","🥲","😮","😲","😱","🤯","🤗",
                     "🙃","😒","😔","😞","😓","😣","😫","😩",
                     "🥱","😴","🤐","🤢","🤧","🥵","🥶","💀",
+                    "😀","😃","🙂","😉","😋","🤤","🤫","🧐",
+                    "🤨","😑","😐","🫥","🤔","🫣","😰","😨",
+                    "😯","🥴","😵","🤒","🤕","🤑","🤠","🥳",
+                    "😎","🤓","🫡","😤","😡","😠","🤬","👿",
+                    "🤡","👻","👽","🤖","🎃","🤷",
                 ],
             },
             {
@@ -13168,39 +14828,79 @@ export class EBCDrawer {
                 items: [
                     "❤️","🧡","💛","💚","💙","💜","🖤","🩷",
                     "💕","💗","💖","💞","💝","💓","💘","💔",
-                    "💋","🫦","🫂","🫶",
+                    "❤️‍🔥","❤️‍🩹","🩵","🩶","🤍","🤎","💟","♥️",
+                    "💋","🫦","🫂","🫶","💌","💍",
+                ],
+            },
+            {
+                icon: "👋", label: "Hands",
+                items: [
+                    "👋","🤚","✋","🖐️","👌","🤌","🤏","✌️",
+                    "🤞","🫰","🤟","🤘","🤙","👈","👉","👆",
+                    "👇","☝️","👍","👎","✊","👊","🤛","🤜",
+                    "👏","🙌","👐","🤲","🙏","💅","🤝","💪",
+                    "🫳","🫴",
                 ],
             },
             {
                 icon: "✨", label: "Sparkles",
                 items: [
-                    "✨","💫","⭐","🌟","🌈","🌙","☀️","🎀",
-                    "👀","👉","👈","💪","🫶","🙌","👏","🤝",
+                    "✨","💫","⭐","🌟","🌠","🌈","🌙","☀️",
+                    "🌤️","☁️","🌧️","⛈️","❄️","☃️","🌊","💧",
+                    "💦","💨","🔥","⚡","🎀","🎇","🎆","🎉",
+                    "🎊","🎈","💥","💢","💤","🕯️","🪄","🔮",
                 ],
             },
             {
-                icon: "🌸", label: "Floral & Food",
+                icon: "🌸", label: "Flowers",
                 items: [
-                    "🌸","🌺","🌹","🌷","🌼","🌻","💮","🏵️",
-                    "🍒","🍓","🍑","🍭","🧁","🎂","🍰","🍫",
+                    "🌸","💮","🏵️","🌹","🥀","🌺","🌻","🌼",
+                    "🌷","🪷","🪻","🌱","🌿","☘️","🍀","🍃",
+                    "🍂","🍁","🌵","🌴","🪴","🌳",
+                ],
+            },
+            {
+                icon: "🍰", label: "Food",
+                items: [
+                    "🍒","🍓","🫐","🍑","🍉","🍊","🍋","🍌",
+                    "🍍","🥭","🍎","🍭","🍬","🍫","🧁","🎂",
+                    "🍰","🍪","🍩","🍦","🍨","🥞","🧇","🍯",
+                    "🥛","🍼","☕","🍵","🧋","🥤","🧃","🍹",
                 ],
             },
             {
                 icon: "🐾", label: "Animals",
                 items: [
-                    "🐾","🐰","🦊","🐻","🐼","🐨","🐶","🐺",
-                    "🦝","🦋","🌊","🦄","🐸","🐹","🐭","🐯",
+                    "🐾","🐰","🐇","🦊","🐻","🐼","🐨","🐶",
+                    "🐕","🐺","🦝","🦋","🦄","🐴","🐸","🐹",
+                    "🐭","🐣","🐤","🐧","🦉","🦇","🐢","🐍",
+                    "🐙","🦑","🦈","🐬","🐳","🐟","🦭","🐑",
+                    "🐮","🐷","🦌","🦔",
+                ],
+            },
+            {
+                icon: "💬", label: "Symbols",
+                items: [
+                    "💬","💭","🗨️","❗","❕","❓","❔","💯",
+                    "✅","❌","⭕","🚫","🔞","⚠️","🔔","🔕",
+                    "🔒","🔓","🔑","⛓️","🧸","🎁","🎵","🎶",
+                    "🎧","📢","🏳️‍🌈","🏳️‍⚧️","♾️","☮️","⚜️","🎮",
                 ],
             },
             {
                 icon: "OwO", label: "Text emotes", text: true,
                 items: [
                     "OwO","UwU",">w<","^w^","=w=","qwq","TwT","nwn",
+                    "ÒwÓ","ÕwÕ","@w@","x3",">:3","uwu~","owo;;","=^w^=",
                     "<.<",">.>",">.<",">_<","o.o","o_o","-.-",">///<",
                     ":3",";3","c:","cx",":P",":D","xD",";)",":)",":(",
+                    ":<",">:(","D:",":o",":O",":x",":|",":/","._.","o7",
+                    "T_T",";-;","q-q","ಠ_ಠ","(¬‿¬)","(・ω・)","(・_・;)","(#`Д´)",
                     "^_^","^.^","^///^","(*^ω^*)","(≧◡≦)","(◕‿◕)✧",
                     "(づ◕‿◕)づ","(✿◠‿◠)","( ˘ω˘)","(╹ω╹)",
-                    "(⌒ω⌒)","(≧ω≦)","(◠‿◠✿)","♡","~nya~","~mew~",
+                    "(⌒ω⌒)","(≧ω≦)","(◠‿◠✿)","(≧▽≦)","(╥﹏╥)","(´,,•ω•,,)♡",
+                    "(=^・ω・^=)","ฅ^•ﻌ•^ฅ","(ノ°▽°)ノ","♪(´▽`)","(o´ω`o)","☆ミ",
+                    "♡","☆","~nya~","~mew~","~purr~","*boop*",
                 ],
             },
         ];
@@ -13218,7 +14918,14 @@ export class EBCDrawer {
         const renderEmoteCat = (idx: number): void => {
             while (emojiBody.firstChild) emojiBody.removeChild(emojiBody.firstChild);
             const cat = EMOTE_CATS[idx];
-            for (const em of cat.items) {
+            const items = cat.label === "Recent" ? loadRecentEmoji() : cat.items;
+            if (items.length === 0) {
+                const hint = document.createElement("div");
+                hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;padding:10px;text-align:center;width:100%;";
+                hint.textContent = "Emoji you use will appear here";
+                emojiBody.appendChild(hint);
+            }
+            for (const em of items) {
                 const eb = document.createElement("button");
                 if (cat.text) eb.className = "ebc-text-emote";
                 eb.textContent = em;
@@ -13231,6 +14938,7 @@ export class EBCDrawer {
                     const pos = start + em.length;
                     input.setSelectionRange(pos, pos);
                     updateCounter();
+                    pushRecentEmoji(em);
                     input.focus();
                     emojiPicker.style.display = "none";
                 });
@@ -13414,13 +15122,26 @@ export class EBCDrawer {
             const saved = localStorage.getItem(savedSizeKey);
             if (saved) {
                 const p = JSON.parse(saved) as { w: number; h: number };
-                beepW = p.w; beepH = p.h;
-                win.style.width  = `${p.w}px`;
-                win.style.height = `${p.h}px`;
+                // Clamp to the same minimums the resize handlers enforce. Old EBC
+                // versions could persist the 44px MINIMIZED height here (resize
+                // handles used to stay active while minimized), which reopened the
+                // window collapsed to just its footer.
+                if (typeof p.w === "number" && typeof p.h === "number") {
+                    beepW = Math.max(220, Math.min(window.innerWidth - 16, p.w));
+                    beepH = Math.max(200, Math.min(window.innerHeight - 8, p.h));
+                    win.style.width  = `${beepW}px`;
+                    win.style.height = `${beepH}px`;
+                }
             }
         } catch { /* ignore */ }
         const saveBeepSize = (): void => {
-            try { localStorage.setItem(savedSizeKey, JSON.stringify({ w: beepW ?? win.offsetWidth, h: beepH ?? win.offsetHeight })); } catch { /* */ }
+            try {
+                // Never persist a minimized/collapsed measurement - clamp to the
+                // resize minimums so a bad value can't survive a session.
+                const w = Math.max(220, beepW ?? win.offsetWidth);
+                const h = Math.max(200, beepH ?? win.offsetHeight);
+                localStorage.setItem(savedSizeKey, JSON.stringify({ w, h }));
+            } catch { /* */ }
         };
 
         const resizeE = document.createElement("div");
@@ -13609,7 +15330,7 @@ export class EBCDrawer {
             // No window open at all
             this.beepUnread.set(fromNum, (this.beepUnread.get(fromNum) ?? 0) + 1);
             this.refreshTabDot();
-            if (this.currentTab === "notes") {
+            if (EBCDrawer.isSocialTab(this.currentTab)) {
                 try { this.rerender(); } catch { /* ignore */ }
             }
         }
@@ -14007,12 +15728,31 @@ export class EBCDrawer {
     }
 
     private renderNotes(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        const body = this.tabBody();
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
+        // Sections are built into their own containers so the layout can either
+        // stack them all (classic) or split them behind pills (tabs).
+        const secPeople   = document.createElement("div");
+        const secRooms    = document.createElement("div");
+        const secNotes    = document.createElement("div");
+        const secSettings = document.createElement("div");
+        const tabsMode = getUsersLayout() === "tabs";
+        this._roomsSectionEl = tabsMode ? secRooms : null;
+        // In pill mode the pill itself is the section header, so the collapsibles
+        // inside would just be redundant dropdowns - open them up front.
+        if (tabsMode) {
+            try {
+                localStorage.setItem("EBC_chatSettingsCollapsed", "0");
+                localStorage.setItem("EBC_afkCollapsed", "0");
+                localStorage.setItem("EBC_userNotesCollapsed", "0");
+                localStorage.setItem("EBC_friendRoomsCollapsed", "0");
+            } catch { /* ignore */ }
+        }
+
         // ── Messages dropdown ─────────────────────────────────────────────────
-        this.renderMessagesDropdown(body);
+        this.renderMessagesDropdown(secPeople);
 
         // ── Chat & Notifications ──────────────────────────────────────────────
         let chatSettingsCollapsed = true;
@@ -14028,7 +15768,7 @@ export class EBCDrawer {
         chatSettingsChevron.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;";
         chatSettingsHeader.appendChild(chatSettingsLbl);
         chatSettingsHeader.appendChild(chatSettingsChevron);
-        body.appendChild(chatSettingsHeader);
+        secSettings.appendChild(chatSettingsHeader);
 
         const chatSettingsBody = document.createElement("div");
         chatSettingsBody.style.cssText = "padding:6px 0 2px 0;display:flex;flex-direction:column;gap:7px;";
@@ -14267,20 +16007,20 @@ export class EBCDrawer {
         chatSettingsChevron.textContent = chatSettingsCollapsed ? "▲" : "▼";
         chatSettingsBody.style.display = chatSettingsCollapsed ? "none" : "flex";
         chatSettingsHeader.addEventListener("click", toggleChatSettings);
-        body.appendChild(chatSettingsBody);
+        secSettings.appendChild(chatSettingsBody);
 
         // ── Divider ───────────────────────────────────────────────────────────
         const chatSettingsDiv = document.createElement("div");
         chatSettingsDiv.className = "ebc-divider";
-        body.appendChild(chatSettingsDiv);
+        secSettings.appendChild(chatSettingsDiv);
 
         // ── AFK Auto-Reply (top-level section) ───────────────────────────────
-        body.appendChild(afkSubHeader);
-        body.appendChild(afkBody);
+        secSettings.appendChild(afkSubHeader);
+        secSettings.appendChild(afkBody);
 
         const afkTopDiv = document.createElement("div");
         afkTopDiv.className = "ebc-divider";
-        body.appendChild(afkTopDiv);
+        secSettings.appendChild(afkTopDiv);
 
         const notes = getNotes();
 
@@ -14302,7 +16042,7 @@ export class EBCDrawer {
 
         userNotesHeaderRow.appendChild(userNotesLbl);
         userNotesHeaderRow.appendChild(userNotesChevron);
-        body.appendChild(userNotesHeaderRow);
+        secNotes.appendChild(userNotesHeaderRow);
 
         const userNotesBody = document.createElement("div");
         userNotesBody.style.display = userNotesCollapsed ? "none" : "block";
@@ -14318,8 +16058,40 @@ export class EBCDrawer {
         // ── Saved notes only ─────────────────────────────────────────────────
         const savedEntries = Object.entries(notes);
         if (savedEntries.length > 0) {
+            // Search covers the note text as well as the name - the reason to
+            // keep notes is finding the one that mentioned a thing.
+            const rows: Array<{ el: HTMLElement; hay: string }> = [];
+            if (savedEntries.length > 4) {
+                const searchWrap = document.createElement("div");
+                searchWrap.style.cssText = "display:flex;gap:6px;align-items:center;margin-bottom:6px;";
+                const searchInp = document.createElement("input");
+                searchInp.type = "text";
+                searchInp.className = "ebc-form-input";
+                searchInp.placeholder = "Search names and notes...";
+                searchInp.style.cssText = "flex:1;min-width:0;font-size:11px;padding:4px 8px;";
+                searchInp.addEventListener("keydown", (e) => { e.stopPropagation(); });
+                const hits = document.createElement("span");
+                hits.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a7080;flex-shrink:0;";
+                const applyFilter = (): void => {
+                    const q = searchInp.value.trim().toLowerCase();
+                    let shown = 0;
+                    for (const r of rows) {
+                        const on = !q || r.hay.includes(q);
+                        r.el.style.display = on ? "" : "none";
+                        if (on) shown++;
+                    }
+                    hits.textContent = q ? `${shown}/${rows.length}` : `${rows.length}`;
+                };
+                searchInp.addEventListener("input", applyFilter);
+                searchWrap.appendChild(searchInp);
+                searchWrap.appendChild(hits);
+                userNotesBody.appendChild(searchWrap);
+                window.setTimeout(applyFilter, 0);
+            }
             for (const [key, data] of savedEntries) {
-                userNotesBody.appendChild(this.buildNoteRow(parseInt(key), data.name, data.note));
+                const row = this.buildNoteRow(parseInt(key), data.name, data.note);
+                rows.push({ el: row, hay: `${data.name} ${data.note} #${key}`.toLowerCase() });
+                userNotesBody.appendChild(row);
             }
         } else {
             const empty = document.createElement("div");
@@ -14328,7 +16100,15 @@ export class EBCDrawer {
             userNotesBody.appendChild(empty);
         }
 
-        body.appendChild(userNotesBody);
+        secNotes.appendChild(userNotesBody);
+        {
+            // Notes are written from a person's row, not from here - say so, since
+            // an empty Notes pill otherwise looks broken.
+            const notesHint = document.createElement("div");
+            notesHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a8290;line-height:1.55;padding:6px 4px;border:1px dashed #33283c;border-radius:7px;margin-top:6px;";
+            notesHint.textContent = "To write a note about someone: open the Friends pill (or People in Room), click a person's row to expand it, and type in the note box. Saved notes are listed here and only you can see them.";
+            secNotes.appendChild(notesHint);
+        }
 
         // ── Groups ───────────────────────────────────────────────────────────
         const grpSec = document.createElement("div");
@@ -14512,46 +16292,204 @@ export class EBCDrawer {
         // ── Friends ──────────────────────────────────────────────────────────
         const friendsSection = document.createElement("div");
         this.friendsSectionEl = friendsSection;
-        body.appendChild(friendsSection);
+        secPeople.appendChild(friendsSection);
+
+        // ── Layout ───────────────────────────────────────────────────────────
+        if (!tabsMode) {
+            // Original: everything stacked on one page.
+            body.appendChild(secPeople);
+            body.appendChild(secNotes);
+            body.appendChild(secSettings);
+        } else {
+            // Tabs: one pill row, one section visible at a time. The single-section
+            // pills hide their now-redundant collapsible header.
+            if (userNotesHeaderRow) userNotesHeaderRow.style.display = "none";
+            // Hidden while the feature is unfinished - see PRIVATE_ROOM_SHARING_ENABLED.
+        if (PRIVATE_ROOM_SHARING_ENABLED) this.buildPrivateRoomSharing(secSettings);
+
+        const VIEWS: Array<{ id: string; label: string; el: HTMLElement }> = [
+                { id: "people",   label: "Friends",  el: secPeople },
+                { id: "rooms",    label: "Rooms",    el: secRooms },
+                { id: "notes",    label: "Notes",    el: secNotes },
+                { id: "settings", label: "Settings", el: secSettings },
+            ];
+            let active = "people";
+            try { active = localStorage.getItem("EBC_usersView") ?? "people"; } catch { /* ignore */ }
+            if (!VIEWS.some(v => v.id === active)) active = "people";
+
+            const nav = document.createElement("div");
+            nav.style.cssText = "display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap;";
+            const pills: HTMLButtonElement[] = [];
+            const paint = (): void => {
+                for (let i = 0; i < VIEWS.length; i++) {
+                    const on = VIEWS[i].id === active;
+                    pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:6px 15px;border-radius:13px;cursor:pointer;transition:all 0.12s;min-height:30px;" +
+                        (on
+                            ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                            : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+                    VIEWS[i].el.style.display = on ? "" : "none";
+                }
+            };
+            for (const v of VIEWS) {
+                const pill = document.createElement("button");
+                pill.textContent = v.label;
+                pill.addEventListener("click", () => {
+                    active = v.id;
+                    try { localStorage.setItem("EBC_usersView", active); } catch { /* ignore */ }
+                    paint();
+                });
+                pills.push(pill);
+                nav.appendChild(pill);
+            }
+            body.appendChild(nav);
+            for (const v of VIEWS) body.appendChild(v.el);
+            paint();
+        }
         // Defer heavy list build to next animation frame so the tab paints first.
         window.requestAnimationFrame(() => {
-            if (this.friendsSectionEl === friendsSection) this.renderFriendRows(friendsSection);
+            if (this.friendsSectionEl === friendsSection) {
+                this.renderFriendRows(friendsSection, tabsMode ? secRooms : undefined);
+            }
         });
     }
 
+    /** How many times in a row a refresh has stepped aside for a focused field. */
+    private friendRefreshDeferrals = 0;
+
     public refreshFriendList(): void {
-        if (this.currentTab !== "notes" || !this.friendsSectionEl) return;
+        if (!EBCDrawer.isSocialTab(this.currentTab) || !this.friendsSectionEl) return;
         if (this.friendRefreshDebounce !== null) window.clearTimeout(this.friendRefreshDebounce);
         const target = this.friendsSectionEl;
         this.friendRefreshDebounce = window.setTimeout(() => {
             this.friendRefreshDebounce = null;
-            if (this.currentTab === "notes" && this.friendsSectionEl === target) {
-                this.renderFriendRows(target);
+            if (!EBCDrawer.isSocialTab(this.currentTab) || this.friendsSectionEl !== target) return;
+
+            // Stepping aside while a field is focused stops a rebuild landing on
+            // top of something half-typed. But it has to be able to give up: an
+            // unbounded version left the list frozen on stale content for good
+            // whenever focus stayed put - which is what happens when the game
+            // voids you and swaps the screen out from under a focused box.
+            // Half a second of grace, then refresh regardless. The typed tag is
+            // preserved across the rebuild anyway, so nothing is lost by it.
+            const MAX_DEFERRALS = 6;
+            const active = document.activeElement as HTMLElement | null;
+            const editing = !!active
+                && target.contains(active)
+                && (active.tagName === "INPUT" || active.tagName === "TEXTAREA");
+            if (editing && this.friendRefreshDeferrals < MAX_DEFERRALS) {
+                this.friendRefreshDeferrals++;
+                this.refreshFriendList();
+                return;
             }
+            this.friendRefreshDeferrals = 0;
+            this.renderFriendRows(target, this._roomsSectionEl ?? undefined);
         }, 80);
     }
 
-    private renderFriendRows(body: HTMLElement): void {
+    /**
+     * Redraws the friends list in response to a control inside it - search,
+     * clear, sort, filter - keeping the Rooms section wherever it currently
+     * lives. Calling renderFriendRows(body) directly here is a trap: with no
+     * rooms target it renders the whole room list INTO the friends section, so
+     * typing in the search box made the rooms list reappear above the results.
+     * In classic layout _roomsSectionEl is null, which restores the inline
+     * behaviour that layout wants.
+     */
+    private refreshFriendRowsInPlace(body: HTMLElement): void {
+        this.renderFriendRows(body, this._roomsSectionEl ?? undefined);
+    }
+
+    /** Renders the friends list. When roomsTarget is given, the Rooms section is
+     *  rendered there instead (its own pill in the tabbed Users layout). */
+    private renderFriendRows(body: HTMLElement, roomsTarget?: HTMLElement): void {
         while (body.firstChild) body.removeChild(body.firstChild);
+        if (roomsTarget) while (roomsTarget.firstChild) roomsTarget.removeChild(roomsTarget.firstChild);
+        const roomsBody = roomsTarget ?? body;
 
         const friendList = getFriendList();
 
-        // ── People in Room ────────────────────────────────────────────────────
+        // Shared join helper (same path as the beep window's shortcut) - BC's own
+        // join function handles the implicit leave from the current room.
+        let joinTs = 0;
+        const joinRoom = (rName: string): void => {
+            const now = Date.now();
+            if (now - joinTs < 1500) return;
+            joinTs = now;
+            try {
+                const wj = window as unknown as Record<string, unknown>;
+                const joinFn = wj.ChatRoomJoin as ((n: string) => void) | undefined;
+                if (typeof joinFn === "function") { try { joinFn(rName); return; } catch { /* fall through */ } }
+                try { ServerSend("ChatRoomJoin", { Name: rName }); } catch { /* ignore */ }
+            } catch { /* ignore */ }
+        };
+
+        // ── Rooms - your room's full people list + where online friends are ──
         {
-            const w2 = window as unknown as Record<string, unknown>;
-            const roomCharsAll = w2.ChatRoomCharacter as Array<Record<string, unknown>> | undefined;
-            const roomList = Array.isArray(roomCharsAll)
-                ? roomCharsAll.filter(c => (c.MemberNumber as number) !== Player.MemberNumber)
-                : [];
+            interface RoomGroup { label: string; nums: number[]; joinable: boolean; icon: string; current?: boolean }
+            const myRoomNums:  number[] = [];
+            const privateNums: number[] = [];
+            const lobbyNums:   number[] = [];
+            const publicRooms = new Map<string, number[]>();
+            for (const num of friendList) {
+                const status = getFriendStatus(num);
+                if (status === "away") continue;
+                if (status === "room") { myRoomNums.push(num); continue; }
+                const info = getFriendOnlineInfo(num);
+                if (info?.roomName) {
+                    // Shared private rooms are grouped separately so the list
+                    // does not imply they are open to everyone.
+                    const key = info.sharedPrivate ? `\u0000${info.roomName}` : info.roomName;
+                    const arr = publicRooms.get(key) ?? [];
+                    arr.push(num);
+                    publicRooms.set(key, arr);
+                } else if (info?.isPrivate) {
+                    privateNums.push(num);
+                } else {
+                    lobbyNums.push(num);
+                }
+            }
 
-            if (roomList.length > 0) {
-                const divR = document.createElement("div");
-                divR.className = "ebc-divider";
-                body.appendChild(divR);
+            const groups: RoomGroup[] = [];
+            // Include yourself in your room's list so the group reads like the
+            // actual room roster, and label it with the real room name.
+            const meNum = (Player as { MemberNumber?: number })?.MemberNumber ?? 0;
+            const myRoomName = getCurrentRoomName();
+            if (meNum && myRoomName) myRoomNums.unshift(meNum);
+            if (myRoomName || myRoomNums.length > 0) {
+                groups.push({
+                    label: myRoomName ? `${myRoomName} (your room)` : "Your current room",
+                    nums: myRoomNums,
+                    joinable: false,
+                    icon: "🐾",
+                    current: true,
+                });
+            }
+            [...publicRooms.entries()]
+                .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+                .forEach(([rName, nums]) => {
+                    const shared = rName.startsWith("\u0000");
+                    const label = shared ? rName.slice(1) : rName;
+                    groups.push({ label, nums, joinable: true, icon: shared ? "🔓" : "📍" });
+                });
+            if (privateNums.length > 0) groups.push({ label: "In a private room", nums: privateNums, joinable: false, icon: "🔒" });
+            if (lobbyNums.length > 0)   groups.push({ label: "Lobby / hidden",    nums: lobbyNums,   joinable: false, icon: "🏛" });
 
-                try { this.roomPeopleCollapsed = localStorage.getItem("EBC_roomPeopleCollapsed") === "1"; } catch { /* ignore */ }
+            if (groups.length > 0) {
+                const divRm = document.createElement("div");
+                divRm.className = "ebc-divider";
+                if (!roomsTarget) roomsBody.appendChild(divRm);
 
-                const roomContainer = document.createElement("div");
+                try { this.friendRoomsCollapsed = localStorage.getItem("EBC_friendRoomsCollapsed") === "1"; } catch { /* ignore */ }
+
+                const roomsContainer = document.createElement("div");
+
+                // Everyone in the current room (friends or not) - rendered as the
+                // full-featured rows inside your room's card below.
+                const w2 = window as unknown as Record<string, unknown>;
+                const roomCharsAll = w2.ChatRoomCharacter as Array<Record<string, unknown>> | undefined;
+                const roomList = Array.isArray(roomCharsAll)
+                    ? roomCharsAll.filter(c => (c.MemberNumber as number) !== Player.MemberNumber)
+                    : [];
 
                 const buildRoomRow = (char: Record<string, unknown>, container: HTMLElement): void => {
                     const num = char.MemberNumber as number;
@@ -14581,18 +16519,24 @@ export class EBCDrawer {
                     numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a9ab8;flex-shrink:0;";
                     numEl.textContent = "#" + num;
 
-                    // Relationship badge
-                    const relBadge = (() => {
+                    // Relationship pills - clear labels instead of emoji, with the
+                    // actual lovership stage (Dating / Engaged / Married).
+                    const relPills = (() => {
+                        const pills: Array<{ t: string; c: string; title: string }> = [];
                         try {
-                            const icons: string[] = [];
                             const own = (Player as unknown as Record<string, unknown>).Ownership as { MemberNumber?: number } | undefined;
-                            if (own?.MemberNumber === num) icons.push("👑");
-                            const loves = (Player as unknown as Record<string, unknown>).Lovership as Array<{ MemberNumber?: number }> | undefined;
-                            if (loves?.some(l => l.MemberNumber === num)) icons.push("❤️");
+                            if (own?.MemberNumber === num) pills.push({ t: "Owner", c: "#ffd700", title: "This person owns you" });
+                            const loves = (Player as unknown as Record<string, unknown>).Lovership as Array<{ MemberNumber?: number; Stage?: number }> | undefined;
+                            const love = loves?.find(l => l.MemberNumber === num);
+                            if (love) {
+                                const stage = typeof love.Stage === "number" ? love.Stage : 0;
+                                const t = stage >= 2 ? "Married" : stage === 1 ? "Engaged" : "Dating";
+                                pills.push({ t, c: "#f078a8", title: `You are ${t.toLowerCase()}` });
+                            }
                             const charOwn = char.Ownership as { MemberNumber?: number } | undefined;
-                            if (charOwn?.MemberNumber === Player.MemberNumber) icons.push("🔒");
-                            return icons.join("");
-                        } catch { return ""; }
+                            if (charOwn?.MemberNumber === Player.MemberNumber) pills.push({ t: "Yours", c: "#b088d0", title: "You own this person" });
+                        } catch { /* ignore */ }
+                        return pills;
                     })();
 
                     // EBC version badge
@@ -14629,10 +16573,11 @@ export class EBCDrawer {
                     }
 
                     nameRow.appendChild(numEl);
-                    if (relBadge) {
+                    for (const pill of relPills) {
                         const badge = document.createElement("span");
-                        badge.textContent = relBadge;
-                        badge.style.cssText = "font-size:11px;flex-shrink:0;line-height:1;";
+                        badge.textContent = pill.t;
+                        badge.title = pill.title;
+                        badge.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:8.5px;font-weight:bold;letter-spacing:0.04em;padding:1px 6px;border-radius:8px;line-height:13px;background:${pill.c}22;border:1px solid ${pill.c}66;color:${pill.c};`;
                         nameRow.appendChild(badge);
                     }
 
@@ -14774,19 +16719,18 @@ export class EBCDrawer {
                     container.appendChild(wrap);
                 };
 
-                // Collapsible section header - styled like a section label + arrow
-                const roomToggle = document.createElement("div");
-                roomToggle.setAttribute("data-guide-target", "section-room-people");
-                const updateRoomToggle = (): void => {
-                    const col = this.roomPeopleCollapsed;
-                    roomToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 5px;cursor:pointer;user-select:none;";
-                    roomToggle.innerHTML = "";
+
+                const roomsToggle = document.createElement("div");
+                const updateRoomsToggle = (): void => {
+                    const col = this.friendRoomsCollapsed;
+                    roomsToggle.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 4px 5px;cursor:pointer;user-select:none;";
+                    roomsToggle.innerHTML = "";
                     const arrow = document.createElement("span");
                     arrow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c09098;flex-shrink:0;";
                     arrow.textContent = col ? "▶" : "▼";
                     const lbl = document.createElement("span");
                     lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.1em;color:#c09098;text-transform:uppercase;flex:1;";
-                    lbl.textContent = t("users.peopleInRoom");
+                    lbl.textContent = "Rooms";
                     const cnt = document.createElement("span");
                     cnt.style.cssText = [
                         "font-family:'Trebuchet MS',serif",
@@ -14802,28 +16746,126 @@ export class EBCDrawer {
                         "text-align:center",
                         "flex-shrink:0",
                     ].join(";");
-                    cnt.textContent = String(roomList.length);
-                    roomToggle.appendChild(arrow);
-                    roomToggle.appendChild(lbl);
-                    roomToggle.appendChild(cnt);
-                    roomContainer.style.display = col ? "none" : "block";
+                    cnt.textContent = String(groups.length);
+                    roomsToggle.appendChild(arrow);
+                    roomsToggle.appendChild(lbl);
+                    roomsToggle.appendChild(cnt);
+                    roomsContainer.style.display = col ? "none" : "block";
                 };
-                updateRoomToggle();
-                roomToggle.addEventListener("click", () => {
-                    this.roomPeopleCollapsed = !this.roomPeopleCollapsed;
-                    try { localStorage.setItem("EBC_roomPeopleCollapsed", this.roomPeopleCollapsed ? "1" : "0"); } catch { /* ignore */ }
-                    updateRoomToggle();
-                    if (!this.roomPeopleCollapsed && !roomContainer.firstChild) {
-                        for (const c of roomList) buildRoomRow(c, roomContainer);
-                    }
+                updateRoomsToggle();
+                roomsToggle.addEventListener("click", () => {
+                    this.friendRoomsCollapsed = !this.friendRoomsCollapsed;
+                    try { localStorage.setItem("EBC_friendRoomsCollapsed", this.friendRoomsCollapsed ? "1" : "0"); } catch { /* ignore */ }
+                    updateRoomsToggle();
                 });
-                body.appendChild(roomToggle);
-                body.appendChild(roomContainer);
 
-                // Populate rows immediately if not collapsed
-                if (!this.roomPeopleCollapsed) {
-                    for (const c of roomList) buildRoomRow(c, roomContainer);
+                for (const g of groups) {
+                    const gCard = document.createElement("div");
+                    gCard.className = "ebc-friend-rooms-card" + (g.current ? " current" : "");
+
+                    const headRow = document.createElement("div");
+                    headRow.className = "ebc-friend-rooms-head";
+                    const rIcon = document.createElement("span");
+                    rIcon.className = "ebc-friend-rooms-icon";
+                    rIcon.textContent = g.icon;
+                    const rName = document.createElement("span");
+                    rName.className = "ebc-friend-rooms-name";
+                    rName.textContent = g.label;
+                    rName.title = g.label;
+                    const rCnt = document.createElement("span");
+                    rCnt.className = "ebc-friend-rooms-cnt";
+                    // Prefer real occupancy: live data for your own room, cached
+                    // search data for others. Fall back to the friend count.
+                    let occ: { count: number; limit: number } | null = null;
+                    if (g.current) {
+                        try {
+                            const d = (window as unknown as Record<string, unknown>).ChatRoomData as
+                                { Character?: unknown[]; Limit?: number } | null | undefined;
+                            if (d && Array.isArray(d.Character) && typeof d.Limit === "number") {
+                                occ = { count: d.Character.length, limit: d.Limit };
+                            }
+                        } catch { /* ignore */ }
+                        if (!occ) occ = getRoomCount(myRoomName);
+                    } else {
+                        occ = getRoomCount(g.label);
+                    }
+                    if (occ) {
+                        rCnt.textContent = `${occ.count}/${occ.limit}`;
+                        rCnt.title = `${occ.count} of ${occ.limit} people in this room`;
+                        if (occ.count >= occ.limit) {
+                            rCnt.style.color = "#e0a0a0";
+                            rCnt.style.borderColor = "rgba(224,160,160,0.45)";
+                            rCnt.title += " (full)";
+                        }
+                    } else {
+                        rCnt.textContent = g.current ? String(roomList.length + 1) : `${g.nums.length}`;
+                        rCnt.title = g.current
+                            ? "People in this room"
+                            : `${g.nums.length} friend${g.nums.length === 1 ? "" : "s"} here`;
+                    }
+                    headRow.appendChild(rIcon);
+                    headRow.appendChild(rName);
+                    headRow.appendChild(rCnt);
+
+                    if (g.joinable) {
+                        const joinBtn = document.createElement("button");
+                        joinBtn.className = "ebc-friend-rooms-join";
+                        joinBtn.textContent = "Join →";
+                        joinBtn.title = `Join "${g.label}"`;
+                        joinBtn.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            if (getCurrentRoomName().toLowerCase() === g.label.toLowerCase()) {
+                                joinBtn.textContent = "Here ✓";
+                                window.setTimeout(() => { joinBtn.textContent = "Join →"; }, 1500);
+                                return;
+                            }
+                            joinBtn.textContent = "→ …";
+                            joinRoom(g.label);
+                            // If the join goes nowhere (room closed), un-stick the label
+                            window.setTimeout(() => { joinBtn.textContent = "Join →"; }, 2500);
+                        });
+                        headRow.appendChild(joinBtn);
+                    }
+                    gCard.appendChild(headRow);
+
+                    if (g.current) {
+                        // Your room: the full-featured people rows (profile / chat /
+                        // star / copy) that used to be the People in Room section.
+                        if (roomList.length === 0) {
+                            const solo = document.createElement("div");
+                            solo.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#88a890;padding:3px 0 1px 2px;";
+                            solo.textContent = "Just you in here right now.";
+                            gCard.appendChild(solo);
+                        } else {
+                            for (const c of roomList) buildRoomRow(c, gCard);
+                        }
+                    } else {
+                        // Other rooms: member chips - click to open that friend's chat
+                        const chips = document.createElement("div");
+                        chips.className = "ebc-friend-rooms-chips";
+                        for (const n of g.nums) {
+                            const chip = document.createElement("button");
+                            chip.className = "ebc-friend-rooms-chip";
+                            chip.textContent = `${resolveName(n)} #${n}`;
+                            chip.title = "Open chat";
+                            chip.addEventListener("click", (e) => {
+                                e.stopPropagation();
+                                this.beepUnread.delete(n);
+                                this.openBeepWindow(n);
+                            });
+                            chips.appendChild(chip);
+                        }
+                        gCard.appendChild(chips);
+                    }
+
+                    roomsContainer.appendChild(gCard);
                 }
+
+                // In pill mode the Rooms pill IS the header - the collapsible
+                // toggle would just be a redundant dropdown inside it.
+                if (roomsTarget) roomsContainer.style.display = "block";
+                else roomsBody.appendChild(roomsToggle);
+                roomsBody.appendChild(roomsContainer);
             }
         }
 
@@ -14867,9 +16909,10 @@ export class EBCDrawer {
             sortSel.addEventListener("change", () => {
                 this.friendSort = sortSel.value;
                 try { localStorage.setItem("EBC_friendSort", this.friendSort); } catch { /* ignore */ }
-                try { this.renderFriendRows(body); } catch { /* ignore */ }
+                try { this.refreshFriendRowsInPlace(body); } catch { /* ignore */ }
             });
             lblF.appendChild(sortSel);
+
 
             if (this.beepUnread.size > 0) {
                 const markReadBtn = document.createElement("button");
@@ -14881,7 +16924,7 @@ export class EBCDrawer {
                 markReadBtn.addEventListener("click", () => {
                     this.beepUnread.clear();
                     this.refreshTabDot();
-                    try { this.renderFriendRows(body); } catch { /* ignore */ }
+                    try { this.refreshFriendRowsInPlace(body); } catch { /* ignore */ }
                 });
                 lblF.appendChild(markReadBtn);
             }
@@ -14904,7 +16947,7 @@ export class EBCDrawer {
                 this.friendSearch = searchInput.value;
                 // Capture cursor position before the rebuild destroys this element
                 const sel: [number, number] = [searchInput.selectionStart ?? 0, searchInput.selectionEnd ?? 0];
-                try { this.renderFriendRows(body); } catch { /* ignore */ }
+                try { this.refreshFriendRowsInPlace(body); } catch { /* ignore */ }
                 // Restore focus + cursor to the freshly-created search input
                 const reborn = body.querySelector<HTMLInputElement>('[data-ebc-role="friend-search"]');
                 if (reborn) {
@@ -14920,7 +16963,7 @@ export class EBCDrawer {
             clearSearchBtn.addEventListener("mouseleave", () => { clearSearchBtn.style.color = "#7a5a6a"; clearSearchBtn.style.borderColor = "#3a1928"; });
             clearSearchBtn.addEventListener("click", () => {
                 this.friendSearch = "";
-                try { this.renderFriendRows(body); } catch { /* ignore */ }
+                try { this.refreshFriendRowsInPlace(body); } catch { /* ignore */ }
                 const reborn = body.querySelector<HTMLInputElement>('[data-ebc-role="friend-search"]');
                 if (reborn) reborn.focus();
             });
@@ -15429,7 +17472,23 @@ export class EBCDrawer {
                     if (sinceTs) {
                         const d = new Date(sinceTs);
                         const label = d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-                        sinceEl.textContent = t("users.friendsSince", { date: label });
+                        // A date alone makes you do the arithmetic. Whole months
+                        // and years only - "1 year 3 months" is the useful shape,
+                        // and days would be noise at that scale.
+                        const now = new Date();
+                        let months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                        if (now.getDate() < d.getDate()) months--;
+                        let dur = "";
+                        if (months >= 12) {
+                            const y = Math.floor(months / 12), m = months % 12;
+                            dur = `${y} year${y === 1 ? "" : "s"}${m > 0 ? ` ${m} month${m === 1 ? "" : "s"}` : ""}`;
+                        } else if (months >= 1) {
+                            dur = `${months} month${months === 1 ? "" : "s"}`;
+                        } else {
+                            const days = Math.max(0, Math.round((now.getTime() - sinceTs) / 86_400_000));
+                            dur = days <= 0 ? "today" : `${days} day${days === 1 ? "" : "s"}`;
+                        }
+                        sinceEl.textContent = `${t("users.friendsSince", { date: label })} (${dur})`;
                     } else {
                         sinceEl.textContent = t("users.friendsSinceUnknown");
                     }
@@ -15441,7 +17500,7 @@ export class EBCDrawer {
                         const d2 = new Date(lsTsFull);
                         const label2 = d2.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
                             + " " + d2.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-                        lsFullEl.textContent = `🕑 Last seen: ${label2} (${formatLastSeen(lsTsFull)})`;
+                        lsFullEl.textContent = `Last seen: ${label2} (${formatLastSeen(lsTsFull)})`;
                         infoBox.appendChild(lsFullEl);
                     }
 
@@ -15454,50 +17513,48 @@ export class EBCDrawer {
                     };
                     const relFmt = (ts: number): string =>
                         new Date(ts).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+                    // Same pill style as the People-in-Room relationship pills, so
+                    // both places use one consistent visual language.
+                    const mkRelLine = (pillText: string, pillColor: string, text: string): HTMLElement => {
+                        const line = document.createElement("div");
+                        line.style.cssText = "display:flex;align-items:center;gap:5px;";
+                        const pill = document.createElement("span");
+                        pill.textContent = pillText;
+                        pill.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:8.5px;font-weight:bold;letter-spacing:0.04em;padding:1px 6px;border-radius:8px;line-height:13px;background:${pillColor}22;border:1px solid ${pillColor}66;color:${pillColor};`;
+                        const txt = document.createElement("span");
+                        txt.textContent = text;
+                        line.appendChild(pill);
+                        line.appendChild(txt);
+                        return line;
+                    };
 
                     try {
                         // They own you
                         const own = (Player as unknown as Record<string, unknown>).Ownership as
                             { MemberNumber?: number; Start?: string | number } | undefined;
                         if (own?.MemberNumber === num) {
-                            const ownEl = document.createElement("div");
-                            ownEl.style.color = "#e8c060";
                             const ts = parseRelStart(own.Start);
-                            ownEl.textContent = ts
-                                ? `👑 Owned since: ${relFmt(ts)}`
-                                : "👑 Owned by them";
-                            infoBox.appendChild(ownEl);
+                            infoBox.appendChild(mkRelLine("Owner", "#ffd700",
+                                ts ? `since ${relFmt(ts)}` : "they own you"));
                         }
                         // Lovership (Stage: 0=lovers, 1=engaged, 2=married)
                         const loves = (Player as unknown as Record<string, unknown>).Lovership as
                             Array<{ MemberNumber?: number; Start?: string | number; Stage?: number }> | undefined;
                         const love = loves?.find(l => l.MemberNumber === num);
                         if (love) {
-                            const loveEl = document.createElement("div");
-                            loveEl.style.color = "#e87090";
                             const ts = parseRelStart(love.Start);
-                            const [ico, label] = love.Stage === 2
-                                ? ["💒", "Married"]
-                                : love.Stage === 1
-                                    ? ["💍", "Engaged"]
-                                    : ["❤️", "Lovers"];
-                            loveEl.textContent = ts
-                                ? `${ico} ${label} since: ${relFmt(ts)}`
-                                : `${ico} ${label}`;
-                            infoBox.appendChild(loveEl);
+                            const label = love.Stage === 2 ? "Married" : love.Stage === 1 ? "Engaged" : "Dating";
+                            infoBox.appendChild(mkRelLine(label, "#f078a8",
+                                ts ? `since ${relFmt(ts)}` : ""));
                         }
                         // You own them (room data only - offline skip)
                         const roomChars = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
                             Array<{ MemberNumber?: number; Ownership?: { MemberNumber?: number; Start?: string | number } }> | undefined;
                         const rc = roomChars?.find(c => c.MemberNumber === num);
                         if (rc?.Ownership?.MemberNumber === Player.MemberNumber) {
-                            const ownedByMeEl = document.createElement("div");
-                            ownedByMeEl.style.color = "#e8c060";
                             const ts = parseRelStart(rc.Ownership.Start);
-                            ownedByMeEl.textContent = ts
-                                ? `🔒 Owns them since: ${relFmt(ts)}`
-                                : "🔒 You own them";
-                            infoBox.appendChild(ownedByMeEl);
+                            infoBox.appendChild(mkRelLine("Yours", "#b088d0",
+                                ts ? `since ${relFmt(ts)}` : "you own them"));
                         }
                     } catch { /* ignore */ }
 
@@ -15582,7 +17639,18 @@ export class EBCDrawer {
                     // Color swatches row
                     const swatchRow = document.createElement("div");
                     swatchRow.style.cssText = "display:flex;gap:5px;align-items:center;flex-wrap:wrap;";
-                    let selectedColor = TAG_COLORS[0];
+                    // Restore anything that was being typed here before the list
+                    // last rebuilt itself under you.
+                    const draft = this._tagDraft?.num === num ? this._tagDraft : null;
+                    let selectedColor = draft?.color ?? TAG_COLORS[0];
+                    if (draft?.text) newTagInput.value = draft.text;
+                    const noteDraft = (): void => {
+                        const txt = newTagInput.value;
+                        this._tagDraft = (txt.trim() || selectedColor !== TAG_COLORS[0])
+                            ? { num, text: txt, color: selectedColor }
+                            : null;
+                    };
+                    newTagInput.addEventListener("input", noteDraft);
                     const swatches: HTMLElement[] = [];
                     for (const c of TAG_COLORS) {
                         const sw = document.createElement("span");
@@ -15593,6 +17661,9 @@ export class EBCDrawer {
                             selectedColor = c;
                             swatches.forEach(s => s.classList.remove("sel"));
                             sw.classList.add("sel");
+                            // Clicking a swatch blurs the input, so a focus-based
+                            // guard alone would not save the draft from here.
+                            noteDraft();
                         });
                         swatches.push(sw);
                         swatchRow.appendChild(sw);
@@ -15604,6 +17675,7 @@ export class EBCDrawer {
                         if (!text) { newTagInput.style.borderColor = "#cf6f98"; return; }
                         const updated: FriendTag[] = [...getFriendTagList(num), { text, color: selectedColor }];
                         setFriendTagList(num, updated);
+                        this._tagDraft = null;   // committed, nothing left to restore
                         newTagInput.value = "";
                         newTagInput.style.borderColor = "#3a1928";
                         rebuildChips();
@@ -15679,7 +17751,7 @@ export class EBCDrawer {
                             saveNote(num, name, noteTA.value);
                             noteHint.textContent = noteTA.value.trim() ? t("core.saved") : t("users.savedAutomatically");
                             window.setTimeout(() => { noteHint.textContent = t("users.savedAutomatically"); }, 1500);
-                            try { if (this.currentTab === "notes") this.rerender(); } catch { /* ignore */ }
+                            try { if (EBCDrawer.isSocialTab(this.currentTab)) this.rerender(); } catch { /* ignore */ }
                         }, 800);
                     });
                 };
@@ -15773,6 +17845,173 @@ export class EBCDrawer {
         return (char as unknown as Record<string, unknown>).Nickname as string || char.Name || "Unknown";
     }
 
+    /**
+     * Private room sharing. BC never tells anyone the name of a private room you
+     * are in, so this is a broadcast, not a lookup: turning it on means your
+     * client tells the people you pick where you are whenever you are somewhere
+     * private. Everything defaults to off, and receiving is independent of
+     * sharing so you can do either alone.
+     */
+    private buildPrivateRoomSharing(host: HTMLElement): void {
+        const FONT = "font-family:'Trebuchet MS',serif;";
+        const hdr = document.createElement("div");
+        hdr.className = "ebc-section-label";
+        hdr.textContent = "PRIVATE ROOM SHARING";
+        host.appendChild(hdr);
+
+        const card = document.createElement("div");
+        card.style.cssText = "border:1px solid #3a1e2e;border-radius:8px;padding:9px 10px;margin-bottom:8px;background:rgba(20,8,16,0.45);display:flex;flex-direction:column;gap:7px;";
+
+        const blurb = document.createElement("div");
+        blurb.style.cssText = `${FONT}font-size:10.5px;color:#9a8290;line-height:1.5;`;
+        blurb.textContent = "The game never reveals the name of a private room, so this works by telling people directly. While you are in a private room your client sends the room name to whoever you pick below, and their EBC shows it instead of \"in a private room\". Only people running EBC can receive it.";
+        card.appendChild(blurb);
+
+        const rowOf = (title: string, desc: string, get: () => boolean, set: (v: boolean) => void): HTMLElement => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:9px;";
+            const txt = document.createElement("div");
+            txt.style.cssText = "flex:1;min-width:0;";
+            const t1 = document.createElement("div");
+            t1.style.cssText = `${FONT}font-size:11.5px;font-weight:bold;color:#f0dbe6;`;
+            t1.textContent = title;
+            const t2 = document.createElement("div");
+            t2.style.cssText = `${FONT}font-size:10px;color:#9a7888;line-height:1.4;margin-top:1px;`;
+            t2.textContent = desc;
+            txt.appendChild(t1); txt.appendChild(t2);
+            const btn = document.createElement("button");
+            const paint = (): void => {
+                const on = get();
+                btn.textContent = on ? "ON" : "OFF";
+                btn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:3px 13px;border-radius:5px;cursor:pointer;flex-shrink:0;` +
+                    (on ? "border:1px solid #cf6f98;background:#3a1028;color:#f0a8c4;"
+                        : "border:1px solid #4a3040;background:transparent;color:#9a8290;");
+            };
+            paint();
+            btn.addEventListener("click", () => { set(!get()); paint(); this.rerender(120); });
+            row.appendChild(txt); row.appendChild(btn);
+            return row;
+        };
+
+        card.appendChild(rowOf("Share with all friends",
+            "Everyone on your BC friends list is told.",
+            getShareWithAllFriends, setShareWithAllFriends));
+        card.appendChild(rowOf("Share with starred friends",
+            "Only people you have starred in EBC.",
+            getShareWithStarred, setShareWithStarred));
+        card.appendChild(rowOf("See others' private rooms",
+            "Show rooms other people share with you. Separate from sharing your own.",
+            getReceiveShared, setReceiveShared));
+
+        // Extra people, on top of whichever toggles are on.
+        const listLbl = document.createElement("div");
+        listLbl.style.cssText = `${FONT}font-size:10.5px;color:#9a7888;margin-top:2px;`;
+        listLbl.textContent = "Also share with these member numbers:";
+        card.appendChild(listLbl);
+
+        const chips = document.createElement("div");
+        chips.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+        const renderChips = (): void => {
+            while (chips.firstChild) chips.removeChild(chips.firstChild);
+            const list = getShareList();
+            if (list.length === 0) {
+                const none = document.createElement("span");
+                none.style.cssText = `${FONT}font-size:10px;color:#6a5060;font-style:italic;`;
+                none.textContent = "Nobody added.";
+                chips.appendChild(none);
+            }
+            for (const n of list) {
+                const chip = document.createElement("span");
+                chip.style.cssText = `display:inline-flex;align-items:center;gap:5px;${FONT}font-size:11px;background:#1a0c16;border:1px solid #3a1928;border-radius:14px;padding:3px 8px;color:#c48aa8;`;
+                const nm = document.createElement("span");
+                nm.textContent = `${resolveName(n)} #${n}`;
+                const x = document.createElement("span");
+                x.textContent = "\u00d7";
+                x.style.cssText = "cursor:pointer;color:#8a6070;font-size:13px;line-height:1;";
+                x.addEventListener("click", () => { removeFromShareList(n); renderChips(); paintWho(); });
+                chip.appendChild(nm); chip.appendChild(x);
+                chips.appendChild(chip);
+            }
+        };
+        card.appendChild(chips);
+
+        const addRow = document.createElement("div");
+        addRow.style.cssText = "display:flex;gap:6px;";
+        const inp = document.createElement("input");
+        inp.type = "text";
+        inp.className = "ebc-form-input";
+        inp.placeholder = "Member number";
+        inp.style.cssText = "flex:1;min-width:0;font-size:11px;padding:3px 8px;";
+        inp.addEventListener("keydown", (e) => { e.stopPropagation(); });
+        const addBtn = document.createElement("button");
+        addBtn.textContent = "+ Add";
+        addBtn.style.cssText = `${FONT}font-size:11px;padding:3px 11px;border-radius:5px;border:1px solid #cf6f98;background:transparent;color:#cf6f98;cursor:pointer;flex-shrink:0;`;
+        const doAdd = (): void => {
+            const n = parseInt(inp.value.trim(), 10);
+            if (!n) return;
+            addToShareList(n);
+            inp.value = "";
+            renderChips();
+            paintWho();
+        };
+        addBtn.addEventListener("click", doAdd);
+        inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); doAdd(); } });
+        addRow.appendChild(inp); addRow.appendChild(addBtn);
+        card.appendChild(addRow);
+
+        // Say plainly how many people this currently reaches - the three sources
+        // combine, so the total is not obvious from the toggles alone.
+        const who = document.createElement("div");
+        who.style.cssText = `${FONT}font-size:10px;line-height:1.5;padding-top:2px;border-top:1px solid #2a1421;`;
+        const whoList = document.createElement("div");
+        whoList.style.cssText = "display:none;flex-direction:column;gap:3px;margin-top:4px;max-height:180px;overflow-y:auto;";
+        let whoOpen = false;
+        const paintWho = (): void => {
+            const people = shareRecipientsDetailed();
+            const n = people.length;
+            who.textContent = n === 0
+                ? "Not sharing with anyone right now."
+                : `${whoOpen ? "▼" : "▶"} Sharing your private room name with ${n} ${n === 1 ? "person" : "people"}.`;
+            who.style.color = n === 0 ? "#7a5a6a" : "#e0a0b8";
+            who.style.cursor = n === 0 ? "default" : "pointer";
+            who.title = n === 0 ? "" : "Click to see exactly who";
+
+            // Naming them matters: three toggles combine into one list, and
+            // "8 people" is not something you can check against your intent.
+            while (whoList.firstChild) whoList.removeChild(whoList.firstChild);
+            for (const p of people) {
+                const r = document.createElement("div");
+                r.style.cssText = "display:flex;align-items:center;gap:6px;padding:3px 7px;border-radius:5px;background:rgba(30,12,24,0.6);border:1px solid #2a1421;";
+                const nm = document.createElement("span");
+                nm.style.cssText = `flex:1;min-width:0;${FONT}font-size:11px;color:#e8c8d8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+                nm.textContent = resolveName(p.num);
+                const id = document.createElement("span");
+                id.style.cssText = `${FONT}font-size:10px;color:#9a7080;flex-shrink:0;`;
+                id.textContent = `#${p.num}`;
+                const via = document.createElement("span");
+                via.style.cssText = `${FONT}font-size:9px;color:#8a7080;flex-shrink:0;border:1px solid #3a2030;border-radius:8px;padding:1px 6px;`;
+                via.textContent = p.via.join(" + ") || "?";
+                via.title = "Which setting includes this person";
+                r.appendChild(nm); r.appendChild(id); r.appendChild(via);
+                whoList.appendChild(r);
+            }
+            whoList.style.display = whoOpen && n > 0 ? "flex" : "none";
+        };
+        who.addEventListener("click", () => {
+            if (shareRecipients().length === 0) return;
+            whoOpen = !whoOpen;
+            paintWho();
+        });
+        renderChips();
+        paintWho();
+        card.appendChild(who);
+        card.appendChild(whoList);
+        host.appendChild(card);
+    }
+
+    /** A tag being typed but not yet added, held across friend-list rebuilds. */
+    private _tagDraft: { num: number; text: string; color: string } | null = null;
+
     private buildNoteRow(memberNumber: number, displayName: string, currentNote: string, isSelf = false): HTMLElement {
         const hasNote = !!currentNote.trim();
         const vip = VIP_MEMBERS[memberNumber];
@@ -15822,6 +18061,19 @@ export class EBCDrawer {
             return container;
         }
 
+        // A one-line preview of the note itself. Without it the list was only
+        // names, so you had to open every row to remember why you noted someone.
+        const preview = document.createElement("div");
+        preview.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a8290;line-height:1.45;padding:0 8px 5px 18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;";
+        const paintPreview = (txt: string): void => {
+            const one = txt.replace(/\s+/g, " ").trim();
+            preview.textContent = one || "No note yet - click to write one";
+            preview.style.fontStyle = one ? "normal" : "italic";
+            preview.style.color = one ? "#9a8290" : "#6a5060";
+        };
+        paintPreview(currentNote);
+        container.appendChild(preview);
+
         const editor = document.createElement("div");
         editor.className = "ebc-notes-editor";
 
@@ -15839,10 +18091,39 @@ export class EBCDrawer {
         editor.appendChild(hint);
         container.appendChild(editor);
 
-        header.addEventListener("click", () => {
+        const toggleEditor = (): void => {
             const open = editor.classList.toggle("open");
+            preview.style.display = open ? "none" : "";
             if (open) textarea.focus();
+        };
+        header.addEventListener("click", toggleEditor);
+        preview.addEventListener("click", toggleEditor);
+
+        // Deleting is per-row and two-step, so a mis-click never silently drops
+        // something you wrote about someone.
+        const del = document.createElement("span");
+        del.textContent = "\u2715";
+        del.title = "Delete this note";
+        del.style.cssText = "font-size:11px;color:#7a5060;cursor:pointer;padding:0 4px;flex-shrink:0;transition:color 0.12s;";
+        let armed = false;
+        del.addEventListener("mouseenter", () => { del.style.color = "#d06878"; });
+        del.addEventListener("mouseleave", () => { if (!armed) del.style.color = "#7a5060"; });
+        del.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            if (!armed) {
+                armed = true;
+                del.textContent = "Delete?";
+                del.style.color = "#e08a8a";
+                window.setTimeout(() => {
+                    if (!armed) return;
+                    armed = false; del.textContent = "\u2715"; del.style.color = "#7a5060";
+                }, 3000);
+                return;
+            }
+            try { deleteNote(memberNumber); } catch { /* ignore */ }
+            container.remove();
         });
+        header.appendChild(del);
 
         let saveTimer: ReturnType<typeof window.setTimeout> | null = null;
         textarea.addEventListener("input", () => {
@@ -15850,6 +18131,7 @@ export class EBCDrawer {
             hint.textContent = "saving...";
             saveTimer = window.setTimeout(() => {
                 saveNote(memberNumber, displayName, textarea.value);
+                paintPreview(textarea.value);
                 dot.className = "ebc-notes-dot" + (textarea.value.trim() ? " has-note" : "");
                 hint.textContent = textarea.value.trim() ? "saved" : "saves automatically";
                 window.setTimeout(() => { hint.textContent = "saves automatically"; }, 1500);
@@ -15861,10 +18143,806 @@ export class EBCDrawer {
 
     // -- Developer Tools tab ---------------------------------------------------
 
-    private renderDev(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+    /**
+     * Turns a rendered tab into pill sections. Walks the tab's direct children,
+     * treats every element carrying an .ebc-section-label as a section header,
+     * and groups the elements after it until the next header. Content is forced
+     * open so there is never a redundant dropdown inside a pill.
+     * Anything before the first header stays permanently visible.
+     *
+     * Pass `merge` to put several related sections behind one pill (e.g. all the
+     * restraint sections). A pill covering a single section hides that section's
+     * header - the pill IS the header. A pill covering several keeps their
+     * headers as sub-labels so the grouping still reads clearly. Sections not
+     * named in `merge` simply get their own pill, so a renamed or missing
+     * section degrades gracefully instead of disappearing.
+     *
+     * No-ops in classic layout, or when a tab has fewer than two pills.
+     */
+    private _pillifyTab(
+        body: HTMLElement,
+        lsKey: string,
+        merge?: Array<{ pill: string; match: string[] }>,
+    ): void {
+        if (this.noPillify) return;      // composing into a grouped tab - it pillifies once at the end
+        if (!isGroupedLayout()) return;
+
+        // Classify a direct child of the tab body:
+        //   "label"   - the element IS the section label (content = later siblings)
+        //   "hdrRow"  - a header ROW wrapping chevron + label, nothing after the
+        //               label (content = later siblings; e.g. the Anims tab)
+        //   "wrapper" - one element holding BOTH header and content, i.e. there is
+        //               a sibling after the label inside it (e.g. Tags, Storage)
+        const classify = (el: HTMLElement): { kind: "label" | "hdrRow" | "wrapper"; labelEl: HTMLElement } | null => {
+            if (el.classList.contains("ebc-section-label")) return { kind: "label", labelEl: el };
+            const inner = el.querySelector(":scope > .ebc-section-label") as HTMLElement | null;
+            if (!inner) return null;
+            return { kind: inner.nextElementSibling ? "wrapper" : "hdrRow", labelEl: inner };
+        };
+
+        // Pass 1 - expand every collapsed section by clicking its header. Several
+        // sections (Colours, Tags, Storage...) build their content lazily and skip
+        // building entirely while collapsed, so merely forcing display would leave
+        // an empty panel. Clicking runs their own toggle, which builds the content
+        // and persists the expanded state. "▶" is the collapsed marker; it can sit
+        // in a chevron span beside the label, so the whole element's text is checked.
+        for (const el of Array.from(body.children) as HTMLElement[]) {
+            const info = classify(el);
+            if (!info) continue;
+            const collapsedNow = (el.textContent ?? "").includes("▶");
+            if (!collapsedNow) continue;
+            // Click whatever carries the toggle: the wrapper's own label, or the
+            // header row itself (its handler sits on the row, not the label span).
+            try { (info.kind === "wrapper" ? info.labelEl : el).click(); } catch { /* ignore */ }
+        }
+
+        const kids = Array.from(body.children) as HTMLElement[];
+        const groups: Array<{ label: string; els: HTMLElement[] }> = [];
+        const preamble: HTMLElement[] = [];
+
+        // Section label text -> pill label: drop arrows, parenthetical counts and
+        // any trailing stats ("STORAGE 82.2 / 150.0 KB ACCOUNT" -> "STORAGE").
+        const pillLabel = (el: HTMLElement): string => {
+            let raw = (el.textContent ?? "").replace(/[▶▼]/g, "").replace(/\([^)]*\)/g, "");
+            const digit = raw.search(/\d/);
+            if (digit > 0) raw = raw.slice(0, digit);
+            return raw.trim();
+        };
+
+        // Collect the raw sections. Headers are NOT hidden yet - that depends on
+        // whether the section ends up sharing a pill with others.
+        type Section = { label: string; headerEl: HTMLElement | null; els: HTMLElement[] };
+        const sections: Section[] = [];
+
+        for (const el of kids) {
+            const info = classify(el);
+
+            if (info) {
+                const label = pillLabel(info.labelEl) || `Section ${sections.length + 1}`;
+                if (info.kind !== "wrapper") {
+                    // The whole element is the header (label, or a chevron+label
+                    // row); the following siblings are the content.
+                    sections.push({ label, headerEl: el, els: [] });
+                } else {
+                    // One wrapper holds header AND content - the wrapper itself is
+                    // the content, and only the inner label acts as the header.
+                    for (const sub of Array.from(el.children) as HTMLElement[]) {
+                        if (sub !== info.labelEl && sub.style.display === "none") sub.style.display = "";
+                    }
+                    sections.push({ label, headerEl: info.labelEl, els: [el] });
+                }
+            } else if (sections.length === 0) {
+                preamble.push(el);
+            } else {
+                sections[sections.length - 1].els.push(el);
+            }
+        }
+
+        // Force each section's content open - a collapsed body inside a pill would
+        // just look empty. Only direct children are touched, so nested UI that is
+        // deliberately hidden keeps its own state.
+        //
+        // Sections whose header still shows a collapsed chevron are opened by
+        // clicking it rather than by setting display, because several of them
+        // (TAGS above all) do not BUILD their content until that first click.
+        // Un-hiding an empty body leaves nothing on screen, and for a section
+        // merged into a shared pill the click handler is replaced below - so it
+        // was stranded as a dead label that could never be opened again.
+        this._pillifying = true;
+        try {
+            for (const sec of sections) {
+                if (sec.headerEl && (sec.headerEl.textContent ?? "").includes("▶")) {
+                    try { sec.headerEl.click(); } catch { /* ignore */ }
+                }
+                for (const el of sec.els) {
+                    if (el.style.display === "none") el.style.display = "";
+                }
+            }
+        } finally {
+            this._pillifying = false;
+        }
+
+        // Drop sections that render nothing - an empty pill is worse than no pill.
+        // "Nothing" means every content element is devoid of text and children.
+        const hasContent = (sec: Section): boolean => sec.els.some(el => {
+            if (el.classList.contains("ebc-divider")) return false;
+            return (el.textContent ?? "").trim().length > 0 || el.children.length > 0;
+        });
+        const dropped = sections.filter(sec => !hasContent(sec));
+        for (const sec of dropped) {
+            if (sec.headerEl) sec.headerEl.style.display = "none";
+            for (const el of sec.els) el.style.display = "none";
+        }
+        try {
+            console.debug(`[EBC] pillify ${lsKey}:`, sections.map(x => `${x.label}[${x.els.length}]${hasContent(x) ? "" : " EMPTY"}`).join(" | ") || "(none)");
+        } catch { /* ignore */ }
+        const kept = sections.filter(hasContent);
+        sections.length = 0;
+        sections.push(...kept);
+
+        // Assign sections to pills.
+        const norm = (x: string): string => x.replace(/[▶▼]/g, "").replace(/\([^)]*\)/g, "").replace(/\d.*$/, "").trim().toLowerCase();
+        const used = new Set<Section>();
+        for (const m of merge ?? []) {
+            const wanted = m.match.map(norm);
+            const picked = sections.filter(sec => !used.has(sec) && wanted.includes(norm(sec.label)));
+            if (picked.length === 0) continue;
+            picked.forEach(sec => used.add(sec));
+            const els: HTMLElement[] = [];
+            for (const sec of picked) {
+                // Several sections share this pill - keep their headers as labels.
+                if (picked.length > 1 && sec.headerEl) {
+                    // Kept as a sub-label inside a shared pill. Replace it with a
+                    // clone so its collapse handler is dropped - by this point the
+                    // section is already expanded, and leaving the toggle live let
+                    // the user re-collapse a section that no longer shows a working
+                    // chevron. cloneNode does not copy event listeners.
+                    const src = sec.headerEl;
+                    const clone = src.cloneNode(true) as HTMLElement;
+                    clone.textContent = (clone.textContent ?? "").replace(/[▶▼]/g, "").trim();
+                    clone.style.cursor = "default";
+                    src.replaceWith(clone);
+                    sec.headerEl = clone;
+                    const h = clone;
+                    h.style.display = "block";
+                    h.style.width = "100%";
+                    h.style.boxSizing = "border-box";
+                    h.style.textAlign = "left";
+                    h.style.margin = "0";
+                    h.style.padding = "4px 0 5px";
+                    h.style.background = "transparent";
+                    h.style.border = "none";
+                    els.push(h);
+                } else if (sec.headerEl) {
+                    sec.headerEl.style.display = "none";
+                }
+                els.push(...sec.els);
+            }
+            groups.push({ label: m.pill, els });
+        }
+        // Anything not merged keeps its own pill, in original order.
+        for (const sec of sections) {
+            if (used.has(sec)) continue;
+            if (sec.headerEl) sec.headerEl.style.display = "none";
+            groups.push({ label: sec.label, els: sec.els });
+        }
+        if (groups.length < 2) return;
+
+        let active = "";
+        try { active = localStorage.getItem(lsKey) ?? ""; } catch { /* ignore */ }
+        if (!groups.some(g => g.label === active)) active = groups[0].label;
+
+        const nav = document.createElement("div");
+        nav.style.cssText = "display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap;";
+        const pills: HTMLButtonElement[] = [];
+        const paint = (): void => {
+            for (let i = 0; i < groups.length; i++) {
+                const on = groups[i].label === active;
+                pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:6px 15px;border-radius:13px;cursor:pointer;transition:all 0.12s;min-height:30px;" +
+                    (on
+                        ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                        : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+                for (const el of groups[i].els) {
+                    el.style.display = on ? "" : "none";
+                }
+            }
+        };
+        for (const g of groups) {
+            const pill = document.createElement("button");
+            // Labels are short enough to show in full once stats are stripped;
+            // the row wraps rather than truncating mid-word.
+            const short = g.label.length > 22 ? g.label.slice(0, 21) + "…" : g.label;
+            pill.textContent = short.charAt(0) + short.slice(1).toLowerCase();
+            pill.title = g.label;
+            pill.addEventListener("click", () => {
+                // A rebuild queued by an earlier click (a pose button, say) would
+                // land moments later and tear this nav down again, so the section
+                // appeared to lag behind the highlight. Drop it - we are painting
+                // the up-to-date state right now.
+                this.cancelPendingRerender();
+                active = g.label;
+                try { localStorage.setItem(lsKey, active); } catch { /* ignore */ }
+                paint();
+            });
+            pills.push(pill);
+            this.pillGroups.push({ btn: pill, els: g.els });
+            nav.appendChild(pill);
+        }
+
+        // Nav sits directly after the always-visible preamble.
+        if (preamble.length > 0) preamble[preamble.length - 1].after(nav);
+        else body.insertBefore(nav, body.firstChild);
+        paint();
+    }
+
+    /** Class-grouped achievement cards - category filter chips, medal coins,
+     *  tier plates and progress bars. */
+    private buildAchievementCards(): HTMLElement {
+        const outer = document.createElement("div");
+        outer.style.cssText = "display:flex;flex-direction:column;gap:7px;";
+
+        let filter = "all";
+        try { filter = localStorage.getItem("EBC_achFilter") ?? "all"; } catch { /* ignore */ }
+
+        const chipRow = document.createElement("div");
+        chipRow.style.cssText = "display:flex;gap:5px;flex-wrap:wrap;";
+        const summary = document.createElement("div");
+        const listWrap = document.createElement("div");
+        listWrap.style.cssText = "display:flex;flex-direction:column;gap:6px;";
+
+        const NAME_COL = ["#b090a0", "#ecc39b", "#e6edf6", "#ffd700"];
+
+        const paintSummary = (): void => {
+            const progress = getAchievementProgress();
+            const unlocked = progress.filter(p => p.tier > 0).length;
+            const gold = progress.filter(p => p.maxed).length;
+            const pct = progress.length ? Math.round((unlocked / progress.length) * 100) : 0;
+            summary.innerHTML = "";
+            summary.style.cssText = "display:flex;flex-direction:column;gap:4px;padding:2px 2px 0;";
+            const line = document.createElement("div");
+            line.style.cssText = "display:flex;justify-content:space-between;font-family:'Trebuchet MS',serif;font-size:10.5px;color:#b98aa0;";
+            const l = document.createElement("span");
+            l.textContent = `Unlocked ${unlocked} / ${progress.length}`;
+            const r = document.createElement("span");
+            r.style.color = "#ffd700";
+            r.textContent = gold > 0 ? `${gold} gold` : "";
+            line.appendChild(l);
+            line.appendChild(r);
+            const trough = document.createElement("div");
+            trough.className = "ebc-ach-bar";
+            trough.style.position = "relative";
+            trough.style.overflow = "hidden";
+            const fill = document.createElement("div");
+            // Moving stripes over the gradient, and a bright edge where the fill
+            // stops. A flat block reads as a static figure; this reads as
+            // progress, which is the point of showing it at all.
+            fill.style.cssText = "height:100%;border-radius:3px;width:0%;"
+                + "background-color:#cf6f98;"
+                + "background-image:linear-gradient(90deg, #8a4a68, #cf6f98),"
+                + "repeating-linear-gradient(115deg, rgba(255,255,255,0.16) 0 7px, rgba(255,255,255,0) 7px 15px);"
+                + "background-size:100% 100%, 30px 100%;"
+                + "animation:ebcAchCrawl 1.1s linear infinite;"
+                + "transition:width 0.7s cubic-bezier(0.22,0.9,0.3,1);"
+                + "box-shadow:0 0 7px rgba(207,111,152,0.55);";
+            trough.appendChild(fill);
+            summary.appendChild(line);
+            summary.appendChild(trough);
+            // Read a layout property first. That forces the browser to commit
+            // the 0% width, so the change below is something it can animate
+            // between rather than a single value it renders once.
+            window.requestAnimationFrame(() => {
+                void trough.offsetWidth;
+                fill.style.width = `${pct}%`;
+            });
+            if (unlocked > 0) {
+                const DUR = 700;
+                const start = performance.now();
+                const step = (t: number): void => {
+                    const k = Math.min(1, (t - start) / DUR);
+                    const eased = 1 - Math.pow(1 - k, 3);
+                    l.textContent = `Unlocked ${Math.round(unlocked * eased)} / ${progress.length}`;
+                    if (k < 1) window.requestAnimationFrame(step);
+                };
+                l.textContent = `Unlocked 0 / ${progress.length}`;
+                window.requestAnimationFrame(step);
+            }
+        };
+
+        const buildList = (): void => {
+            while (listWrap.firstChild) listWrap.removeChild(listWrap.firstChild);
+            const progress = getAchievementProgress();
+            for (const clsDef of ACHIEVEMENT_CLASSES) {
+                if (filter !== "all" && clsDef.id !== filter) continue;
+                const clsItems = progress.filter(x => x.cls === clsDef.id);
+                if (clsItems.length === 0) continue;
+
+                const clsHead = document.createElement("div");
+                clsHead.className = "ebc-ach-clshead";
+                const clsLbl = document.createElement("span");
+                clsLbl.textContent = clsDef.label;
+                const clsLine = document.createElement("span");
+                clsLine.className = "ebc-ach-clsline";
+                const clsCnt = document.createElement("span");
+                clsCnt.className = "ebc-ach-clscnt";
+                clsCnt.textContent = `${clsItems.filter(x => x.tier > 0).length}/${clsItems.length}`;
+                clsHead.appendChild(clsLbl);
+                clsHead.appendChild(clsLine);
+                clsHead.appendChild(clsCnt);
+                listWrap.appendChild(clsHead);
+
+                for (const a of clsItems) {
+                    const plate = a.tier === 0 ? 0 : a.maxed ? 3 : Math.min(a.tier, 2);
+                    const card = document.createElement("div");
+                    card.className = `ebc-ach-card t${plate}`;
+
+                    // Medal coin - tier numeral, ★ for rares, empty when locked
+                    const medal = document.createElement("div");
+                    medal.className = "ebc-ach-medal";
+                    medal.textContent = a.rare ? "★" : a.tier > 0 ? String(a.tier) : "";
+                    if (a.tiers.length > 1) {
+                        medal.title = a.tiers.map((t, ti) => `Tier ${ti + 1}: ${achievementDesc(a, t)}`).join("\n");
+                    }
+                    card.appendChild(medal);
+
+                    const main = document.createElement("div");
+                    main.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;";
+
+                    const topRow = document.createElement("div");
+                    topRow.style.cssText = "display:flex;align-items:center;gap:8px;min-width:0;";
+                    const nm = document.createElement("span");
+                    nm.style.cssText = `flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:${NAME_COL[plate]};`;
+                    nm.textContent = a.name;
+                    topRow.appendChild(nm);
+                    const pr = document.createElement("span");
+                    pr.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10.5px;color:${a.maxed ? "#ffd700" : a.tier > 0 ? "#a8d0b0" : "#9a7080"};`;
+                    pr.textContent = a.maxed ? "MAX ✓" : `${a.value} / ${a.nextTarget}`;
+                    topRow.appendChild(pr);
+                    main.appendChild(topRow);
+
+                    const ds = document.createElement("div");
+                    ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
+                    ds.textContent = a.descNow;
+                    main.appendChild(ds);
+
+                    // Roster achievements name who is done and who is left. Both
+                    // on screen rather than one behind a hover: seeing a name
+                    // move between the lines is the confirmation that it landed.
+                    // Appended to `main` - an earlier version called ds.after()
+                    // before ds had a parent, which does nothing at all.
+                    const roster = crewRosterStatus(a.id);
+                    if (roster) {
+                        // One row of everybody, colour-coded, in roster order so
+                        // a name stays put and only changes colour when it lands.
+                        // The tick and cross carry the meaning too - colour alone
+                        // is no good to anyone who cannot separate red from green.
+                        const rosterRow = document.createElement("div");
+                        rosterRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;";
+                        for (const { name, done: got } of roster.all) {
+                            const pill = document.createElement("span");
+                            pill.textContent = `${got ? "✓" : "✕"} ${name}`;
+                            pill.title = got
+                                ? `${name} - done`
+                                : `${name} - still to go`;
+                            pill.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:2px 8px;border-radius:10px;white-space:nowrap;" +
+                                (got
+                                    ? "background:rgba(58,140,92,0.20);border:1px solid #4f9a6a;color:#9adcb2;"
+                                    : "background:rgba(150,48,60,0.16);border:1px solid #8a4048;color:#e0949c;");
+                            rosterRow.appendChild(pill);
+                        }
+                        main.appendChild(rosterRow);
+                    }
+
+                    const pct = a.maxed ? 100 : Math.min(100, (a.value / (a.nextTarget || 1)) * 100);
+                    const trough = document.createElement("div");
+                    trough.className = "ebc-ach-bar";
+                    const fill = document.createElement("div");
+                    fill.className = "ebc-ach-fill";
+                    fill.style.width = `${pct}%`;
+                    trough.appendChild(fill);
+                    main.appendChild(trough);
+
+                    // Share an unlocked achievement - whispered to one chosen person
+                    if (a.tier > 0) {
+                        const shareBtn = document.createElement("button");
+                        shareBtn.style.cssText = "align-self:flex-end;font-family:'Trebuchet MS',serif;font-size:9.5px;padding:1px 8px;border-radius:8px;border:1px solid #4c2537;background:transparent;color:#b088a0;cursor:pointer;transition:color 0.12s,border-color 0.12s;margin-top:1px;";
+                        shareBtn.textContent = "Share";
+                        shareBtn.title = "Whisper this achievement to someone in the room - they see it as a shiny plaque";
+                        shareBtn.addEventListener("mouseenter", () => { shareBtn.style.color = "#cf6f98"; shareBtn.style.borderColor = "#cf6f98"; });
+                        shareBtn.addEventListener("mouseleave", () => { shareBtn.style.color = "#b088a0"; shareBtn.style.borderColor = "#4c2537"; });
+                        const flashShare = (label: string): void => {
+                            shareBtn.textContent = label;
+                            window.setTimeout(() => { shareBtn.textContent = "Share"; }, 1800);
+                        };
+                        shareBtn.addEventListener("click", () => {
+                            const cd = getShareCooldownMs();
+                            if (cd > 0) { flashShare(`Wait ${Math.ceil(cd / 1000)}s`); return; }
+                            this.pickAchievementShareTarget((mode) => {
+                                const res = shareAchievement(a.id, mode);
+                                flashShare(
+                                    res === "ok"        ? "Shared ✓" :
+                                    res === "noRoom"    ? "Join a room first" :
+                                    res === "locked"    ? "Not unlocked yet" :
+                                    res === "noTargets" ? "No friends here" :
+                                    res === "cooldown"  ? `Wait ${Math.ceil(getShareCooldownMs() / 1000)}s` : "Failed");
+                            });
+                        });
+                        main.appendChild(shareBtn);
+                    }
+
+                    card.appendChild(main);
+                    listWrap.appendChild(card);
+                }
+            }
+        };
+
+        const CHOICES: Array<{ id: string; label: string }> = [
+            { id: "all", label: "All" },
+            ...ACHIEVEMENT_CLASSES.map(c => ({ id: c.id, label: c.label })),
+        ];
+        const chips: HTMLButtonElement[] = [];
+        const paintChips = (): void => {
+            for (let ci = 0; ci < chips.length; ci++) {
+                const on = CHOICES[ci].id === filter;
+                chips[ci].style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;padding:2px 10px;border-radius:10px;cursor:pointer;transition:all 0.12s;" +
+                    (on
+                        ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                        : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+            }
+        };
+        for (const c of CHOICES) {
+            const chip = document.createElement("button");
+            chip.textContent = c.label;
+            chip.addEventListener("click", () => {
+                filter = c.id;
+                try { localStorage.setItem("EBC_achFilter", filter); } catch { /* ignore */ }
+                paintChips();
+                buildList();
+            });
+            chips.push(chip);
+            chipRow.appendChild(chip);
+        }
+        paintChips();
+        buildList();
+
+        outer.appendChild(chipRow);
+        outer.appendChild(summary);
+        outer.appendChild(listWrap);
+        // Painted after the summary is in the tree - see paintSummary.
+        paintSummary();
+        return outer;
+    }
+
+    /** Small picker listing everyone else in the room - used by achievement
+     *  sharing so the plaque goes to ONE person as a whisper, not the room. */
+    private pickAchievementShareTarget(onPick: (mode: ShareMode) => void): void {
+        if (document.getElementById("ebc-ach-share-pick")) return;
+        const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+            Array<{ MemberNumber?: number; Nickname?: string; Name?: string }> | undefined;
+        const me = (Player as { MemberNumber?: number })?.MemberNumber;
+        const people = (room ?? []).filter(c => typeof c.MemberNumber === "number" && c.MemberNumber !== me);
+
+        const overlay = document.createElement("div");
+        overlay.id = "ebc-ach-share-pick";
+        overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000000;display:flex;align-items:center;justify-content:center;";
+        overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+        const panel = document.createElement("div");
+        panel.style.cssText = "background:#130810;border:2px solid #cf6f98;border-radius:11px;padding:12px 14px;width:min(280px, 90vw);max-height:60vh;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,0.85);";
+        const title = document.createElement("div");
+        title.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;color:#cf6f98;";
+        title.textContent = "Share with…";
+        panel.appendChild(title);
+
+        // Broad options first: the whole room, or just friends who are present.
+        const mkBroad = (label: string, sub: string, onPick: () => void): HTMLElement => {
+            const b = document.createElement("button");
+            b.style.cssText = "text-align:left;font-family:'Trebuchet MS',serif;font-size:11.5px;padding:6px 9px;border-radius:7px;border:1px solid #4c2537;background:#1e0c18;color:#e0b0c8;cursor:pointer;transition:all 0.12s;";
+            b.innerHTML = `<span style="font-weight:bold">${label}</span><span style="color:#9b8fa6;font-size:10px"> - ${sub}</span>`;
+            b.addEventListener("mouseenter", () => { b.style.borderColor = "#cf6f98"; b.style.background = "#2e1424"; });
+            b.addEventListener("mouseleave", () => { b.style.borderColor = "#4c2537"; b.style.background = "#1e0c18"; });
+            b.addEventListener("click", () => { overlay.remove(); onPick(); });
+            return b;
+        };
+        panel.appendChild(mkBroad("Everyone", "posts to the room", () => onPick({ kind: "public" })));
+        panel.appendChild(mkBroad("Friends here", "private to friends in the room", () => onPick({ kind: "friends" })));
+
+        const orLbl = document.createElement("div");
+        orLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#7a6a86;letter-spacing:0.1em;text-transform:uppercase;";
+        orLbl.textContent = "or one person";
+        panel.appendChild(orLbl);
+        const list = document.createElement("div");
+        list.className = "ebc-ach-scroll";
+        list.style.cssText = "overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:4px;";
+        if (people.length === 0) {
+            const none = document.createElement("div");
+            none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;padding:4px;";
+            none.textContent = "Nobody else is in the room.";
+            list.appendChild(none);
+        }
+        for (const c of people) {
+            const num = c.MemberNumber as number;
+            const name = (c.Nickname ?? "").trim() || c.Name || `#${num}`;
+            const btn = document.createElement("button");
+            btn.style.cssText = "text-align:left;font-family:'Trebuchet MS',serif;font-size:11.5px;padding:6px 9px;border-radius:7px;border:1px solid #33283c;background:transparent;color:#c8a0b4;cursor:pointer;transition:all 0.12s;";
+            btn.textContent = `${name} #${num}`;
+            btn.addEventListener("mouseenter", () => { btn.style.borderColor = "#cf6f98"; btn.style.background = "#2a1421"; });
+            btn.addEventListener("mouseleave", () => { btn.style.borderColor = "#33283c"; btn.style.background = "transparent"; });
+            btn.addEventListener("click", () => { overlay.remove(); onPick({ kind: "person", num, name }); });
+            list.appendChild(btn);
+        }
+        panel.appendChild(list);
+        const cancel = document.createElement("button");
+        cancel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:5px 0;border-radius:7px;border:1px solid #33283c;background:transparent;color:#9b8fa6;cursor:pointer;";
+        cancel.textContent = "Cancel";
+        cancel.addEventListener("click", () => overlay.remove());
+        panel.appendChild(cancel);
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
+    }
+
+    /** Fun popup version of the achievement list, opened from the 🏆 header button. */
+    private showAchievementsOverlay(): void {
+        if (document.getElementById("ebc-ach-overlay")) return;
+        const overlay = document.createElement("div");
+        overlay.id = "ebc-ach-overlay";
+        overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999999;display:flex;align-items:center;justify-content:center;";
+        overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+        const panel = document.createElement("div");
+        panel.style.cssText = "background:radial-gradient(130% 90% at 50% 0%, #221022, #0f060c 70%);border:2px solid #cf6f98;border-radius:12px;padding:14px 16px;width:min(430px, 92vw);max-height:78vh;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.05);";
+        const head = document.createElement("div");
+        head.style.cssText = "display:flex;align-items:center;justify-content:space-between;";
+        const title = document.createElement("span");
+        title.style.cssText = "font-family:'Trebuchet MS',serif;font-size:14px;font-weight:bold;color:#cf6f98;letter-spacing:0.06em;";
+        title.textContent = "🏆 Achievements";
+        const closeBtn = document.createElement("button");
+        closeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:2px 9px;border-radius:6px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;";
+        closeBtn.textContent = "X";
+        closeBtn.addEventListener("click", () => overlay.remove());
+        head.appendChild(title);
+        head.appendChild(closeBtn);
+        panel.appendChild(head);
+        if (isAchievementsOptedOut()) {
+            // Off-state: explain + offer the way back. Tracking is fully stopped.
+            const offMsg = document.createElement("div");
+            offMsg.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11.5px;color:#9a8290;line-height:1.6;padding:6px 2px;";
+            offMsg.textContent = "Achievements are turned off - nothing is being tracked and your progress is frozen (not deleted).";
+            const onBtn = document.createElement("button");
+            onBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:7px 0;border-radius:8px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;";
+            onBtn.textContent = "Turn achievements back ON";
+            onBtn.addEventListener("click", () => {
+                setAchievementsOptedOut(false);
+                overlay.remove();
+                this.showAchievementsOverlay();
+            });
+            panel.appendChild(offMsg);
+            panel.appendChild(onBtn);
+        } else {
+            const scroll = document.createElement("div");
+            scroll.className = "ebc-ach-scroll";
+            scroll.style.cssText = "overflow-y:auto;min-height:0;padding-right:4px;";
+            scroll.appendChild(this.buildAchievementCards());
+            panel.appendChild(scroll);
+            // Opt-out lives here, in the achievements popup itself.
+            const plaqueBtn = document.createElement("button");
+            const paintPlaque = (): void => {
+                const on = getShowSharedPlaques();
+                plaqueBtn.textContent = on ? "Shared achievements: shown" : "Shared achievements: hidden";
+                plaqueBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;" +
+                    (on ? "border:1px solid #4c2537;background:transparent;color:#b088a0;"
+                        : "border:1px solid #33283c;background:transparent;color:#7a6a86;");
+                plaqueBtn.title = on
+                    ? "Plaques other people share are shown in your chat - click to hide them (you'll see a plain message instead)"
+                    : "Shared achievement plaques are hidden - click to show them again";
+            };
+            paintPlaque();
+            plaqueBtn.addEventListener("click", () => { setShowSharedPlaques(!getShowSharedPlaques()); paintPlaque(); });
+            panel.appendChild(plaqueBtn);
+
+            const optOutBtn = document.createElement("button");
+            optOutBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;border:1px solid #33283c;background:transparent;color:#7a6a86;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
+            optOutBtn.textContent = "Opt out of achievements";
+            optOutBtn.title = "Stops all tracking and freezes your progress - you can turn it back on here anytime";
+            optOutBtn.addEventListener("mouseenter", () => { optOutBtn.style.color = "#cf6f98"; optOutBtn.style.borderColor = "#cf6f98"; });
+            optOutBtn.addEventListener("mouseleave", () => { optOutBtn.style.color = "#7a6a86"; optOutBtn.style.borderColor = "#33283c"; });
+            optOutBtn.addEventListener("click", () => {
+                setAchievementsOptedOut(true);
+                overlay.remove();
+                this.showAchievementsOverlay();
+            });
+            panel.appendChild(optOutBtn);
+
+            // Creator-only testing controls. A reset takes a copy first, so the
+            // real progress can always come back.
+            if (canResetAchievements()) {
+                const testRow = document.createElement("div");
+                testRow.style.cssText = "display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:2px;padding-top:7px;border-top:1px dashed #33283c;";
+
+                const mkTestBtn = (label: string, colour: string): HTMLButtonElement => {
+                    const b = document.createElement("button");
+                    b.textContent = label;
+                    b.style.cssText = `font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;border:1px solid ${colour};background:transparent;color:${colour};cursor:pointer;`;
+                    return b;
+                };
+
+                const backupAge = achievementBackupAge();
+                const resetBtn = mkTestBtn("Reset for testing", "#a8606c");
+                resetBtn.title = "Clears all progress so unlocks can be watched again. A copy is kept - nothing is lost.";
+                resetBtn.addEventListener("click", () => {
+                    showConfirmOverlay(
+                        hasAchievementBackup()
+                            ? "Clear achievement progress again?\n\nThe copy already held is from before your first reset, and is NOT replaced - Restore still brings back your real progress."
+                            : "Clear all achievement progress?\n\nA copy is taken first and Restore puts it straight back, so nothing is actually lost.",
+                        "Cancel", "Reset",
+                        () => {
+                            resetAchievementsForTesting();
+                            overlay.remove();
+                            this.showAchievementsOverlay();
+                        },
+                    );
+                });
+                testRow.appendChild(resetBtn);
+
+                if (hasAchievementBackup()) {
+                    const restoreBtn = mkTestBtn("Restore my progress", "#79a885");
+                    restoreBtn.title = backupAge ? `Copy taken ${backupAge}` : "Puts your saved progress back";
+                    restoreBtn.addEventListener("click", () => {
+                        restoreAchievements();
+                        overlay.remove();
+                        this.showAchievementsOverlay();
+                    });
+                    testRow.appendChild(restoreBtn);
+
+                    const age = document.createElement("span");
+                    age.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9px;color:#7a6a86;";
+                    age.textContent = backupAge ? `copy from ${backupAge}` : "";
+                    testRow.appendChild(age);
+                }
+                panel.appendChild(testRow);
+            }
+        }
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
+    }
+
+    private renderDev(grouped = false): void {
+        const body = this.tabBody();
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
+
+        const devTabs = getUsersLayout() === "tabs";
+        const devSections: Array<{ label: string; el: HTMLElement }> = [];
+
+        // Safewords + EBC Tags, moved out of the always-pinned strip. Each gets a
+        // real section header so the pill converter picks them up like any other.
+        {
+            const mkMoved = (labelText: string, el: HTMLElement | null): void => {
+                if (!el) return;
+                el.style.display = labelText === "SAFEWORDS" ? "flex" : "";
+                // These strips carry their own collapsible header. Inside a pill
+                // that is a redundant dropdown, so open the body and hide the
+                // header - the pill is the header now.
+                const kids2 = Array.from(el.children) as HTMLElement[];
+                const hdr2 = kids2.find(c => c.style.cursor === "pointer");
+                const bodyEl = kids2.find(c => c !== hdr2);
+                if (hdr2 && bodyEl && bodyEl.style.display === "none") {
+                    try { hdr2.click(); } catch { /* ignore */ }
+                }
+                if (hdr2) hdr2.style.display = "none";
+                if (devTabs) {
+                    // Inside a pill this content has the full page to itself, so
+                    // drop the height caps that exist for the pinned-strip layout.
+                    try {
+                        el.querySelectorAll<HTMLElement>(".ebc-tags-body")
+                          .forEach(n => n.classList.add("ebc-full-height"));
+                    } catch { /* ignore */ }
+                    // Register as a pill section - the pill acts as the header.
+                    const wrap = document.createElement("div");
+                    wrap.appendChild(el);
+                    devSections.push({ label: labelText, el: wrap });
+                } else {
+                    // Classic layout: plain labelled section, stacked like the rest.
+                    const hdr = document.createElement("div");
+                    hdr.className = "ebc-section-label";
+                    hdr.textContent = labelText;
+                    body.appendChild(hdr);
+                    body.appendChild(el);
+                }
+            };
+            // In the grouped layout the safeword strip belongs to the SAFETY tab,
+            // so it is not pulled in here - it would end up on two tabs at once.
+            if (!grouped) mkMoved("SAFEWORDS", this.safewordRowEl);
+            mkMoved("EBC TAGS", this.ebcTagsStripEl);
+        }
+
+        // ── Menu layout (pill sections vs the original long page) ─────────────
+        {
+            const layoutRow = document.createElement("div");
+            layoutRow.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px 9px;margin-bottom:8px;border:1px solid #3a1e2e;border-radius:6px;background:rgba(20,8,16,0.5);";
+            const layoutText = document.createElement("div");
+            layoutText.style.cssText = "flex:1;min-width:0;";
+            const layoutLbl = document.createElement("div");
+            layoutLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:#f0dbe6;";
+            layoutLbl.textContent = "Menu layout";
+            const layoutDesc = document.createElement("div");
+            layoutDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#9a7888;line-height:1.4;margin-top:1px;";
+            layoutText.appendChild(layoutLbl);
+            layoutText.appendChild(layoutDesc);
+            const layoutBtn = document.createElement("button");
+            const paintLayout = (): void => {
+                const tabs = getUsersLayout() === "tabs";
+                // The line reads as the current state, the button reads as the
+                // action. It used to be one small pill saying "New layout",
+                // which meant both equally - you could not tell whether you were
+                // on that layout or about to switch to it.
+                layoutDesc.textContent = tabs
+                    ? "Now using NEW - six tabs, each split into pill sections"
+                    : "Now using CLASSIC - eight tabs, every section stacked on one page";
+                layoutBtn.textContent = tabs ? "Switch to Classic" : "Switch to New";
+                layoutBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:6px 13px;border-radius:6px;cursor:pointer;flex-shrink:0;white-space:nowrap;background:#3a1028;border:1px solid #cf6f98;color:#f0a8c4;";
+                layoutBtn.title = tabs
+                    ? "Go back to the original eight-tab layout. Nothing is lost - you can switch back any time."
+                    : "Use the six-tab layout with pill sections. Nothing is lost - you can switch back any time.";
+            };
+            paintLayout();
+            layoutBtn.addEventListener("click", () => {
+                setUsersLayout(getUsersLayout() === "tabs" ? "classic" : "tabs");
+                paintLayout();
+                // Swap the whole tab bar, re-place the language pills, and jump
+                // to the equivalent tab in the layout we just switched to.
+                // applyLayoutMode only switches tab when the current one does not
+                // exist in the new layout, so re-render explicitly as well.
+                this.applyLayoutMode();
+                this.rerender();
+            });
+            layoutRow.appendChild(layoutText);
+            layoutRow.appendChild(layoutBtn);
+            body.appendChild(layoutRow);
+
+            // Where the Release / Remove locks / restraint picker strip lives.
+            const qaRow = document.createElement("div");
+            qaRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+            const qaLbl = document.createElement("span");
+            qaLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;";
+            qaLbl.textContent = "Restraint buttons";
+            const qaBtn = document.createElement("button");
+            const paintQa = (): void => {
+                const inBtns = getQuickActionsInButtons();
+                // The tab they move into differs per layout: BUTTONS in classic,
+                // SAFETY in the grouped layout.
+                const hostTab = grouped ? "Safety" : "Buttons";
+                qaBtn.textContent = inBtns ? `In ${hostTab} tab` : "Always on top";
+                qaBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:2px 10px;border-radius:5px;cursor:pointer;flex-shrink:0;" +
+                    (inBtns
+                        ? "background:#3a1028;border:1px solid #cf6f98;color:#cf6f98;"
+                        : "background:transparent;border:1px solid #4a3040;color:#9a8290;");
+                qaBtn.title = inBtns
+                    ? `Release Restraints / Remove Locks / picker live in the ${hostTab} tab - click to pin them above every tab again`
+                    : `Release Restraints / Remove Locks / picker are pinned above every tab - click to move them into the ${hostTab} tab`;
+            };
+            paintQa();
+            qaBtn.addEventListener("click", () => {
+                const toButtons = !getQuickActionsInButtons();
+                setQuickActionsInButtons(toButtons);
+                paintQa();
+                // Apply immediately - the elements are kept as refs, so detaching
+                // and re-attaching them keeps every handler intact (no reload).
+                const bodyEl = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+                const host = bodyEl?.parentElement ?? null;
+                if (toButtons) {
+                    this.quickActionsEl?.remove();
+                    this.selfPickPanelEl?.remove();
+                } else if (host && bodyEl) {
+                    if (this.quickActionsEl) {
+                        this.quickActionsEl.style.display = "";
+                        host.insertBefore(this.quickActionsEl, bodyEl);
+                    }
+                    if (this.selfPickPanelEl) host.insertBefore(this.selfPickPanelEl, bodyEl);
+                }
+            });
+            qaRow.appendChild(qaLbl);
+            qaRow.appendChild(qaBtn);
+            body.appendChild(qaRow);
+        }
+
 
         // EBC Tags toggles moved to the permanent strip below safewords (always visible).
         // No longer shown in DEV tab.
@@ -15902,6 +18980,16 @@ export class EBCDrawer {
                 updateChev();
                 cnt.style.display = collapsed ? "none" : "";
             });
+            // In pill mode each section becomes its own view - the pill IS the
+            // header, so the collapsible header and divider are dropped and the
+            // content is always open.
+            if (devTabs) {
+                cnt.style.display = "";
+                const wrap = document.createElement("div");
+                wrap.appendChild(cnt);
+                devSections.push({ label: labelText, el: wrap });
+                return;
+            }
             body.appendChild(hdr);
             body.appendChild(cnt);
             const div = document.createElement("div");
@@ -16001,7 +19089,7 @@ export class EBCDrawer {
             const zoomSlider = document.createElement("input");
             zoomSlider.type = "range";
             zoomSlider.min = "0.7";
-            zoomSlider.max = "2.0";
+            zoomSlider.max = "2.5";
             zoomSlider.step = "0.05";
             zoomSlider.value = String(loadPanelZoom());
             zoomSlider.style.cssText = "flex:1;accent-color:#cf6f98;cursor:pointer;min-width:0;";
@@ -16129,11 +19217,15 @@ export class EBCDrawer {
             const tabVisGrid = document.createElement("div");
             tabVisGrid.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;";
             const hiddenTabs = getHiddenTabs();
-            for (const tabId of EBC_USER_TABS) {
-                if (tabId === "dev") {
+            // Only the tabs of the layout the user is actually on can be toggled.
+            const visTabSet   = this.activeTabSet();
+            const visLabels   = grouped ? EBC_GROUPED_TAB_LABELS : EBC_TAB_LABELS;
+            const visLockedId = this.lockedTabId();
+            for (const tabId of visTabSet) {
+                if (tabId === visLockedId) {
                     const chip = document.createElement("button");
                     chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;border-radius:4px;border:1px solid #91405f;background:#2a1421;color:#cf6f98;opacity:0.6;cursor:not-allowed;`;
-                    chip.textContent = (EBC_TAB_LABELS[tabId] ?? "DEV") + " 🔒";
+                    chip.textContent = (visLabels[tabId] ?? "DEV") + " 🔒";
                     chip.title = t("dev.devTabLocked");
                     chip.disabled = true;
                     tabVisGrid.appendChild(chip);
@@ -16142,12 +19234,12 @@ export class EBCDrawer {
                 const isVisible = !hiddenTabs.includes(tabId);
                 const chip = document.createElement("button");
                 chip.style.cssText = `font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;transition:background 0.12s,color 0.12s,border-color 0.12s;border:1px solid ${isVisible ? "var(--ebc-accent-dim)" : "var(--ebc-border)"};background:${isVisible ? "var(--ebc-card)" : "transparent"};color:${isVisible ? "var(--ebc-accent)" : "var(--ebc-text-muted)"};`;
-                chip.textContent = EBC_TAB_LABELS[tabId] ?? tabId.toUpperCase();
+                chip.textContent = visLabels[tabId] ?? tabId.toUpperCase();
                 chip.dataset["tabId"] = tabId;
                 chip.addEventListener("click", () => {
                     const cur = getHiddenTabs();
                     const nowHidden = cur.includes(tabId) ? cur.filter(t => t !== tabId) : [...cur, tabId];
-                    const visible = EBC_USER_TABS.filter(t => !nowHidden.includes(t));
+                    const visible = visTabSet.filter(t => !nowHidden.includes(t));
                     if (visible.length === 0) return;
                     setHiddenTabs(nowHidden);
                     const nowVis = !nowHidden.includes(tabId);
@@ -16248,6 +19340,21 @@ export class EBCDrawer {
         }, "section-dev-prefs");
 
         // ── Developer Tools ────────────────────────────────────────────────────
+        // ── Grouped layout only ───────────────────────────────────────────────
+        // Storage and the language pills move into SETTINGS. Both are built by
+        // the same code the classic layout uses, just re-hosted here.
+        if (grouped) {
+            makeSection(t("grouped.storageData"), "EBC_settingsStorageCollapsed", false, (cnt) => {
+                cnt.appendChild(this.buildFlatSection(c => this.renderStorageUsage(c)));
+            });
+            makeSection(t("header.language"), "EBC_settingsLangCollapsed", false, (cnt) => {
+                if (this.langRowEl) {
+                    this.langRowEl.style.display = "";
+                    cnt.appendChild(this.langRowEl);
+                }
+            });
+        }
+
         makeSection(t("dev.developerTools"), "EBC_devToolsCollapsed", true, (cnt) => {
             // Character Inspector
             const charLbl = document.createElement("div");
@@ -17448,8 +20555,9 @@ export class EBCDrawer {
         }, "section-dev-logs");
 
         // ── Stat Editor (credited members only) ───────────────────────────────
-        const CREDITED_IDS = new Set([130267, 143776, 124264, 230466, 80]);
-        if (Player.MemberNumber && CREDITED_IDS.has(Player.MemberNumber)) {
+        // Credited OR creator-access. Being thanked in the credits is not the
+        // same as holding the tools, so both routes are named explicitly.
+        if (isCredited(Player.MemberNumber) || hasCreatorAccess(Player.MemberNumber)) {
             makeSection(t("dev.statEditor"), "EBC_statEditorCollapsed", true, (cnt) => {
                 const FONT = "font-family:'Trebuchet MS',serif;";
 
@@ -17750,15 +20858,72 @@ export class EBCDrawer {
             });
         }
 
-        // Auto-refresh every 1.5 s while the DEV tab is open.
+        // Credits has its own CREDITS tab in both layouts - it used to be buried
+        // at the bottom of the grouped SETTINGS tab.
+
+        // Auto-refresh every 1.5 s while the DEV / SETTINGS tab is open.
         // Room History always refreshes (cheap read). Message log only if logging is on.
         this.stopDevLogPoller();
         this.devLogPoller = window.setInterval(() => {
-            if (this.currentTab !== "dev") return;
+            if (this.currentTab !== "dev" && this.currentTab !== "settings") return;
             renderRoom();
             renderRlog();
             if (isDevLogEnabled()) renderMsgLog();
         }, 1500);
+
+        // ── Dev pill navigation ──────────────────────────────────────────────
+        if (devTabs && devSections.length > 0) {
+            // Short pill labels - the full section names are too long for a row.
+            const SHORT: Record<string, string> = {
+                [t("dev.drawerPrefs")]: "Drawer",
+                [t("dev.developerTools")]: "Tools",
+                [t("dev.copyRestraintsFromMember")]: "Copy",
+                [t("dev.logs")]: "Logs",
+                [t("dev.statEditor")]: "Stats",
+                [t("grouped.storageData")]: "Storage",
+                [t("header.language")]: "Language",
+                [t("tabs.credits")]: "Credits",
+                "SAFEWORDS": "Safewords",
+                "EBC TAGS": "EBC tags",
+            };
+            // The two layouts have different section sets, so they remember their
+            // active pill separately - switching layout must not land on a pill
+            // the other layout does not have.
+            const viewKey = grouped ? "EBC_settingsView" : "EBC_devView";
+            let active = "";
+            try { active = localStorage.getItem(viewKey) ?? ""; } catch { /* ignore */ }
+            if (!devSections.some(s => s.label === active)) active = devSections[0].label;
+
+            const nav = document.createElement("div");
+            nav.style.cssText = "display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap;";
+            const pills: HTMLButtonElement[] = [];
+            const paint = (): void => {
+                for (let i = 0; i < devSections.length; i++) {
+                    const on = devSections[i].label === active;
+                    pills[i].style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:6px 15px;border-radius:13px;cursor:pointer;transition:all 0.12s;min-height:30px;" +
+                        (on
+                            ? "background:#c2628a;border:1px solid #cf6f98;color:#fff;"
+                            : "background:transparent;border:1px solid #33283c;color:#9b8fa6;");
+                    devSections[i].el.style.display = on ? "" : "none";
+                }
+            };
+            for (const sec of devSections) {
+                const pill = document.createElement("button");
+                pill.textContent = SHORT[sec.label] ?? sec.label;
+                pill.title = sec.label;
+                pill.addEventListener("click", () => {
+                    active = sec.label;
+                    try { localStorage.setItem(viewKey, active); } catch { /* ignore */ }
+                    paint();
+                });
+                pills.push(pill);
+                this.pillGroups.push({ btn: pill, els: [sec.el] });
+                nav.appendChild(pill);
+            }
+            body.appendChild(nav);
+            for (const sec of devSections) body.appendChild(sec.el);
+            paint();
+        }
     }
 
     // -- Special Thanks tab ----------------------------------------------------
@@ -18138,7 +21303,7 @@ export class EBCDrawer {
     // -- Buttons tab -----------------------------------------------------------
 
     private renderButtons(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        const body = this.tabBody();
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
@@ -19007,8 +22172,12 @@ export class EBCDrawer {
         boopBtn.title = "Send a unique boop message to every friend currently in the room";
         boopBtn.textContent = t("kitty.boopAll");
         boopBtn.addEventListener("click", () => {
-            const booped = this.boopFriendsInRoom();
-            boopBtn.textContent = booped === 0 ? t("buttons.noFriendsHere") : t("buttons.boopedN", { n: booped });
+            const { done, skipped } = this.boopFriendsInRoom();
+            boopBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.boopedN", { n: done });
+            // Said once for the batch rather than per person - the refusals are
+            // usually the same reason, and one line per friend would be noise.
+            const note = describeSkipped(skipped, "booped");
+            if (note) appendLocalLogLine(note, UI.textMuted);
             window.setTimeout(() => { boopBtn.textContent = t("kitty.boopAll"); }, 2000);
         });
         body.appendChild(boopBtn);
@@ -19017,8 +22186,12 @@ export class EBCDrawer {
         cuddleBtn.title = "Send a cuddle to every friend currently in the room";
         cuddleBtn.textContent = t("kitty.cuddleAll");
         cuddleBtn.addEventListener("click", () => {
-            const count = this.cuddleFriendsInRoom();
-            cuddleBtn.textContent = count === 0 ? t("buttons.noFriendsHere") : t("buttons.cuddledN", { n: count });
+            const { done, skipped } = this.cuddleFriendsInRoom();
+            cuddleBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.cuddledN", { n: done });
+            // Said once for the batch rather than per person - the refusals are
+            // usually the same reason, and one line per friend would be noise.
+            const note = describeSkipped(skipped, "cuddled");
+            if (note) appendLocalLogLine(note, UI.textMuted);
             window.setTimeout(() => { cuddleBtn.textContent = t("kitty.cuddleAll"); }, 2000);
         });
         body.appendChild(cuddleBtn);
@@ -19027,8 +22200,12 @@ export class EBCDrawer {
         petBtn.title = "Pet every friend currently in the room";
         petBtn.textContent = t("kitty.petAll");
         petBtn.addEventListener("click", () => {
-            const count = this.petFriendsInRoom();
-            petBtn.textContent = count === 0 ? t("buttons.noFriendsHere") : t("buttons.pettedN", { n: count });
+            const { done, skipped } = this.petFriendsInRoom();
+            petBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.pettedN", { n: done });
+            // Said once for the batch rather than per person - the refusals are
+            // usually the same reason, and one line per friend would be noise.
+            const note = describeSkipped(skipped, "petted");
+            if (note) appendLocalLogLine(note, UI.textMuted);
             window.setTimeout(() => { petBtn.textContent = t("kitty.petAll"); }, 2000);
         });
         body.appendChild(petBtn);
@@ -19241,6 +22418,20 @@ export class EBCDrawer {
             try { localStorage.setItem("EBC_slowLeaveEditorOpen", open ? "1" : "0"); } catch { /* ignore */ }
         });
 
+        // The grouped layout hosts these on the SAFETY tab instead, so they are
+        // only pulled into BUTTONS in the classic layout.
+        if (getQuickActionsInButtons() && !isGroupedLayout() && this.quickActionsEl) {
+            // Moved out of the pinned strip - give them a real section header so
+            // the pill converter picks them up like any other section.
+            const qaHdr = document.createElement("div");
+            qaHdr.className = "ebc-section-label";
+            qaHdr.textContent = "RESTRAINTS";
+            body.insertBefore(qaHdr, body.firstChild);
+            this.quickActionsEl.style.display = "";
+            qaHdr.after(this.quickActionsEl);
+            if (this.selfPickPanelEl) this.quickActionsEl.after(this.selfPickPanelEl);
+        }
+        this._pillifyTab(body, "EBC_buttonsView");
     }
 
 
@@ -19481,7 +22672,7 @@ export class EBCDrawer {
 
         const sendRoomEmote = (text: string): void => {
             if (!text) return;
-            try { ServerSend("ChatRoomChat", { Type: "Emote", Content: text, Dictionary: [] }); } catch { /* ignore */ }
+            try { sendRoomEmote(text); } catch { /* ignore */ }
         };
 
 
@@ -19493,12 +22684,10 @@ export class EBCDrawer {
                 const room = w.ChatRoomCharacter as Character[] | undefined;
                 const emery = room?.find(c => c.MemberNumber === EMERY_MEMBER);
                 if (!emery) return;
-                const ActivityRun = w.ActivityRun as ((actor: Character, acted: Character, group: { Name: string }, item: { Activity: unknown; Item: null }) => void) | undefined;
-                const AssetGetActivity = w.AssetGetActivity as ((family: string, name: string) => unknown) | undefined;
-                if (!ActivityRun || !AssetGetActivity) return;
-                const act = AssetGetActivity((Player as unknown as Record<string, unknown>).AssetFamily as string ?? "Female3DCG", bcActivity);
-                if (!act) return;
-                ActivityRun(Player, emery, { Name: bcGroup }, { Activity: act, Item: null });
+                // Gated like every other activity EBC fires. Being the creator is
+                // not a permission - if item permissions are off, BC's own dialog
+                // would not offer this either.
+                runActivityOn(emery, bcGroup, bcActivity);
             } catch { /* ignore */ }
         };
 
@@ -21386,7 +24575,7 @@ export class EBCDrawer {
     }
 
     private renderToys(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        const body = this.tabBody();
         if (!body) return;
         // Stop any sync-status poller from a previous render. Without this, each
         // re-render (toggle, or any toy-control beep calling refreshToysIfActive)
@@ -21417,11 +24606,11 @@ export class EBCDrawer {
         card.className = "ebc-card ebc-toys-card";
 
         // Build a collapsible section with ON/OFF toggle in the header
-        const mkSection = (icon: string, title: string, enabledKey: string, collapseKey: string): { wrap: HTMLElement, content: HTMLElement } => {
+        const mkSection = (icon: string, title: string, enabledKey: string, collapseKey: string, blurb = ""): { wrap: HTMLElement, content: HTMLElement } => {
             const enabled = s[enabledKey] === true;
             const collapsed = localStorage.getItem(collapseKey) === "1";
-            const wrap = mk("div");
-            const hRow = mk("div", "display:flex;align-items:center;gap:6px;padding:5px 0;cursor:pointer;user-select:none;");
+            const wrap = mk("div", "border:1px solid var(--ebc-border);border-radius:9px;padding:7px 10px;margin-bottom:8px;background:rgba(20,8,16,0.45);");
+            const hRow = mk("div", "display:flex;align-items:center;gap:8px;padding:2px 0;cursor:pointer;user-select:none;");
             const chevron = mk("span", `${FONT}font-size:10px;color:var(--ebc-text-muted);flex-shrink:0;width:10px;`);
             chevron.textContent = collapsed ? "▶" : "▼";
             const titleEl = mk("span", `${FONT}font-size:12px;font-weight:bold;color:var(--ebc-accent);letter-spacing:1px;flex:1;`);
@@ -21434,7 +24623,15 @@ export class EBCDrawer {
                 syncSettings();
                 this.renderToys();
             });
-            hRow.appendChild(chevron); hRow.appendChild(titleEl); hRow.appendChild(eBtn);
+            const titleWrap = mk("div", "flex:1;min-width:0;");
+            titleWrap.appendChild(titleEl);
+            if (blurb) {
+                const blurbEl = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);line-height:1.4;margin-top:2px;`);
+                blurbEl.textContent = blurb;
+                titleWrap.appendChild(blurbEl);
+            }
+            titleEl.style.flex = "";
+            hRow.appendChild(chevron); hRow.appendChild(titleWrap); hRow.appendChild(eBtn);
             const content = mk("div", `display:${collapsed ? "none" : "block"};`);
             hRow.addEventListener("click", () => {
                 const nowOpen = content.style.display === "none";
@@ -21448,7 +24645,8 @@ export class EBCDrawer {
         };
 
         const lovEnabled = s.lovenseEnabled === true;
-        const { wrap: lovWrap, content: lovContent } = mkSection("", t("toys.irlHeader"), "lovenseEnabled", "EBC_ui_lovense_open");
+        const { wrap: lovWrap, content: lovContent } = mkSection("", t("toys.irlHeader"), "lovenseEnabled", "EBC_ui_lovense_open",
+                "Connect Lovense toys through their Remote app so people in the room can control them.");
 
         if (!lovEnabled) {
             const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
@@ -21834,6 +25032,7 @@ export class EBCDrawer {
             // ── CHAT PHRASES ─────────────────────────────────────────────────────
             lovContent.appendChild(sep());
             const { wrap: phraseSec, body: phraseBody } = mkLovSub("CHAT PHRASES", "EBC_sec_phrases");
+            phraseSec.dataset.toyGroup = "triggers";
 
             const phraseAddBtn = document.createElement("button");
             phraseAddBtn.textContent = "+ Add phrase";
@@ -21932,6 +25131,7 @@ export class EBCDrawer {
             // ── BODY TOUCH ───────────────────────────────────────────────────────
             lovContent.appendChild(sep());
             const { wrap: touchSec, body: touchBody } = mkLovSub("BODY TOUCH", "EBC_sec_touch");
+            touchSec.dataset.toyGroup = "triggers";
 
             const touchData = EBCDrawer.getTouchTriggers();
             const touchGrid = mk("div", "display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:4px;");
@@ -22046,6 +25246,7 @@ export class EBCDrawer {
             // ── BC TOY SYNC ──────────────────────────────────────────────────────
             lovContent.appendChild(sep());
             const { wrap: syncSec, body: syncSecBody } = mkLovSub("BC TOY SYNC", "EBC_sec_sync");
+            syncSec.dataset.toyGroup = "game";
 
             const syncEnabled = s["lovenseBcSyncEnabled"] === true;
             const syncCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:6px;padding:9px 10px;");
@@ -22140,6 +25341,7 @@ export class EBCDrawer {
 
             // ── SECTION 1: LET OTHERS CONTROL YOUR TOY ───────────────────────────
             const { wrap: s1Wrap, body: s1Body } = makeCollSection("LET OTHERS CONTROL YOUR TOY", "EBC_irl_s1_open", this._irlGrantedTo.size);
+            s1Wrap.dataset.toyGroup = "share";
             const irlAllowReqs = s["irlToyAllowRequests"] === true;
             const s1Card = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:10px;padding:12px 14px;margin-bottom:8px;");
 
@@ -22256,6 +25458,7 @@ export class EBCDrawer {
 
             // ── SECTION 2: CONTROL A FRIEND'S LOVENSE ────────────────────────────
             const { wrap: s2Wrap, body: s2Body } = makeCollSection("CONTROL A FRIEND'S LOVENSE", "EBC_irl_s2_open");
+            s2Wrap.dataset.toyGroup = "share";
             const irlFriendChs = (window as unknown as { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> }).ChatRoomCharacter;
             const irlPW = (window as unknown as { Player?: { MemberNumber?: number; FriendList?: number[] } }).Player;
             const irlMyMN2 = irlPW?.MemberNumber;
@@ -22374,6 +25577,7 @@ export class EBCDrawer {
             }
             s2Body.appendChild(s2Card);
             lovContent.appendChild(s2Wrap);
+
         }
 
         // ── GAME TOYS ────────────────────────────────────────────────────────────
@@ -22405,6 +25609,59 @@ export class EBCDrawer {
             const d = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:1.2px;color:var(--ebc-text-muted);margin:0 0 6px;text-transform:uppercase;`);
             d.textContent = txt; return d;
         };
+
+        // ── MY TOYS - drive your own equipped BC vibrators ──────────────────
+        {
+            gtContent.appendChild(gtHdr("MY TOYS"));
+            const myCard = mk("div", "background:var(--ebc-bg-darker);border:1px solid var(--ebc-border);border-radius:8px;padding:10px 12px;margin-bottom:6px;");
+
+            // What is actually equipped, so the buttons are not a mystery.
+            const worn: string[] = [];
+            try {
+                const win = window as unknown as { VibratorModeDataLookup?: Record<string, unknown> };
+                const lookup = win.VibratorModeDataLookup ?? {};
+                for (const item of (Player?.Appearance ?? []) as Array<{ Asset: { Archetype?: string; Group: { Name: string }; Name: string; Description?: string }; Property?: Record<string, unknown> }>) {
+                    const key = item.Asset.Group.Name + item.Asset.Name;
+                    if (item.Asset.Archetype === "vibrating" || key in lookup || typeof item.Property?.["Mode"] === "string") {
+                        worn.push(item.Asset.Description || item.Asset.Name);
+                    }
+                }
+            } catch { /* ignore */ }
+
+            const wornNote = mk("div", `${FONT}font-size:11px;color:var(--ebc-text-muted);margin-bottom:8px;line-height:1.5;`);
+            wornNote.textContent = worn.length
+                ? `Wearing: ${worn.join(", ")}`
+                : "No vibrating items equipped - these apply to every vibrator you put on.";
+            myCard.appendChild(wornNote);
+
+            const modeRow = mk("div", "display:flex;flex-wrap:wrap;gap:5px;");
+            const MODES: Array<[string, string]> = [
+                ["Off", "Off"], ["Low", "Low"], ["Medium", "Med"], ["High", "High"],
+                ["Maximum", "Max"], ["Random", "Random"], ["Escalate", "Escalate"],
+                ["Tease", "Tease"], ["Deny", "Deny"], ["Edge", "Edge"],
+            ];
+            for (const [mode, label] of MODES) {
+                const b = document.createElement("button");
+                b.textContent = label;
+                b.title = `Set every vibrator you are wearing to ${mode}`;
+                b.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 12px;border-radius:11px;cursor:pointer;min-height:28px;` +
+                    (mode === "Off"
+                        ? "background:transparent;border:1px solid #5a2838;color:#b07888;"
+                        : "background:rgba(194,98,138,0.16);border:1px solid #cf6f98;color:#e8b0c8;");
+                b.addEventListener("mouseenter", () => { b.style.filter = "brightness(1.3)"; });
+                b.addEventListener("mouseleave", () => { b.style.filter = ""; });
+                b.addEventListener("click", () => {
+                    this._applyBCVibratorMode(mode);
+                    const prev = b.textContent;
+                    b.textContent = "✓";
+                    window.setTimeout(() => { b.textContent = prev; }, 700);
+                });
+                modeRow.appendChild(b);
+            }
+            myCard.appendChild(modeRow);
+            gtContent.appendChild(myCard);
+            gtContent.appendChild(sep());
+        }
 
         // ── MY PRIVACY ──────────────────────────────────────────────────────
         gtContent.appendChild(gtHdr("MY PRIVACY"));
@@ -22715,12 +25972,15 @@ export class EBCDrawer {
         }
 
         // GAME TOYS on top, IRL TOYS below
+        gtWrap.dataset.toyGroup  = "game";
+        lovWrap.dataset.toyGroup = "irl";
         card.appendChild(gtWrap);
         card.appendChild(lovWrap);
 
         // ── PISHOCK (Emery-only dev section) ─────────────────────────────────────
         if (typeof Player !== "undefined" && (Player?.MemberNumber === EMERY_MEMBER || Player?.MemberNumber === 147036)) {
-            const { wrap: psWrap, content: psContent } = mkSection("⚡", "PISHOCK (DEV)", "psEnabled", "EBC_ui_pishock_open");
+            const { wrap: psWrap, content: psContent } = mkSection("⚡", "PISHOCK (DEV)", "psEnabled", "EBC_ui_pishock_open",
+                "PiShock shockers, driven by share codes. Shock, vibrate and beep modes.");
             const psEnabled = s["psEnabled"] === true;
 
             if (!psEnabled) {
@@ -23207,6 +26467,7 @@ export class EBCDrawer {
 
             }
 
+            psWrap.dataset.toyGroup = "irl";
             card.appendChild(psWrap);
         }
 
@@ -23214,7 +26475,8 @@ export class EBCDrawer {
         const _xMn = (Player as unknown as Record<string, unknown>).MemberNumber as number | undefined;
         if (isXToysUser(_xMn)) {
             card.appendChild(sep());
-            const { wrap: xtWrap, content: xtContent } = mkSection("", "XToys", "xtoysEnabled", "EBC_ui_xtoys_open");
+            const { wrap: xtWrap, content: xtContent } = mkSection("", "XToys", "xtoysEnabled", "EBC_ui_xtoys_open",
+                "Bridges to xtoys.app, which drives a much wider range of hardware than the built-in options.");
 
             if (s.xtoysEnabled !== true) {
                 const note = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
@@ -23314,9 +26576,12 @@ export class EBCDrawer {
                 xtContent.appendChild(logEl);
             }
 
+            xtWrap.dataset.toyGroup = "irl";
             card.appendChild(xtWrap);
         }
 
+        // In-game vs real hardware, as pills over the top-level toy sections.
+        this._pillifyToys(card);
         body.appendChild(card);
     }
 
@@ -23821,7 +27086,8 @@ export class EBCDrawer {
 
     public refreshToysIfActive(): void {
         if (!this.rootEl?.querySelector(".ebc-toys-card")) return;
-        this.renderToys();
+        // renderToysTab keeps the merged Dom tools in the grouped layout.
+        this.renderToysTab();
     }
 
     private sendGameToyMsg(targetNum: number, type: string, intensity?: number, duration?: number): void {
@@ -24136,6 +27402,16 @@ export class EBCDrawer {
             sock.on("ChatRoomSearchResult", (data: unknown) => {
                 try {
                     const list = Array.isArray(data) ? data as Array<Record<string, unknown>> : [];
+                    // Cache occupancy for every room the search returned - the Rooms
+                    // section shows it, and friend-presence data carries no counts.
+                    for (const r of list) {
+                        const nm = String(r["Name"] ?? "").trim();
+                        const cnt = r["MemberCount"];
+                        const lim = r["MemberLimit"];
+                        if (nm && typeof cnt === "number" && typeof lim === "number") {
+                            _roomCounts.set(nm.toLowerCase(), { count: cnt, limit: lim, ts: Date.now() });
+                        }
+                    }
                     const found = list.some(r => String(r["Name"] ?? "").trim() === HQ_NAME);
                     if (found) {
                         // Positive: bypass the timestamp guard - any result that contains
@@ -24162,16 +27438,32 @@ export class EBCDrawer {
         };
 
         const doScan = (): void => {
-            // BC server ignores ChatRoomSearch while the player is inside a chat room;
-            // the resulting empty response would incorrectly hide the badge. Skip the
-            // scan and let the badge hold its last known state until back in the lobby.
             const w = window as unknown as Record<string, unknown>;
-            if ((w["CurrentScreen"] as string | undefined) === "ChatRoom") return;
+            // BC's server ignores ChatRoomSearch while the player is inside a chat
+            // room, and while the player is ON the search screen our own query would
+            // be picked up by BC's pending once-listener and replace their room list.
+            // In both cases skip the active scan - the passive listener below still
+            // reads BC's own search results, so the badge keeps updating.
+            const screen = String(w["CurrentScreen"] ?? "");
+            if (screen === "ChatRoom" || screen === "ChatSearch") return;
             try {
                 if (!ensureListener()) return;
                 if (noRespTimer !== null) { clearTimeout(noRespTimer); noRespTimer = null; }
                 scanSentAt = Date.now();
-                ServerSend("ChatRoomSearch", { Query: HQ_NAME.toUpperCase(), Language: "" });
+                // Must mirror BC's own ServerChatRoomSearchRequest shape - a partial
+                // request (Query + Language only) is filtered/dropped by the server,
+                // which is why the badge stopped appearing. Filters are permissive so
+                // a full or locked HQ still matches.
+                ServerSend("ChatRoomSearch", {
+                    Query: HQ_NAME.toUpperCase(),
+                    Language: "",
+                    Space: "",
+                    Game: "",
+                    FullRooms: true,
+                    ShowLocked: true,
+                    MapTypes: [],
+                    SearchDescs: false,
+                });
                 // Self-healing: if no ChatRoomSearchResult arrives within 15 s (server
                 // silently dropped the request - e.g. player not yet authenticated),
                 // reset scanSentAt so the next scheduled scan is not blocked.
@@ -24239,6 +27531,9 @@ export class EBCDrawer {
         const wireFocus = (el: HTMLElement): void => {
             el.addEventListener("focus", () => { el.style.borderColor = "#cf6f98"; el.style.boxShadow = "0 0 0 3px rgba(207,111,152,0.16)"; });
             el.addEventListener("blur", () => { el.style.borderColor = "#33283c"; el.style.boxShadow = "none"; });
+            // Stop keystrokes reaching BC's document-level key handler - on map rooms
+            // WASD/arrow keys would otherwise move the character and eat the letters.
+            el.addEventListener("keydown", (e) => e.stopPropagation());
         };
         const taCss = `${FONT}width:100%;box-sizing:border-box;resize:vertical;background:#0f0b15;border:1px solid #33283c;border-radius:9px;color:#e9e2f0;font-size:13px;line-height:1.5;padding:10px 12px;outline:none;transition:border-color 0.14s,box-shadow 0.14s;`;
 
@@ -24344,6 +27639,7 @@ export class EBCDrawer {
             fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
                 .then(() => { close(); this._showToyToast(t("feedback.toast")); })
                 .catch(() => { close(); this._showToyToast(t("feedback.toast")); });
+            try { achievementOnFeedbackSent(); } catch { /* ignore */ }
         });
 
         document.body.appendChild(overlay);
@@ -24524,7 +27820,7 @@ export class EBCDrawer {
     // ─────────────────────────────────────────────────────────────────────────────
 
     private renderThanks(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
+        const body = this.tabBody();
         if (!body) return;
         while (body.firstChild) body.removeChild(body.firstChild);
 
@@ -24534,12 +27830,13 @@ export class EBCDrawer {
         madeLbl.textContent = t("credits.madeBy");
         body.appendChild(madeLbl);
 
+        const _creator = CREDITED.find(p => p.creator);
         const creatorPerson = {
-            emoji: "🐾",
-            name: "Emery",
-            memberId: 130267,
-            reason: t("credits.emery"),
-            heart: "🐾",
+            emoji:    _creator?.emoji ?? "🐾",
+            name:     _creator?.name ?? "Emery",
+            memberId: _creator?.num ?? 130267,
+            reason:   t(_creator?.blurbKey ?? "credits.emery"),
+            heart:    _creator?.heart ?? "🐾",
         };
         (() => {
             const p = creatorPerson;
@@ -24610,36 +27907,17 @@ export class EBCDrawer {
         intro.appendChild(introSub);
         body.appendChild(intro);
 
-        const people = [
-            {
-                emoji: "🎀",
-                name: "Sin",
-                memberId: 143776,
-                reason: t("credits.sin"),
-                heart: "💗",
-            },
-            {
-                emoji: "🌙",
-                name: "Lucy",
-                memberId: 230466,
-                reason: t("credits.lucy"),
-                heart: "💜",
-            },
-            {
-                emoji: "🌸",
-                name: "Lara",
-                memberId: 124264,
-                reason: t("credits.lara"),
-                heart: "💖",
-            },
-            {
-                emoji: "✨",
-                name: "Sybil",
-                memberId: 80,
-                reason: t("credits.sybil"),
-                heart: "💛",
-            },
-        ];
+        // Cards come straight from the credits roster in crew.ts - the same list
+        // that drives the VIP name gradients, the crew-only tools and the
+        // 'whole crew' achievements, so a new credited person appears in all of
+        // them at once. Only their credits.<key> blurb needs adding to i18n.ts.
+        const people = CREDITED_THANKS.map(p => ({
+            emoji:    p.emoji,
+            name:     p.name,
+            memberId: p.num,
+            reason:   t(p.blurbKey),
+            heart:    p.heart,
+        }));
 
         for (const p of people) {
             const card = document.createElement("div");
@@ -24689,11 +27967,10 @@ export class EBCDrawer {
 
     // -- DOM Tools tab (creator-only) ------------------------------------------
 
-    private renderDomTools(): void {
-        const body = this.rootEl?.querySelector("#ebc-body") as HTMLElement | null;
-        if (!body) return;
-        while (body.firstChild) body.removeChild(body.firstChild);
-
+    /** Auto-escape card: the anti-restraint toggle plus its room emote.
+     *  Extracted from renderDomTools() (pure move) so the grouped SAFETY tab
+     *  can show it while the creator-only DOM tools live on the TOYS tab. */
+    private buildAutoEscapeSection(body: HTMLElement): void {
         // ── Auto-Escape card ─────────────────────────────────────────────────
         const aeCard = document.createElement("div");
         aeCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
@@ -24778,6 +28055,14 @@ export class EBCDrawer {
         aeEmoteHint.textContent = "Leave blank for default · tokens: {item} · {restrainer}";
         aeCard.appendChild(aeEmoteHint);
         body.appendChild(aeCard);
+    }
+
+    private renderDomTools(): void {
+        const body = this.tabBody();
+        if (!body) return;
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        this.buildAutoEscapeSection(body);
 
         // ── DOM Tools (creator-only below this point) ─────────────────────────
         if (!isDomEnabled()) {
@@ -26118,7 +29403,12 @@ export class EBCDrawer {
             setDomCurseExpiry(id, expiry);
             const roomItems = getRoomMemberItems(id);
             const itemNameMap = new Map(roomItems.map(it => [it.group, it.name]));
-            const beepEntries = newGroups.map(g => { const n = itemNameMap.get(g); return n ? `${g}=${n}` : g; });
+            // Send the FULL set, not just what was ticked this time. The target
+            // applies these additively, so resending existing ones costs nothing
+            // and it keeps both sides in step - previously the dom's list could
+            // hold groups the target no longer had, which is how a slot nobody
+            // had just cursed kept reappearing in Active Curses.
+            const beepEntries = merged.map(g => { const n = itemNameMap.get(g); return n ? `${g}=${n}` : g; });
             if (expiry) beepEntries.push(`expiry=${expiry}`);
             sendBeep(id, `[EBC-CURSE:apply:${beepEntries.join(",")}]`);
             const targetName2 = getRoomMembers().find(m => m.id === id)?.name ?? `#${id}`;
@@ -26187,8 +29477,15 @@ export class EBCDrawer {
 
                 const nm = document.createElement("span");
                 nm.style.cssText = `flex:1;${_cf}font-size:11px;color:#c89ab0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
-                nm.textContent = nameMap.get(group) ?? group.replace("Item", "");
-                nm.title = group;
+                const known = nameMap.get(group);
+                // A group with no matching item is a leftover from an earlier
+                // curse, not something on them now. Say so rather than printing
+                // a bare slot name that reads as a curse appearing from nowhere.
+                nm.textContent = known ?? `${group.replace("Item", "")} - slot empty`;
+                if (!known) nm.style.color = "#8a7080";
+                nm.title = known
+                    ? group
+                    : `${group}: still cursed, but they are not wearing anything there. Lift it with ✕ if it is stale.`;
 
                 const pauseBtn = document.createElement("button");
                 pauseBtn.style.cssText = `${_cf}font-size:10px;padding:1px 6px;border-radius:4px;border:1px solid #2a3050;background:transparent;color:#6888a8;cursor:pointer;flex-shrink:0;transition:all 0.1s;`;
@@ -26440,9 +29737,10 @@ export class EBCDrawer {
         if (!this.positioned) this.syncToChat();
         // badge toggle now lives in the DEV tab and refreshes on render
         try { this.refreshSwEnableBtn?.(); } catch { /* ignore */ }
-        // Show the DOM tab only for the creator
+        // Show the DOM tab only for the creator, and only in the classic layout
+        // (the grouped layout merges the Dom tools into the TOYS tab).
         const domTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-dom");
-        if (domTabEl) domTabEl.style.display = isDomEnabled() ? "" : "none";
+        if (domTabEl) domTabEl.style.display = (isDomEnabled() && !isGroupedLayout()) ? "" : "none";
         // Show the Puppy tab only for Lucy (#230466)
         const puppyTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-puppy");
         if (puppyTabEl) puppyTabEl.style.display = Player.MemberNumber === LUCY_MEMBER ? "" : "none";
@@ -26452,7 +29750,7 @@ export class EBCDrawer {
         const toysTabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab-toys");
         if (toysTabEl) toysTabEl.style.display = "";
         this.updateTimer();
-        try { this.applyTabVisibility(); } catch { /* ignore */ }
+        try { this.applyLayoutMode(); } catch { /* ignore */ }
         this.renderCurrentTab();
     }
 

@@ -158,6 +158,11 @@ export function getRestraintTime(): string | null {
     return restraintStartTime !== null ? fmt(Date.now() - restraintStartTime) : null;
 }
 
+/** Raw milliseconds of the current continuous bound streak (0 = not bound). */
+export function getRestraintMs(): number {
+    return restraintStartTime !== null ? Date.now() - restraintStartTime : 0;
+}
+
 // How long a specific restraint group has been worn (survives offline).
 export function getRestraintItemDuration(group: string): string | null {
     const start = loadRestraintTimers()[group];

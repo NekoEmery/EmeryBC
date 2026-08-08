@@ -1,5 +1,5 @@
 ﻿import { UI } from "./ui";
-import { getDisplayName, getSettings, syncSettings } from "./bcUtils";
+import { getDisplayName, getSettings, syncSettings, LOCAL_OUTFITS_KEY, LOCAL_RESTRAINTS_KEY } from "./bcUtils";
 import { getExpressionPresets, applyExpressionPreset } from "./expressions";
 
 export interface SerializedItem {
@@ -31,13 +31,15 @@ export interface ConfiguredOutfit {
     nameInAnnounce: boolean;          // whether to prepend the player name to the announce text (default: true)
     expressionPresetId: string | null; // optional face preset to apply when outfit is worn (null = no change)
     items: SerializedItem[];
+    local?: boolean;                  // true = stored in localStorage (this device only, shared across accounts, no account budget)
 }
 
 export const RESTRAINT_GROUPS = new Set([
     "ItemArms", "ItemHands", "ItemLegs", "ItemFeet", "ItemBoots",
     "ItemMouth", "ItemMouth2", "ItemMouth3", "ItemMouthAccessory", "ItemHead", "ItemHood",
     "ItemNeck", "ItemNeckAccessories", "ItemNeckRestraints",
-    "ItemPelvis", "ItemVulva", "ItemButt", "ItemBreast", "ItemNipples",
+    "ItemPelvis", "ItemVulva", "ItemVulvaPiercings", "ItemButt", "ItemBreast",
+    "ItemNipples", "ItemNipplesPiercings", "ItemHandheld",
     "ItemTorso", "ItemTorso2", "ItemBody",
     "ItemDevices",  // cages, kennels, lockers, X-crosses, wooden boxes
     "ItemAddon",    // ceiling ropes, ceiling chains
@@ -83,15 +85,53 @@ let refreshScheduled = false;
 let cachedOutfits: ConfiguredOutfit[] | null = null;
 
 
+// -- Local (device) storage ---------------------------------------------------
+// Outfits/restraint sets flagged local:true live in localStorage instead of the
+// BC account: they use no account storage (so no server budget / relog risk)
+// and are visible to EVERY account logged in from this browser.
+// Keys live in bcUtils so the backup code can see them too - see the note there.
+
+function readLocalList(key: string): ConfiguredOutfit[] {
+    try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return [];
+        const v = JSON.parse(raw) as unknown;
+        return Array.isArray(v)
+            ? (v as ConfiguredOutfit[]).map(o => sanitizeOutfit({ ...o, local: true }))
+            : [];
+    } catch { return []; }
+}
+
+function writeLocalList(key: string, list: ConfiguredOutfit[]): boolean {
+    try {
+        localStorage.setItem(key, JSON.stringify(list.map(sanitizeOutfit)));
+        return true;
+    } catch {
+        localNotice("This device's outfit storage is full (browser quota) - not saved.", "#ff8a8a");
+        return false;
+    }
+}
+
 function loadOutfitsFromSettings(): ConfiguredOutfit[] {
     const list = getSettings().outfits;
-    const outfits = Array.isArray(list) ? (list as ConfiguredOutfit[]).map(sanitizeOutfit) : [];
+    const account = Array.isArray(list) ? (list as ConfiguredOutfit[]).map(sanitizeOutfit) : [];
+    const outfits = [...account, ...readLocalList(LOCAL_OUTFITS_KEY)];
     cachedOutfits = outfits;
     return outfits;
 }
 
 export function getOutfits(): ConfiguredOutfit[] {
     return cachedOutfits ?? loadOutfitsFromSettings();
+}
+
+/**
+ * Drops the in-memory copies so the next read picks the lists up again.
+ * Needed after a backup restore, which writes localStorage underneath us - the
+ * cache would otherwise keep serving the pre-restore lists until a reload.
+ */
+export function reloadLocalLists(): void {
+    cachedOutfits = null;
+    cachedRestraints = null;
 }
 
 export function getDefaultNickname(): string {
@@ -114,11 +154,74 @@ export function setDefaultTitle(title: string): void {
     syncSettings();
 }
 
-function saveOutfits(list: ConfiguredOutfit[]): void {
-    const sanitized = list.map(sanitizeOutfit);
+// Budget for the serialized outfit list inside EBC's settings. A full set of
+// crafted restraints with long descriptions can hit several KB per outfit -
+// unbounded growth eventually blows BC's ~180 KB account cap and the server
+// starts dropping the connection on every sync (infinite relog loop).
+export const OUTFITS_BUDGET = 60_000;
+
+/** Persists the outfit list. Account-stored outfits go to the BC account (60 KB
+ *  budget); local:true outfits go to this device's localStorage. Returns false
+ *  (keeping the previous list) when the account part would exceed the budget. */
+function saveOutfits(list: ConfiguredOutfit[]): boolean {
+    const sanitized  = list.map(sanitizeOutfit);
+    const account    = sanitized.filter(o => !o.local);
+    const localList  = sanitized.filter(o => o.local === true);
+    try {
+        const size = JSON.stringify(account).length;
+        // Refuse only a save that does not IMPROVE things. Refusing every save
+        // while over budget also refused deleting one and moving one to this
+        // device - the exact two actions the message tells you to take - so
+        // anyone who got over the line was stuck there with no way back.
+        const storedAccount = getSettings().outfits;
+        const prevSize = Array.isArray(storedAccount) ? JSON.stringify(storedAccount).length : 0;
+        if (size > OUTFITS_BUDGET && size >= prevSize) {
+            localNotice(
+                `Account outfit storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
+                "Not saved - delete some outfits, or switch outfits to 💾 This device storage (no account limit).",
+                "#ff8a8a",
+            );
+            return false;
+        }
+    } catch { /* size check best-effort */ }
+    if (!writeLocalList(LOCAL_OUTFITS_KEY, localList)) return false;
     cachedOutfits = sanitized;
-    getSettings().outfits = sanitized;
+    getSettings().outfits = account;
     syncSettings();
+    return true;
+}
+
+/**
+ * Moves EVERY outfit to or from this-device storage in one save.
+ *
+ * The storage manager's category switch used to go through the generic
+ * device-key mechanism, which relocates the `outfits` settings key and leaves
+ * each outfit's own `local` flag untouched - but the size bar, the per-item
+ * Account/Local pills and the budget check all read that flag, so the switch
+ * went green while nothing they measure actually moved. This drives the flag
+ * they all agree on.
+ *
+ * One save rather than one per outfit: each save re-serialises the whole list,
+ * and doing that per item over a library big enough to hit the limit is exactly
+ * where it would be slowest.
+ */
+export function setAllOutfitsStorage(local: boolean): boolean {
+    const list = getOutfits().map(o => ({ ...o, local: local ? true as const : undefined }));
+    const ok = saveOutfits(list);
+    if (ok) localNotice(local
+        ? `All ${list.length} outfits moved to THIS DEVICE - they use no account storage now.`
+        : `All ${list.length} outfits moved to your BC ACCOUNT - synced across devices.`);
+    return ok;
+}
+
+/** Moves an outfit between account storage (synced) and this-device storage. */
+export function setOutfitStorage(id: string, local: boolean): boolean {
+    const outfits = getOutfits().map(o => o.id === id ? { ...o, local: local ? true : undefined } : o);
+    const ok = saveOutfits(outfits);
+    if (ok) localNotice(local
+        ? "Outfit moved to THIS DEVICE - no account storage used; visible to every account in this browser."
+        : "Outfit moved to your BC ACCOUNT - synced across devices.");
+    return ok;
 }
 
 function sanitizeSerializable(value: unknown, seen = new WeakSet<object>(), depth = 0): unknown {
@@ -212,6 +315,7 @@ function sanitizeOutfit(outfit: ConfiguredOutfit): ConfiguredOutfit {
         // null = no expression change; string = preset ID to apply when worn
         expressionPresetId: typeof outfit.expressionPresetId === "string" && outfit.expressionPresetId ? outfit.expressionPresetId : null,
         items: Array.isArray(outfit.items) ? outfit.items.map(sanitizeItem) : [],
+        local: outfit.local === true ? true : undefined,
     };
 }
 
@@ -689,8 +793,13 @@ export function importOutfitFromJSON(json: string): ConfiguredOutfit {
     let suffix = 2;
     while (existing.some(o => o.command === finalCmd)) finalCmd = baseCmd + suffix++;
 
-    const outfit = sanitizeOutfit({ ...raw, id: uid(), command: finalCmd });
-    saveOutfits([...existing, outfit]);
+    let outfit = sanitizeOutfit({ ...raw, id: uid(), command: finalCmd });
+    if (!saveOutfits([...existing, outfit])) {
+        // Account storage full - fall back to this-device storage automatically.
+        outfit = sanitizeOutfit({ ...outfit, local: true });
+        if (!saveOutfits([...existing, outfit])) throw new Error("Outfit storage is full - delete some outfits first.");
+        localNotice(`Account storage full - "${outfit.displayName}" saved to THIS DEVICE instead (💾).`, "#e8c04a");
+    }
     localNotice(`Imported "${outfit.displayName}" (/${outfit.command}).`);
     return outfit;
 }
@@ -770,7 +879,8 @@ let cachedRestraints: ConfiguredOutfit[] | null = null;
 
 function loadRestraintsFromSettings(): ConfiguredOutfit[] {
     const list = getSettings().restraints;
-    const restraints = Array.isArray(list) ? (list as ConfiguredOutfit[]).map(sanitizeOutfit) : [];
+    const account = Array.isArray(list) ? (list as ConfiguredOutfit[]).map(sanitizeOutfit) : [];
+    const restraints = [...account, ...readLocalList(LOCAL_RESTRAINTS_KEY)];
     cachedRestraints = restraints;
     return restraints;
 }
@@ -779,11 +889,68 @@ export function getRestraints(): ConfiguredOutfit[] {
     return cachedRestraints ?? loadRestraintsFromSettings();
 }
 
-function saveRestraints(list: ConfiguredOutfit[]): void {
-    const sanitized = list.map(sanitizeOutfit);
+function saveRestraints(list: ConfiguredOutfit[]): boolean {
+    const sanitized  = list.map(sanitizeOutfit);
+    const account    = sanitized.filter(o => !o.local);
+    const localList  = sanitized.filter(o => o.local === true);
+    try {
+        const size = JSON.stringify(account).length;
+        // Refuse only a save that does not IMPROVE things. Refusing every save
+        // while over budget also refused deleting one and moving one to this
+        // device - the exact two actions the message tells you to take - so
+        // anyone who got over the line was stuck there with no way back.
+        const storedAccount = getSettings().restraints;
+        const prevSize = Array.isArray(storedAccount) ? JSON.stringify(storedAccount).length : 0;
+        if (size > OUTFITS_BUDGET && size >= prevSize) {
+            localNotice(
+                `Account restraint-set storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
+                "Not saved - delete some sets, or switch sets to 💾 This device storage (no account limit).",
+                "#ff8a8a",
+            );
+            return false;
+        }
+    } catch { /* size check best-effort */ }
+    if (!writeLocalList(LOCAL_RESTRAINTS_KEY, localList)) return false;
     cachedRestraints = sanitized;
-    getSettings().restraints = sanitized;
+    getSettings().restraints = account;
     syncSettings();
+    return true;
+}
+
+/** Storage usage for the meter in the Outfits tab. Sizes are serialized JSON
+ *  lengths (characters ~ bytes). */
+export function getOutfitStorageUsage(): { accountOutfits: number; accountRestraints: number; deviceBytes: number } {
+    const size = (v: unknown): number => { try { return JSON.stringify(v).length; } catch { return 0; } };
+    let deviceBytes = 0;
+    try {
+        deviceBytes = (localStorage.getItem(LOCAL_OUTFITS_KEY)?.length ?? 0)
+                    + (localStorage.getItem(LOCAL_RESTRAINTS_KEY)?.length ?? 0);
+    } catch { /* ignore */ }
+    return {
+        accountOutfits:    size(getOutfits().filter(o => !o.local)),
+        accountRestraints: size(getRestraints().filter(o => !o.local)),
+        deviceBytes,
+    };
+}
+
+/** Every restraint set to or from this-device storage - see setAllOutfitsStorage. */
+export function setAllRestraintsStorage(local: boolean): boolean {
+    const list = getRestraints().map(o => ({ ...o, local: local ? true as const : undefined }));
+    const ok = saveRestraints(list);
+    if (ok) localNotice(local
+        ? `All ${list.length} restraint sets moved to THIS DEVICE - they use no account storage now.`
+        : `All ${list.length} restraint sets moved to your BC ACCOUNT - synced across devices.`);
+    return ok;
+}
+
+/** Moves a restraint set between account storage and this-device storage. */
+export function setRestraintStorage(id: string, local: boolean): boolean {
+    const sets = getRestraints().map(o => o.id === id ? { ...o, local: local ? true : undefined } : o);
+    const ok = saveRestraints(sets);
+    if (ok) localNotice(local
+        ? "Restraint set moved to THIS DEVICE - no account storage used; visible to every account in this browser."
+        : "Restraint set moved to your BC ACCOUNT - synced across devices.");
+    return ok;
 }
 
 function captureRestraints(): SerializedItem[] {
@@ -1052,6 +1219,71 @@ export function handleRestraintCommand(
     return true;
 }
 
+/**
+ * Decodes a BC outfit code into items. Shared so importing a RESTRAINT SET and
+ * importing an outfit cannot drift apart in how they read the same code.
+ */
+export function decodeBCCodeItems(code: string, mode: BCImportMode = "restraints"): SerializedItem[] {
+    const LZ = (window as unknown as Record<string, unknown>).LZString as
+        { decompressFromBase64?: (s: string) => string | null } | undefined;
+    if (!LZ?.decompressFromBase64) throw new Error("LZString not found - make sure you are on the BC page.");
+    const json = LZ.decompressFromBase64(code.trim());
+    if (!json) throw new Error("Could not decompress - is this a valid BC outfit code?");
+    let raw: unknown;
+    try { raw = JSON.parse(json); } catch { throw new Error("Decoded data is not valid JSON."); }
+    if (!Array.isArray(raw)) throw new Error("Unexpected format - expected an appearance array.");
+
+    const toItem = (i: Record<string, unknown>): SerializedItem => sanitizeItem({
+        Group:      String(i.Group ?? ""),
+        Name:       String(i.Name ?? ""),
+        Color:      i.Color as SerializedItem["Color"],
+        Difficulty: typeof i.Difficulty === "number" ? i.Difficulty : undefined,
+        Property:   typeof i.Property === "object" && i.Property !== null
+            ? i.Property as Record<string, unknown> : undefined,
+        Craft:      i.Craft as CraftingItem | undefined,
+    });
+
+    const all = raw as Record<string, unknown>[];
+    const items = mode === "restraints"
+        ? all.filter(i => typeof i.Group === "string" && RESTRAINT_GROUPS.has(i.Group as string)).map(toItem)
+        : mode === "outfit"
+            ? all.filter(i => typeof i.Group === "string" && !RESTRAINT_GROUPS.has(i.Group as string)).map(toItem)
+            : all.filter(i => typeof i.Group === "string").map(toItem);
+    if (items.length === 0) {
+        throw new Error(mode === "restraints"
+            ? "No restraint items found in this BC outfit code."
+            : mode === "outfit"
+                ? "No outfit (non-restraint) items found in this BC outfit code."
+                : "No items found in this BC outfit code.");
+    }
+    return items;
+}
+
+/**
+ * Imports a BC outfit code as a RESTRAINT SET.
+ *
+ * The Import Restraint Set button used to call importOutfitFromBCCode, which
+ * pulls the restraint items out correctly and then files the result under
+ * Outfits - so the import appeared to work while Restraint Sets stayed
+ * permanently empty and there was no way to put anything in it.
+ */
+export function importRestraintSetFromBCCode(
+    code: string,
+    displayName: string,
+    command: string,
+): ConfiguredOutfit {
+    const items = decodeBCCodeItems(code, "restraints");
+    const baseCmd = command.toLowerCase().trim().replace(/\s+/g, "") || "imported";
+    let finalCmd = baseCmd;
+    let sfx = 2;
+    while (getOutfits().some(o => o.command === finalCmd) || getRestraints().some(r => r.command === finalCmd)) {
+        finalCmd = baseCmd + sfx++;
+    }
+    const made = createRestraintFromItems(finalCmd, displayName.trim() || "Imported Restraints", "", items);
+    if (!made) throw new Error("Could not save the restraint set - the name or command may already be in use.");
+    return made;
+}
+
 export function importOutfitFromBCCode(
     code: string,
     displayName: string,
@@ -1114,9 +1346,15 @@ export function importOutfitFromBCCode(
         expressionPresetId: null,
         items,
     });
-    saveOutfits([...existing, outfit]);
-    localNotice(`Imported "${outfit.displayName}" (/${outfit.command}) — ${items.length} item(s).`);
-    return outfit;
+    let saved = outfit;
+    if (!saveOutfits([...existing, saved])) {
+        // Account storage full - fall back to this-device storage automatically.
+        saved = sanitizeOutfit({ ...outfit, local: true });
+        if (!saveOutfits([...existing, saved])) throw new Error("Outfit storage is full - delete some outfits first.");
+        localNotice(`Account storage full - "${saved.displayName}" saved to THIS DEVICE instead (💾).`, "#e8c04a");
+    }
+    localNotice(`Imported "${saved.displayName}" (/${saved.command}) — ${items.length} item(s).`);
+    return saved;
 }
 
 // Copy restraints from a room member onto the player. Lock data is stripped so

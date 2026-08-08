@@ -3,6 +3,8 @@
 // so it's available across devices on next login.
 
 import { getSettings, syncSettings } from "./bcUtils";
+import { sendBeepViaBC } from "./bcSpeech";
+import { getSharedRoom } from "./privateRooms";
 
 /**
  * Some BC mods (WCE, FBC, etc.) append metadata to beep messages in two forms:
@@ -158,6 +160,8 @@ export interface FriendOnlineInfo {
     roomName?: string;   // non-empty = public room name; undefined = private or lobby
     roomSpace?: string;  // non-empty = public room space; undefined = private or lobby
     isPrivate?: boolean; // true = friend is in a private/restricted room
+    /** roomName came from the friend sharing it, not from the server. */
+    sharedPrivate?: boolean;
 }
 
 // Set of member numbers BC reports as online (updated via AccountQueryResult hook)
@@ -171,27 +175,49 @@ const onlineInfo = new Map<number, FriendOnlineInfo>();
 const pendingOfflineMessages = new Map<number, string[]>();
 const pendingOfflineQueuedAt = new Map<number, number>(); // first-queued timestamp per member
 
-const OFFLINE_QUEUE_LS_KEY  = "EBC_offlineQueue";
+// The queue key is scoped per account: localStorage is shared by every BC
+// account in this browser, and a shared queue made a SECOND account re-deliver
+// the first account's messages under its own name (wrong sender shown).
+const OFFLINE_QUEUE_LS_BASE = "EBC_offlineQueue";
 const OFFLINE_QUEUE_TTL_MS  = 48 * 60 * 60 * 1000; // 48 hours
+
+function offlineQueueKey(): string | null {
+    try {
+        const num = typeof Player !== "undefined" ? Player?.MemberNumber : undefined;
+        return typeof num === "number" && num > 0 ? `${OFFLINE_QUEUE_LS_BASE}_${num}` : null;
+    } catch { return null; }
+}
 
 function persistOfflineQueue(): void {
     try {
+        const key = offlineQueueKey();
+        if (!key) return; // not logged in yet - nothing to persist
         const obj: Record<string, { messages: string[]; ts: number }> = {};
         for (const [num, msgs] of pendingOfflineMessages) {
             obj[String(num)] = { messages: msgs, ts: pendingOfflineQueuedAt.get(num) ?? Date.now() };
         }
         if (Object.keys(obj).length === 0) {
-            localStorage.removeItem(OFFLINE_QUEUE_LS_KEY);
+            localStorage.removeItem(key);
         } else {
-            localStorage.setItem(OFFLINE_QUEUE_LS_KEY, JSON.stringify(obj));
+            localStorage.setItem(key, JSON.stringify(obj));
         }
     } catch { /* ignore */ }
 }
 
-// Restore persisted offline queue on module load — discard entries older than 48h.
+// Restore the persisted offline queue - retries until the player is logged in
+// (the per-account key needs Player.MemberNumber). Entries older than 48h are
+// discarded. The old shared key is migrated once, to whichever account logs in
+// first, then deleted so a second account can never re-deliver it.
 void (function restoreOfflineQueue() {
     try {
-        const raw = localStorage.getItem(OFFLINE_QUEUE_LS_KEY);
+        const key = offlineQueueKey();
+        if (!key) { setTimeout(restoreOfflineQueue, 2000); return; }
+        const legacy = localStorage.getItem(OFFLINE_QUEUE_LS_BASE);
+        if (legacy) {
+            if (!localStorage.getItem(key)) localStorage.setItem(key, legacy);
+            localStorage.removeItem(OFFLINE_QUEUE_LS_BASE);
+        }
+        const raw = localStorage.getItem(key);
         if (!raw) return;
         const parsed = JSON.parse(raw) as unknown;
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
@@ -217,6 +243,38 @@ function markPendingMessage(memberNumber: number, message: string): void {
     queue.push(message);
     pendingOfflineMessages.set(memberNumber, queue);
     persistOfflineQueue();
+}
+
+/** Cleaned texts of messages still queued for offline delivery to this member.
+ *  Cleaned the same way addBeepEntry cleans history entries, so the values
+ *  compare equal to stored BeepEntry.message - used by the beep window to mark
+ *  undelivered bubbles. */
+export function getPendingMessagesCleaned(memberNumber: number): string[] {
+    const raw = pendingOfflineMessages.get(memberNumber) ?? [];
+    return raw.map(m => stripBeepMetadata(m).slice(0, 1000));
+}
+
+/** Cancels ONE queued offline message whose cleaned text matches.
+ *  Returns true if a queue entry was removed. */
+export function cancelPendingMessage(memberNumber: number, cleanedText: string): boolean {
+    const raw = pendingOfflineMessages.get(memberNumber);
+    if (!raw) return false;
+    const i = raw.findIndex(m => stripBeepMetadata(m).slice(0, 1000) === cleanedText);
+    if (i === -1) return false;
+    raw.splice(i, 1);
+    if (raw.length === 0) {
+        pendingOfflineMessages.delete(memberNumber);
+        pendingOfflineQueuedAt.delete(memberNumber);
+    }
+    persistOfflineQueue();
+    return true;
+}
+
+// Fired when a member's queued offline messages are handed to the server for
+// re-delivery (they came online) - lets the beep window drop its ⏳ markers.
+let _onQueueDelivered: ((memberNumber: number) => void) | null = null;
+export function setQueueDeliveredCallback(cb: (memberNumber: number) => void): void {
+    _onQueueDelivered = cb;
 }
 
 // Timestamp when this module was first loaded — used to add a startup grace
@@ -341,17 +399,31 @@ export function updateOnlineFriends(entries: Array<Record<string, unknown>>): vo
                 redeliverySlot++;
                 window.setTimeout(() => {
                     try {
-                        ServerSend("AccountBeep", { MemberNumber: num, BeepType: "", IsSecret: true, Message: msg });
+                        // Same routing as sendBeep - a rule active at delivery
+                        // time must still apply to a message queued earlier.
+                        sendBeepViaBC(num, msg, false);
                     } catch { /* ignore */ }
                 }, delay);
             }
+            try { _onQueueDelivered?.(num); } catch { /* ignore */ }
         }
     }
     if (queueChanged) persistOfflineQueue();
 }
 
 export function getFriendOnlineInfo(memberNumber: number): FriendOnlineInfo | undefined {
-    return onlineInfo.get(memberNumber);
+    const info = onlineInfo.get(memberNumber);
+    if (!info) return info;
+    // The server strips the name of a private room. If they chose to share it
+    // with us, fill it in here so every list picks it up rather than each
+    // display site having to know about sharing.
+    if (info.isPrivate && !info.roomName) {
+        const shared = getSharedRoom(memberNumber);
+        if (shared?.name) {
+            return { ...info, roomName: shared.name, roomSpace: shared.space || info.roomSpace, sharedPrivate: true };
+        }
+    }
+    return info;
 }
 
 export type FriendStatus = "room" | "online" | "away";
@@ -490,9 +562,13 @@ export function formatLastSeen(ts: number): string {
     if (sec < 60)  return "just now";
     if (min < 60)  return `${min}m ago`;
     if (hr  < 24)  return `${hr}h ago`;
-    if (day === 1) return "yesterday";
     const d = new Date(ts);
-    if (day < 7)   return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
+    // Calendar days, not elapsed hours. 30 hours ago can be two dates back, and
+    // calling that "yesterday" is simply wrong - which is what was reported.
+    const midnight = (x: Date): number => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const daysBack = Math.round((midnight(new Date()) - midnight(d)) / 86_400_000);
+    if (daysBack === 1) return "yesterday";
+    if (daysBack < 7)   return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
     return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
@@ -654,12 +730,55 @@ export function addBeepEntry(entry: BeepEntry): void {
     sync();
 }
 
+/**
+ * One-time repair for history doubled by the send path being logged twice.
+ * Both copies were written microseconds apart, so a 2 second window with an
+ * identical sender, recipient and text is safe: a person cannot send the same
+ * message to the same person twice that fast, and the deliberate case (sending
+ * something twice on purpose) takes longer than that to type or click.
+ * Only messages you SENT are considered - incoming beeps were never affected.
+ */
+export function dedupeSentBeeps(): number {
+    try {
+        const store = getSettings();
+        if ((store as Record<string, unknown>).beepDedupeDone === true) return 0;
+        const history = getBeepHistory();
+        const self = Player.MemberNumber ?? 0;
+        const kept: BeepEntry[] = [];
+        let removed = 0;
+        for (const e of history) {
+            const dupe = e.from === self && kept.some(k =>
+                k.from === e.from && k.to === e.to && k.message === e.message &&
+                Math.abs(k.ts - e.ts) < 2000);
+            if (dupe) { removed++; continue; }
+            kept.push(e);
+        }
+        (store as Record<string, unknown>).beepDedupeDone = true;
+        if (removed > 0) store.beepHistory = kept;
+        syncSettings();
+        return removed;
+    } catch { return 0; }
+}
+
 export function getConversation(memberNumber: number): BeepEntry[] {
     const self = Player.MemberNumber ?? 0;
     return getBeepHistory().filter(e =>
         (e.from === memberNumber && e.to === self) ||
         (e.from === self && e.to === memberNumber),
     );
+}
+
+/** Removes ONE beep history entry, matched by from/to/ts/message. */
+export function deleteBeepEntry(entry: BeepEntry): void {
+    const store = getSettings();
+    const history = getBeepHistory();
+    const i = history.findIndex(e =>
+        e.from === entry.from && e.to === entry.to &&
+        e.ts === entry.ts && e.message === entry.message);
+    if (i === -1) return;
+    history.splice(i, 1);
+    store.beepHistory = history;
+    sync();
 }
 
 /** Removes all beep history entries between the local player and the given member. */
@@ -765,27 +884,111 @@ export function hasSessionBundle(memberNumber: number): boolean {
     return sessionCharacterBundles.has(memberNumber);
 }
 
+// -- Blocked messages ----------------------------------------------------------
+// When a recipient runs a rule addon that forbids them receiving beeps, their
+// client silently drops ours and beeps back an automatic reply. Before this,
+// our copy sat in the conversation looking delivered, and the offline queue
+// would happily retry it forever. Blocked timestamps are kept on the device -
+// they are a local display detail, not worth account-sync budget.
+
+const BLOCKED_LS = "EBC_blockedBeeps";
+/** Who refused a message: their rules, or your own. */
+export type BlockedBy = "them" | "you";
+const MAX_BLOCKED = 300;
+let _blocked: Map<number, BlockedBy> | null = null;
+
+function blockedMap(): Map<number, BlockedBy> {
+    if (_blocked) return _blocked;
+    _blocked = new Map<number, BlockedBy>();
+    try {
+        const raw = localStorage.getItem(BLOCKED_LS);
+        const parsed = raw ? JSON.parse(raw) as unknown[] : [];
+        for (const item of parsed) {
+            // Older builds stored a bare list of timestamps, all of which meant
+            // "the recipient refused it" - that was the only case back then.
+            if (typeof item === "number") _blocked.set(item, "them");
+            else if (Array.isArray(item) && typeof item[0] === "number") {
+                _blocked.set(item[0], item[1] === "you" ? "you" : "them");
+            }
+        }
+    } catch { /* ignore */ }
+    return _blocked;
+}
+
+function saveBlocked(): void {
+    try {
+        const all = [...blockedMap().entries()].sort((a, b) => b[0] - a[0]).slice(0, MAX_BLOCKED);
+        _blocked = new Map(all);
+        localStorage.setItem(BLOCKED_LS, JSON.stringify(all));
+    } catch { /* ignore */ }
+}
+
+/** Who refused this sent message, or null if it went through. */
+export function isBeepBlocked(entry: BeepEntry): BlockedBy | null {
+    return blockedMap().get(entry.ts) ?? null;
+}
+
+/** Records that a message we just wrote to history never left. */
+export function markBeepBlocked(ts: number, by: BlockedBy): void {
+    blockedMap().set(ts, by);
+    saveBlocked();
+}
+
+/**
+ * Flags the newest message we sent this person as refused, and drops any queued
+ * copy so the offline re-delivery loop stops retrying something their rules will
+ * reject again. Returns true if a message was found to flag.
+ */
+export function markLastSentBlocked(memberNumber: number): boolean {
+    const self = Player.MemberNumber ?? 0;
+    const convo = getConversation(memberNumber);
+    for (let i = convo.length - 1; i >= 0; i--) {
+        const e = convo[i];
+        if (e.from !== self || e.to !== memberNumber) continue;
+        if (blockedMap().has(e.ts)) return false;   // already flagged, don't walk further back
+        blockedMap().set(e.ts, "them");
+        saveBlocked();
+        try { cancelPendingMessage(memberNumber, stripBeepMetadata(e.message)); } catch { /* ignore */ }
+        return true;
+    }
+    return false;
+}
+
 // -- Sending -------------------------------------------------------------------
 
 export function sendBeep(memberNumber: number, message: string): void {
-    // Queue the message for re-delivery if the recipient is currently offline.
-    // BC drops beeps to offline players, so we resend when they come online.
-    // Don't queue or record EBC protocol messages - they are silent channel commands
-    // and must never appear in the IM conversation window
+    // Protocol payloads are addon sync, not speech. They keep the direct socket
+    // so rules never mangle EBC's internals, and they stay out of the IM window
+    // and the offline queue. Everything the person actually typed goes through
+    // BC's function instead, where rule addons can see and refuse it.
     const isProtocol = message.startsWith("[EBC-");
-    if (!isProtocol) markPendingMessage(memberNumber, message);
+    if (isProtocol) {
+        try {
+            ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message, BeepType: "", IsSecret: false });
+        } catch { /* ignore */ }
+        return;
+    }
+
+    let delivered = true;
     try {
-        // IsSecret: false tells the BC server to include the sender's current room
-        // in the beep it delivers to the recipient, so they see "in room X" with a
-        // join button.  The server derives the room name itself — sending ChatRoomName
-        // from the client has no effect; only IsSecret matters.
-        ServerSend("AccountBeep", { MemberNumber: memberNumber, Message: message, BeepType: "", IsSecret: false });
+        delivered = sendBeepViaBC(memberNumber, message, true);
     } catch { /* ignore */ }
-    if (!isProtocol) addBeepEntry({
+
+    const ts = Date.now();
+    // A rule of YOUR OWN stopped this one. Keep it in the conversation rather
+    // than letting it vanish out of the box with no trace, but mark it as never
+    // sent and never queue it - the rule will refuse it again just the same.
+    if (!delivered) {
+        addBeepEntry({ from: Player.MemberNumber ?? 0, to: memberNumber, message, ts });
+        markBeepBlocked(ts, "you");
+        return;
+    }
+    markPendingMessage(memberNumber, message);
+    addBeepEntry({
         from: Player.MemberNumber ?? 0,
         to: memberNumber,
         message,
-        ts: Date.now(),
+        ts,
     });
 }
 

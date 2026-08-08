@@ -43,6 +43,40 @@ export const KNOWN_POSES: { group: string; poses: { key: string; label: string; 
 
 const ARM_POSES = ["OverTheHead", "BackCuffs", "BackElbowTouch", "BackBoxTie", "Yoked"];
 
+/**
+ * Whether BC will actually let the player take this pose right now.
+ *
+ * Reported: clicking a pose in the Body menu while restrained still emoted that
+ * you were doing it, even though the pose never changed. EBC forces the pose
+ * mapping directly, so it never consulted BC's own permission check.
+ *
+ * Poses reachable by struggling (BC's kneel/stand minigame) still count as
+ * allowed - those are things you genuinely can do to yourself. Only NEVER and
+ * NEVER_WITHOUT_AID are refused. On a BC build that exposes neither helper we
+ * return true, so an unknown version loses the guard rather than the feature.
+ */
+export function canTakePose(poseKey: string): boolean {
+    if (!poseKey) return true;   // clearing a pose is always allowed
+    try {
+        const w = window as unknown as Record<string, unknown>;
+        const statusFn = w.PoseCanChangeUnaidedStatus as
+            ((C: unknown, name: string) => number) | undefined;
+        if (typeof statusFn === "function") {
+            // 0 NEVER, 1 NEVER_WITHOUT_AID, 2 ALWAYS_WITH_STRUGGLE, 3 ALWAYS
+            return statusFn(Player, poseKey) >= 2;
+        }
+        const avail = w.PoseAvailable as
+            ((C: unknown, cat: string, name: string) => boolean) | undefined;
+        const findName = w.AssetPoseFindName as
+            ((n: string) => { Category?: string } | null | undefined) | undefined;
+        if (typeof avail === "function" && typeof findName === "function") {
+            const cat = findName(poseKey)?.Category;
+            if (cat) return avail(Player, cat, poseKey) !== false;
+        }
+    } catch { /* ignore */ }
+    return true;
+}
+
 export function applyPoses(poses: string[]): void {
     // An explicit empty string ("") in the list means "Relaxed arms" —
     // clear any active arm pose from the result set.
@@ -84,40 +118,28 @@ export function applyPoses(poses: string[]): void {
         } catch { /* ignore */ }
     }
 
-    // 1b. Also set ActivePoseMapping directly via AssetPoseFindName.
-    //     This is the critical belt-and-suspenders step: PoseSetActive can silently
-    //     return early (e.g. pose not found) without throwing, leaving the mapping
-    //     unchanged.  Every subsequent CharacterRefresh then recomputes ActivePose
-    //     from that unchanged (empty) mapping and wipes the pose we tried to set.
-    //     Setting the mapping ourselves guarantees CharacterRefresh always sees the
-    //     correct categories regardless of whether PoseSetActive succeeded.
-    if (typeof pfn === "function") {
+    // 1b. Fallback only, for a BC without PoseSetActive.
+    //
+    // ActivePose is NOT a plain array - it is an accessor pair over
+    // ActivePoseMapping:
+    //     get ActivePose() { return Object.values(this.ActivePoseMapping); }
+    //     set ActivePose(p) { this.ActivePoseMapping = PoseToMapping.Scalar(p); }
+    //
+    // so assigning an array to it does the category mapping properly, and there
+    // is nothing to hand-roll. This used to write ActivePoseMapping itself and
+    // then assign ActivePose straight after - the second write re-derived the
+    // mapping and threw the first away, and clearing wrote {} where BC's empty
+    // state is { BodyLower: "BaseLower", BodyUpper: "BaseUpper" }. A stripped
+    // mapping renders wrong as soon as anything recomputes it, which is why
+    // changing a restraint made poses come out broken.
+    //
+    // Never assign null here either: the setter passes its argument straight to
+    // PoseToMapping.Scalar, which expects an array.
+    if (typeof psa !== "function") {
         try {
-            const mapping: Record<string, string> = {};
-            for (const p of result) {
-                const data = pfn(p);
-                if (data?.Category) mapping[data.Category] = p;
-            }
-            (Player as unknown as Record<string, unknown>).ActivePoseMapping =
-                result.length === 0 ? {} : mapping;
-        } catch { /* ignore */ }
-    } else if (typeof psa !== "function") {
-        // Truly old BC (no PoseSetActive, no AssetPoseFindName): direct ActivePose assignment.
-        try {
-            (Player as unknown as Record<string, unknown>).ActivePose =
-                result.length > 0 ? result : null;
+            (Player as unknown as Record<string, unknown>).ActivePose = result;
         } catch { /* ignore */ }
     }
-
-    // 1c. Keep ActivePose in sync — psa (above) already updated Player.Pose and
-    //     ActivePoseMapping canonically; we only mirror ActivePose for the small
-    //     subset of BC builds that derive ActivePoseMapping from ActivePose instead.
-    //     Do NOT touch Player.Pose here — psa manages it and it may contain BC
-    //     internal defaults (e.g. "BaseUpper") that are not in our `result` array.
-    try {
-        (Player as unknown as Record<string, unknown>).ActivePose =
-            result.length > 0 ? result : null;
-    } catch { /* ignore */ }
 
     // 2. Local visual refresh — Push=false, we push below.
     callBC(() => CharacterRefresh(Player, false));
@@ -128,7 +150,11 @@ export function applyPoses(poses: string[]): void {
         if (Player.OnlineID != null) {
             ServerSend("ChatRoomCharacterUpdate", {
                 ID:         Player.OnlineID,
-                ActivePose: result.length > 0 ? result : null,
+                // Send what the character actually has, not our local list. BC
+                // sends C.ActivePose here, and since that is derived from the
+                // mapping it is the only value guaranteed to match what the
+                // client just rendered.
+                ActivePose: Player.ActivePose,
                 Appearance: ServerAppearanceBundle(Player.Appearance),
             });
         }
@@ -246,6 +272,32 @@ export function applyPosesSequential(poses: string[], stepDelayMs = 420): void {
     for (let i = 0; i < steps.length; i++) {
         window.setTimeout(() => applyPoses(steps[i]), i * stepDelayMs);
     }
+}
+
+/**
+ * The pose actually in effect, which is not always the one you chose.
+ *
+ * BC keeps two things: ActivePoseMapping is what you asked for, and PoseMapping
+ * is the intersection of that with what your items allow - the one that renders.
+ * A restraint forcing you into a pose changes PoseMapping only, so reading the
+ * chosen pose meant the Body menu kept highlighting whatever you last clicked
+ * while your character was visibly in something else.
+ */
+export function getEffectivePoses(): string[] {
+    try {
+        const pm = (Player as unknown as Record<string, unknown>).PoseMapping as
+            Record<string, string> | undefined;
+        if (pm && typeof pm === "object") {
+            const out = Object.values(pm).filter((v): v is string => typeof v === "string" && !!v);
+            // BaseUpper/BaseLower are BC's names for "nothing applied" - they are
+            // not poses anyone picked, and showing them as active would light up
+            // buttons that were never pressed.
+            const real = out.filter(v => v !== "BaseUpper" && v !== "BaseLower");
+            if (real.length > 0) return real;
+            if (out.length > 0) return [];
+        }
+    } catch { /* ignore */ }
+    return getCurrentPoses();
 }
 
 export function getCurrentPoses(): string[] {

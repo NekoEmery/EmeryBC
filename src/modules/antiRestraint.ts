@@ -205,9 +205,12 @@ function doEscape(newItems: Item[], restrainer: string | null, itemName: string)
                 const customEmote = getEscapeEmoteText();
                 let text: string;
                 if (customEmote.trim()) {
+                    // Square brackets are accepted alongside braces - the hint
+                    // and the placeholder have not always agreed, so saved text
+                    // exists in both forms. Global so a token can repeat.
                     text = customEmote
-                        .replace("{item}", itemName)
-                        .replace("{restrainer}", restrainer ?? "");
+                        .replace(/[{[]item[}\]]/g, itemName)
+                        .replace(/[{[]restrainer[}\]]/g, restrainer ?? "");
                 } else {
                     text = restrainer
                         ? `glares at ${restrainer} as the ${itemName} falls away.`

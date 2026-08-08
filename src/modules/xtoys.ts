@@ -5,7 +5,7 @@
 
 import { getSettings, syncSettings } from "./bcUtils";
 
-export const XTOYS_MEMBERS = [130267, 230466]; // Emery, Lucy
+export const XTOYS_MEMBERS = [130267, 230466, 140712]; // Emery, Lucy, #140712
 const XTOYS_WS_BASE = "wss://webhook.xtoys.app/";
 const MAX_RETRIES   = 3;
 const LOG_MAX       = 30;
@@ -194,26 +194,40 @@ export function parseXToysActivity(dict: DictEntry[]): {
     let actName:   string | undefined;
 
     for (const item of dict) {
-        // Target
-        if ("TargetCharacter" in item && typeof item.TargetCharacter === "object" && item.TargetCharacter !== null) {
+        // ── Target ────────────────────────────────────────────────────────────
+        // BC R128+ sends a PLAIN NUMBER property: { TargetCharacter: 114395 }.
+        // Older/alternate shapes: an object with .MemberNumber, or a Tag entry.
+        if (typeof item.TargetCharacter === "number") {
+            targetNum = item.TargetCharacter;
+        } else if (typeof item.TargetCharacter === "object" && item.TargetCharacter !== null) {
             targetNum = (item.TargetCharacter as DictEntry).MemberNumber as number | undefined;
+        }
+        if (typeof item.DestinationCharacter === "number") {
+            targetNum = item.DestinationCharacter;
+        } else if (typeof item.DestinationCharacter === "object" && item.DestinationCharacter !== null) {
+            targetNum = (item.DestinationCharacter as DictEntry).MemberNumber as number | undefined;
         }
         if (item.Tag === "TargetCharacter" || item.Tag === "DestinationCharacter") {
             if (typeof item.MemberNumber === "number") targetNum = item.MemberNumber;
         }
-        // Source
-        if ("SourceCharacter" in item && typeof item.SourceCharacter === "object" && item.SourceCharacter !== null) {
+        // ── Source ────────────────────────────────────────────────────────────
+        if (typeof item.SourceCharacter === "number") {
+            sourceNum = item.SourceCharacter;
+        } else if (typeof item.SourceCharacter === "object" && item.SourceCharacter !== null) {
             sourceNum = (item.SourceCharacter as DictEntry).MemberNumber as number | undefined;
         }
         if (item.Tag === "SourceCharacter") {
             if (typeof item.MemberNumber === "number") sourceNum = item.MemberNumber;
         }
-        // Asset group
+        // ── Asset group ───────────────────────────────────────────────────────
+        // BC R128+ uses { Tag: "FocusAssetGroup", FocusGroupName: "ItemButt" }.
+        if (typeof item.FocusGroupName === "string") actGroup = item.FocusGroupName;
         if (typeof item.ActivityAssetGroup === "string") actGroup = item.ActivityAssetGroup;
         if (item.Tag === "AssetGroupName" && typeof item.AssetGroupName === "string") actGroup = item.AssetGroupName;
-        // Activity name
+        // ── Activity name ─────────────────────────────────────────────────────
+        // BC R128+ sends { ActivityName: "Spank" } with NO Tag.
+        if (typeof item.ActivityName === "string") actName = item.ActivityName;
         if (typeof item.ActivityAsset === "string") actName = item.ActivityAsset;
-        if (item.Tag === "ActivityName" && typeof item.ActivityName === "string") actName = item.ActivityName;
     }
 
     return { targetNum, sourceNum, actGroup, actName };
