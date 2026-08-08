@@ -186,6 +186,7 @@ import {
 } from "./whisperLog";
 import { t, getLanguage, setLanguage, onLangChange, LANG_CODES, LANG_NAMES, LANG_LABELS } from "./i18n";
 import { appendLocalLogLine } from "./notify";
+import { runActivityOn, activityDenial, describeSkipped } from "./activityGate";
 import { UI } from "./ui";
 
 // -- Shared UI helpers ---------------------------------------------------------
@@ -11367,105 +11368,85 @@ This cannot be undone.`,
     // Sends BC's native "Boop Nose" activity (Pet on ItemNose) to a single target.
     // This is the exact same event as clicking a character and selecting Boop Nose -
     // targets with reaction mods (BCX, LSCG, etc.) will respond accordingly.
-    private boopOne(target: Character): void {
-        try {
-            const win = window as unknown as Record<string, unknown>;
-            const ActivityRun = win.ActivityRun as ((actor: Character, acted: Character, group: { Name: string }, itemActivity: { Activity: unknown; Item: null }) => void) | undefined;
-            const AssetGetActivity = win.AssetGetActivity as ((family: string, name: string) => unknown) | undefined;
-            if (!ActivityRun || !AssetGetActivity) return;
-            const petActivity = AssetGetActivity("Female3DCG", "Pet");
-            if (!petActivity) return;
-            ActivityRun(Player, target, { Name: "ItemNose" }, { Activity: petActivity, Item: null });
-        } catch { /* ignore */ }
+    /** Returns false when BC's own rules would not have allowed it. */
+    private boopOne(target: Character): boolean {
+        return runActivityOn(target, "ItemNose", "Pet");
     }
 
-    private boopFriendsInRoom(): number {
+    /**
+     * Friends in the room this action is actually allowed on, and how many were
+     * refused. Filtered before scheduling rather than inside the per-person call
+     * so the button reports what really happened - it used to count everyone it
+     * was about to try, including people who would refuse.
+     */
+    private boopFriendsInRoom(): { done: number; skipped: number } {
         try {
             const friendList = (Player as unknown as Record<string, unknown>).FriendList as number[] | undefined;
-            if (!Array.isArray(friendList) || friendList.length === 0) return 0;
-
-            const friendSet = new Set(friendList);
-            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
-            const friends = room.filter(c =>
-                c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber!)
-            );
-            if (friends.length === 0) return 0;
-
-            let booped = 0;
-            for (const friend of friends) {
-                const delay = booped * 1800;
-                const target = friend; // capture for closure
-                window.setTimeout(() => { try { this.boopOne(target); } catch { /* ignore */ } }, delay);
-                booped++;
-            }
-            return booped;
-        } catch {
-            return 0;
-        }
-    }
-
-    private cuddleOne(target: Character): void {
-        try {
-            const win = window as unknown as Record<string, unknown>;
-            const ActivityRun = win.ActivityRun as ((actor: Character, acted: Character, group: { Name: string }, itemActivity: { Activity: unknown; Item: null }) => void) | undefined;
-            const AssetGetActivity = win.AssetGetActivity as ((family: string, name: string) => unknown) | undefined;
-            if (!ActivityRun || !AssetGetActivity) return;
-            const cuddleActivity = AssetGetActivity("Female3DCG", "Cuddle");
-            if (!cuddleActivity) return;
-            ActivityRun(Player, target, { Name: "ItemArms" }, { Activity: cuddleActivity, Item: null });
-        } catch { /* ignore */ }
-    }
-
-    private cuddleFriendsInRoom(): number {
-        try {
-            const friendList = (Player as unknown as Record<string, unknown>).FriendList as number[] | undefined;
-            if (!Array.isArray(friendList) || friendList.length === 0) return 0;
+            if (!Array.isArray(friendList) || friendList.length === 0) return { done: 0, skipped: 0 };
             const friendSet = new Set(friendList);
             const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
             const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber!));
-            if (friends.length === 0) return 0;
-            let count = 0;
-            for (const friend of friends) {
-                const target = friend;
-                window.setTimeout(() => { try { this.cuddleOne(target); } catch { /* ignore */ } }, count * 1800);
-                count++;
-            }
-            return count;
-        } catch { return 0; }
+            if (friends.length === 0) return { done: 0, skipped: 0 };
+
+            const allowed = friends.filter(c => activityDenial(c, "ItemNose", "Pet") === null);
+            allowed.forEach((friend, i) => {
+                window.setTimeout(() => { try { this.boopOne(friend); } catch { /* ignore */ } }, i * 1800);
+            });
+            return { done: allowed.length, skipped: friends.length - allowed.length };
+        } catch { return { done: 0, skipped: 0 }; }
+    }
+    private cuddleOne(target: Character): boolean {
+        return runActivityOn(target, "ItemArms", "Cuddle");
     }
 
-    private petOne(target: Character): void {
-        try {
-            const win = window as unknown as Record<string, unknown>;
-            const ActivityRun = win.ActivityRun as ((actor: Character, acted: Character, group: { Name: string }, itemActivity: { Activity: unknown; Item: null }) => void) | undefined;
-            const AssetGetActivity = win.AssetGetActivity as ((family: string, name: string) => unknown) | undefined;
-            if (!ActivityRun || !AssetGetActivity) return;
-            const petActivity = AssetGetActivity("Female3DCG", "Pet");
-            if (!petActivity) return;
-            ActivityRun(Player, target, { Name: "ItemHead" }, { Activity: petActivity, Item: null });
-        } catch { /* ignore */ }
-    }
-
-    private petFriendsInRoom(): number {
+    /**
+     * Friends in the room this action is actually allowed on, and how many were
+     * refused. Filtered before scheduling rather than inside the per-person call
+     * so the button reports what really happened - it used to count everyone it
+     * was about to try, including people who would refuse.
+     */
+    private cuddleFriendsInRoom(): { done: number; skipped: number } {
         try {
             const friendList = (Player as unknown as Record<string, unknown>).FriendList as number[] | undefined;
-            if (!Array.isArray(friendList) || friendList.length === 0) return 0;
+            if (!Array.isArray(friendList) || friendList.length === 0) return { done: 0, skipped: 0 };
             const friendSet = new Set(friendList);
             const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
             const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber!));
-            if (friends.length === 0) return 0;
-            let count = 0;
-            for (const friend of friends) {
-                const target = friend;
-                window.setTimeout(() => { try { this.petOne(target); } catch { /* ignore */ } }, count * 1800);
-                count++;
-            }
-            return count;
-        } catch { return 0; }
+            if (friends.length === 0) return { done: 0, skipped: 0 };
+
+            const allowed = friends.filter(c => activityDenial(c, "ItemArms", "Cuddle") === null);
+            allowed.forEach((friend, i) => {
+                window.setTimeout(() => { try { this.cuddleOne(friend); } catch { /* ignore */ } }, i * 1800);
+            });
+            return { done: allowed.length, skipped: friends.length - allowed.length };
+        } catch { return { done: 0, skipped: 0 }; }
+    }
+    private petOne(target: Character): boolean {
+        return runActivityOn(target, "ItemHead", "Pet");
     }
 
-    // -- Appearance diff -------------------------------------------------------
+    /**
+     * Friends in the room this action is actually allowed on, and how many were
+     * refused. Filtered before scheduling rather than inside the per-person call
+     * so the button reports what really happened - it used to count everyone it
+     * was about to try, including people who would refuse.
+     */
+    private petFriendsInRoom(): { done: number; skipped: number } {
+        try {
+            const friendList = (Player as unknown as Record<string, unknown>).FriendList as number[] | undefined;
+            if (!Array.isArray(friendList) || friendList.length === 0) return { done: 0, skipped: 0 };
+            const friendSet = new Set(friendList);
+            const room = ((window as unknown as Record<string, unknown>).ChatRoomCharacter as Character[] | undefined) ?? [];
+            const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber!));
+            if (friends.length === 0) return { done: 0, skipped: 0 };
 
+            const allowed = friends.filter(c => activityDenial(c, "ItemHead", "Pet") === null);
+            allowed.forEach((friend, i) => {
+                window.setTimeout(() => { try { this.petOne(friend); } catch { /* ignore */ } }, i * 1800);
+            });
+            return { done: allowed.length, skipped: friends.length - allowed.length };
+        } catch { return { done: 0, skipped: 0 }; }
+    }
     private renderDiff(panel: HTMLElement, outfit: ConfiguredOutfit): void {
         while (panel.firstChild) panel.removeChild(panel.firstChild);
 
@@ -22191,8 +22172,12 @@ This cannot be undone.`,
         boopBtn.title = "Send a unique boop message to every friend currently in the room";
         boopBtn.textContent = t("kitty.boopAll");
         boopBtn.addEventListener("click", () => {
-            const booped = this.boopFriendsInRoom();
-            boopBtn.textContent = booped === 0 ? t("buttons.noFriendsHere") : t("buttons.boopedN", { n: booped });
+            const { done, skipped } = this.boopFriendsInRoom();
+            boopBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.boopedN", { n: done });
+            // Said once for the batch rather than per person - the refusals are
+            // usually the same reason, and one line per friend would be noise.
+            const note = describeSkipped(skipped, "booped");
+            if (note) appendLocalLogLine(note, UI.textMuted);
             window.setTimeout(() => { boopBtn.textContent = t("kitty.boopAll"); }, 2000);
         });
         body.appendChild(boopBtn);
@@ -22201,8 +22186,12 @@ This cannot be undone.`,
         cuddleBtn.title = "Send a cuddle to every friend currently in the room";
         cuddleBtn.textContent = t("kitty.cuddleAll");
         cuddleBtn.addEventListener("click", () => {
-            const count = this.cuddleFriendsInRoom();
-            cuddleBtn.textContent = count === 0 ? t("buttons.noFriendsHere") : t("buttons.cuddledN", { n: count });
+            const { done, skipped } = this.cuddleFriendsInRoom();
+            cuddleBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.cuddledN", { n: done });
+            // Said once for the batch rather than per person - the refusals are
+            // usually the same reason, and one line per friend would be noise.
+            const note = describeSkipped(skipped, "cuddled");
+            if (note) appendLocalLogLine(note, UI.textMuted);
             window.setTimeout(() => { cuddleBtn.textContent = t("kitty.cuddleAll"); }, 2000);
         });
         body.appendChild(cuddleBtn);
@@ -22211,8 +22200,12 @@ This cannot be undone.`,
         petBtn.title = "Pet every friend currently in the room";
         petBtn.textContent = t("kitty.petAll");
         petBtn.addEventListener("click", () => {
-            const count = this.petFriendsInRoom();
-            petBtn.textContent = count === 0 ? t("buttons.noFriendsHere") : t("buttons.pettedN", { n: count });
+            const { done, skipped } = this.petFriendsInRoom();
+            petBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.pettedN", { n: done });
+            // Said once for the batch rather than per person - the refusals are
+            // usually the same reason, and one line per friend would be noise.
+            const note = describeSkipped(skipped, "petted");
+            if (note) appendLocalLogLine(note, UI.textMuted);
             window.setTimeout(() => { petBtn.textContent = t("kitty.petAll"); }, 2000);
         });
         body.appendChild(petBtn);
@@ -22691,12 +22684,10 @@ This cannot be undone.`,
                 const room = w.ChatRoomCharacter as Character[] | undefined;
                 const emery = room?.find(c => c.MemberNumber === EMERY_MEMBER);
                 if (!emery) return;
-                const ActivityRun = w.ActivityRun as ((actor: Character, acted: Character, group: { Name: string }, item: { Activity: unknown; Item: null }) => void) | undefined;
-                const AssetGetActivity = w.AssetGetActivity as ((family: string, name: string) => unknown) | undefined;
-                if (!ActivityRun || !AssetGetActivity) return;
-                const act = AssetGetActivity((Player as unknown as Record<string, unknown>).AssetFamily as string ?? "Female3DCG", bcActivity);
-                if (!act) return;
-                ActivityRun(Player, emery, { Name: bcGroup }, { Activity: act, Item: null });
+                // Gated like every other activity EBC fires. Being the creator is
+                // not a permission - if item permissions are off, BC's own dialog
+                // would not offer this either.
+                runActivityOn(emery, bcGroup, bcActivity);
             } catch { /* ignore */ }
         };
 
