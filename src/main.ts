@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.3";
-const SAL_VERSION  = 265;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 266;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -52,6 +52,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         changes: [
             "IMPORTANT fix: backups now include outfits and restraint sets you moved to device storage. They were kept in a separate list that the backup code could not see, so a backup taken after following EBC's own 'switch outfits to This device storage' advice came out with those outfits missing - and clearing your cache then lost them for good. Restoring puts them back on the device rather than onto your account, so a restore cannot push you over the account limit. Older backup files still import exactly as before.",
             "Fix: clearing Outfits or Restraint sets in the storage manager now clears the device-stored ones as well. It only cleared the account half, so anything kept on this device came straight back and the button looked like it had done nothing.",
+            "Fix: friends in the same private room as you no longer show as 'in a private room' when the game rejoins that room for you at login. A friend in a private room can only be recognised by being in the room roster - the server strips the name - and the roster arrives after the room does, so classifying too early got them wrong. The previous fix waited a fixed 2.5 seconds, which covered a normal login and left a slow one wrong until the next 30-second refresh; it now retries on a ladder up to 9 seconds, so a slow roster is caught rather than waited out.",
         ],
     },
     {
@@ -7640,14 +7641,28 @@ function init(): void {
         try { achievementScanRoom();        } catch { /* ignore */ }
         try { shareRoomIfEnabled();         } catch { /* ignore */ }
         try { drawer?.refreshFriendList();  } catch { /* ignore */ }
-        // And again once the roster has settled. A friend sharing a PRIVATE room
-        // with you is only identifiable from ChatRoomCharacter - the server never
-        // sends a private room's name - so a refresh that runs before that list
-        // is populated files them under "in a private room" with nothing to
-        // correct it later. Rejoining at login is when that ordering bites.
-        window.setTimeout(() => {
-            try { drawer?.refreshFriendList(); } catch { /* ignore */ }
-        }, 2500);
+        // And again as the roster fills in.
+        //
+        // A friend in a PRIVATE room with you is only identifiable by being
+        // present in ChatRoomCharacter - the server strips a private room's name,
+        // so there is nothing else to go on. Classify before that array is
+        // populated and they come out as "in a private room" instead of under
+        // your room's name. Rejoining at login is when that ordering bites,
+        // because the friend data and the room roster land at once.
+        //
+        // Characters load after ChatRoomSync returns and how long they take
+        // depends on the connection, so a single fixed delay is a guess - the
+        // previous 2.5 s one covered the usual case and left a slow login wrong
+        // until the 30 s poll came round, which is exactly the "sometimes" in
+        // the report. Retried on a short ladder instead, so a slow roster is
+        // caught rather than waited out. Each call is debounced and does nothing
+        // unless the friends list is actually on screen, so the extra passes are
+        // close to free.
+        for (const delay of [300, 1000, 2500, 5000, 9000]) {
+            window.setTimeout(() => {
+                try { drawer?.refreshFriendList(); } catch { /* ignore */ }
+            }, delay);
+        }
         // Auto-apply default ★ face preset on room join if the toggle is enabled
         try {
             if (getAutoApplyDefaultFace()) {
