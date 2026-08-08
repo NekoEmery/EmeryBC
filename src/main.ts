@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.3";
-const SAL_VERSION  = 270;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 271;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -53,6 +53,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "IMPORTANT fix: backups now include outfits and restraint sets you moved to device storage. They were kept in a separate list that the backup code could not see, so a backup taken after following EBC's own 'switch outfits to This device storage' advice came out with those outfits missing - and clearing your cache then lost them for good. Restoring puts them back on the device rather than onto your account, so a restore cannot push you over the account limit. Older backup files still import exactly as before.",
             "Fix: clearing Outfits or Restraint sets in the storage manager now clears the device-stored ones as well. It only cleared the account half, so anything kept on this device came straight back and the button looked like it had done nothing.",
             "Fix (reported by Julia): the quick action buttons now stay on the far right across a reload. The earlier fix stopped the saved position being squeezed through a fixed 700px guess when the page loaded, but the same guess was still used while drawing - and it was written back over the saved position on any frame where the chat window could not be measured, which is most of them right after a reload. The limit now reports honestly that it does not know, and the drawn position never overwrites the one you chose, so a narrow window holds the panel back on screen temporarily instead of permanently moving it.",
+            "Fix: the automatic update check now follows the branch you are actually on. Only the manual /ebc update was taught about dev, so the hourly background check carried on comparing dev builds against the stable release - where the dev version is higher by definition, so a new dev build never once looked like an update. Both now ask the same code which branch to use, and both say which channel they are talking about. The already-told-you marker records the channel too, so hearing about dev v9.0.0 no longer silences the notice when stable reaches the same number.",
             "IMPORTANT fix: switching Outfits or Restraint sets to device storage in the storage manager now actually moves them. The switch went green but drove a different mechanism to the one outfits are stored by, so nothing it claimed to do happened - the size bar did not move, every outfit still said Account, and the \"storage is full\" refusal carried on exactly as before. It now sets each item the way the per-outfit switch does, which is what the bar, the pills and the storage limit all read.",
             "Fix: the storage manager no longer reports 0 KB for a category kept on this device. It only counted the account half, so a full outfit library moved to the device read as empty - the one number you would go and check straight after moving it.",
             "New: /ebc is now part of the game's own command list, so it appears in /help alongside everything else and Tab completes it and its subcommands. Tab had no idea the word existed, so pressing it on /ebc found the nearest command it did know and rewrote your input to that instead - turning a working command into a broken one. Tab now takes '/ebc rel' to '/ebc release', and suggests on/off after '/ebc updates'.",
@@ -6847,10 +6848,26 @@ function isNewerVersion(remote: string, local: string): boolean {
     return false;
 }
 
+/**
+ * The branch this build compares itself against, and what to call it.
+ *
+ * Both update paths ask for this rather than picking a URL themselves. They used
+ * to choose independently, and only one of them was taught about dev - so
+ * /ebc update reported correctly while the automatic hourly check went on
+ * comparing dev builds against stable, where the dev version is ahead by
+ * definition and therefore never looked like an update.
+ */
+function updateChannel(): { url: string; name: string } {
+    return IS_DEV_BUILD
+        ? { url: EBC_PACKAGE_URL_DEV, name: "dev" }
+        : { url: EBC_PACKAGE_URL,     name: "stable" };
+}
+
 async function checkForUpdateFromGitHub(): Promise<void> {
     try {
         if (!getUpdateNotify()) return;
-        const res = await fetch(`${EBC_PACKAGE_URL}?t=${Date.now()}`);
+        const { url, name: channel } = updateChannel();
+        const res = await fetch(`${url}?t=${Date.now()}`);
         if (!res.ok) return;
         const data = await res.json() as Record<string, unknown>;
         const remote = typeof data.version === "string" ? data.version : null;
@@ -6862,13 +6879,16 @@ async function checkForUpdateFromGitHub(): Promise<void> {
             return;
         }
 
-        // Only notify once per remote version
+        // Only notify once per remote version, per channel. Without the channel
+        // in the key, being told about dev v9.0.0 would silently suppress the
+        // notice when stable later reaches the same number.
+        const seenKey = `${channel}:${remote}`;
         try {
-            if (localStorage.getItem(EBC_UPDATE_STORAGE_KEY) === remote) return;
-            localStorage.setItem(EBC_UPDATE_STORAGE_KEY, remote);
-        } catch { /* localStorage unavailable — notify anyway */ }
+            if (localStorage.getItem(EBC_UPDATE_STORAGE_KEY) === seenKey) return;
+            localStorage.setItem(EBC_UPDATE_STORAGE_KEY, seenKey);
+        } catch { /* localStorage unavailable - notify anyway */ }
 
-        appendLocalLogLine(`[EBC] 🔔 Update available — v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
+        appendLocalLogLine(`[EBC] 🔔 Update available on ${channel} - v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
         appendLocalLogLine(`[EBC]    Refresh the page to get the latest version.`, UI.gold);
         appendLocalLogLine(`[EBC]    To silence these: /ebc updates off`, UI.textMuted);
     } catch { /* network error — ignore silently */ }
@@ -6878,7 +6898,8 @@ async function checkForUpdateFromGitHub(): Promise<void> {
 async function checkUpdateManual(): Promise<void> {
     appendLocalLogLine(`[EBC] Checking for updates…`, UI.textMuted);
     try {
-        const res = await fetch(`${IS_DEV_BUILD ? EBC_PACKAGE_URL_DEV : EBC_PACKAGE_URL}?t=${Date.now()}`);
+        const { url, name: channel } = updateChannel();
+        const res = await fetch(`${url}?t=${Date.now()}`);
         if (!res.ok) {
             appendLocalLogLine(`[EBC] Could not reach GitHub to check for updates.`, UI.danger);
             return;
@@ -6890,14 +6911,16 @@ async function checkUpdateManual(): Promise<void> {
             return;
         }
 
-        const channel = IS_DEV_BUILD ? "dev" : "stable";
         if (!isNewerVersion(remote, MOD_VERSION)) {
-            appendLocalLogLine(`[EBC] ✔ Up to date — you are on v${MOD_VERSION} (${channel}), latest ${channel} is v${remote}.`, UI.gold);
+            appendLocalLogLine(`[EBC] ✔ Up to date - you are on v${MOD_VERSION} (${channel}), latest ${channel} is v${remote}.`, UI.gold);
             return;
         }
 
         // Update available
-        try { localStorage.setItem(EBC_UPDATE_STORAGE_KEY, remote); } catch { /* ignore */ }
+        // Same key format the automatic check uses, so a manual check actually
+        // suppresses the next automatic notice for that version instead of the
+        // two disagreeing about what has already been seen.
+        try { localStorage.setItem(EBC_UPDATE_STORAGE_KEY, `${channel}:${remote}`); } catch { /* ignore */ }
         appendLocalLogLine(`[EBC] 🔔 Update available on ${channel}! v${remote} is out (you have v${MOD_VERSION}).`, UI.gold);
         appendLocalLogLine(`[EBC]    Refresh the page to load the latest version.`, UI.gold);
         appendLocalLogLine(`[EBC]    To silence auto-notifications: /ebc updates off`, UI.textMuted);
