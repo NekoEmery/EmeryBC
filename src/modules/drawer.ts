@@ -59,6 +59,7 @@ import {
     setOutfitStorage,
     setRestraintStorage,
     getOutfitStorageUsage,
+    reloadLocalLists,
     OUTFITS_BUDGET,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
@@ -8349,6 +8350,11 @@ This cannot be undone.`,
                     try {
                         const r = importDataBackup(text);
                         if (r.keys === 0) { say("Nothing imported - that backup held no EBC data.", false); return; }
+                        // A restore can write the device-stored outfit lists
+                        // straight to localStorage, which the in-memory copies
+                        // know nothing about. Drop them so the restored outfits
+                        // actually show up instead of waiting for a reload.
+                        reloadLocalLists();
                         const extra = r.skipped.length ? ` ${r.skipped.length} unrecognised entr${r.skipped.length === 1 ? "y was" : "ies were"} ignored.` : "";
                         say(`Restored ${r.categories.length} categor${r.categories.length === 1 ? "y" : "ies"}: ${r.categories.join(", ")}.${extra}`);
                         window.setTimeout(() => this.rerender(), 2500);

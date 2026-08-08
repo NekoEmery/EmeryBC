@@ -1,6 +1,6 @@
 ﻿// General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
 
-import { callBC, getSettings, syncSettings, getDeviceKeys, setDeviceKeys, readDeviceValue, writeDeviceValue } from "./bcUtils";
+import { callBC, getSettings, syncSettings, getDeviceKeys, setDeviceKeys, readDeviceValue, writeDeviceValue, LOCAL_OUTFITS_KEY, LOCAL_RESTRAINTS_KEY } from "./bcUtils";
 
 
 // -- Emery Versioning (SAL sub-version display) --------------------------------
@@ -447,11 +447,19 @@ export function setToastDurationSec(value: number): void {
 
 export interface DataCategory {
     /** Plain-English explanation shown behind the ? in the storage list. */
-    help?: string; label: string; keys: string[] }
+    help?: string;
+    label: string;
+    keys: string[];
+    /**
+     * localStorage keys holding this category's device-stored half, for the
+     * categories that can be split item by item rather than all or nothing.
+     */
+    localKeys?: string[];
+}
 
 export const EBC_DATA_CATEGORIES: DataCategory[] = [
-    { label: "Outfits",              keys: ["outfits"], help: "Every outfit you have saved, including the items, colours and settings in each one. This is usually the biggest thing EBC stores." },
-    { label: "Restraint sets",       keys: ["restraints", "restraintPresets"], help: "Saved restraint sets and their presets - the groups of items you can apply in one go." },
+    { label: "Outfits",              keys: ["outfits"], localKeys: [LOCAL_OUTFITS_KEY], help: "Every outfit you have saved, including the items, colours and settings in each one. This is usually the biggest thing EBC stores." },
+    { label: "Restraint sets",       keys: ["restraints", "restraintPresets"], localKeys: [LOCAL_RESTRAINTS_KEY], help: "Saved restraint sets and their presets - the groups of items you can apply in one go." },
     { label: "Action buttons",       keys: ["buttonCategories", "actionSlotCount", "activeCategoryIndex"], help: "Your custom chat buttons, their categories, and how many slots you show." },
     { label: "Pose combos",          keys: ["poseCombos"], help: "Saved pose sequences you can play back." },
     { label: "Scenes",               keys: ["scenes"], help: "Saved scenes - scripted sequences of poses, expressions and messages." },
@@ -479,23 +487,50 @@ export const EBC_DATA_CATEGORIES: DataCategory[] = [
 
 // ── Backup: export / import ──────────────────────────────────────────────────
 // Storage-agnostic on purpose. Export reads the in-memory store, which already
-// holds device-stored keys (they are pulled in at login), so a backup covers
+// holds per-key device-stored data (pulled in at login), so a backup covers
 // cache and account data alike. Import writes back into the same store and lets
 // the normal flush decide where each key belongs on THIS device - so a backup
 // taken with everything in cache restores correctly on a machine that keeps the
 // same categories on the account, and the other way round.
+//
+// Outfits and restraint sets are the exception: they are moved to the device one
+// item at a time, so their device half is a separate list in localStorage that
+// never passes through the settings store. It has to be read and written
+// directly, which is what `local` below is for. Leaving it out meant anyone who
+// followed the "switch outfits to This device storage" advice - given by EBC
+// itself when the account fills up - then took a backup got a file with those
+// outfits missing, and lost them the moment they cleared their cache.
 
 export interface EBCBackup {
     ebcBackup: 1;
     ts: number;
     categories: string[];
     data: Record<string, unknown>;
+    /** Device-stored lists, by localStorage key. Absent in older backups. */
+    local?: Record<string, unknown>;
+}
+
+/** Every localStorage key any category declares - the import whitelist. */
+function knownLocalKeys(): Set<string> {
+    const out = new Set<string>();
+    for (const cat of EBC_DATA_CATEGORIES) for (const k of cat.localKeys ?? []) out.add(k);
+    return out;
+}
+
+function readLocalRaw(key: string): unknown {
+    try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const v = JSON.parse(raw) as unknown;
+        return Array.isArray(v) && v.length === 0 ? null : v;
+    } catch { return null; }
 }
 
 /** Serialises the given categories. Keys holding nothing are skipped. */
 export function exportDataCategories(cats: DataCategory[]): string {
     const store = getSettings() as Record<string, unknown>;
     const data: Record<string, unknown> = {};
+    const local: Record<string, unknown> = {};
     const labels: string[] = [];
     for (const cat of cats) {
         let any = false;
@@ -505,9 +540,18 @@ export function exportDataCategories(cats: DataCategory[]): string {
             data[k] = v;
             any = true;
         }
+        // The device half, straight from localStorage. A category can be
+        // entirely device-stored, so this alone is enough to count as present.
+        for (const k of cat.localKeys ?? []) {
+            const v = readLocalRaw(k);
+            if (v === null) continue;
+            local[k] = v;
+            any = true;
+        }
         if (any) labels.push(cat.label);
     }
     const backup: EBCBackup = { ebcBackup: 1, ts: Date.now(), categories: labels, data };
+    if (Object.keys(local).length > 0) backup.local = local;
     return JSON.stringify(backup);
 }
 
@@ -541,6 +585,24 @@ export function importDataBackup(json: string): { categories: string[]; keys: nu
         touched.add(cat.label);
         keys++;
     }
+
+    // Device-stored lists go back to localStorage, not to the account - restoring
+    // them into account storage is what the user moved them out of to begin with,
+    // and on a full account it would simply be refused.
+    if (parsed.local && typeof parsed.local === "object") {
+        const allowed = knownLocalKeys();
+        const byLocalKey = new Map<string, DataCategory>();
+        for (const cat of EBC_DATA_CATEGORIES) for (const lk of cat.localKeys ?? []) byLocalKey.set(lk, cat);
+        for (const [k, v] of Object.entries(parsed.local as Record<string, unknown>)) {
+            if (!allowed.has(k)) { skipped.push(k); continue; }
+            if (v === undefined || v === null) continue;
+            try { localStorage.setItem(k, JSON.stringify(v)); } catch { skipped.push(k); continue; }
+            const cat = byLocalKey.get(k);
+            if (cat) touched.add(cat.label);
+            keys++;
+        }
+    }
+
     if (keys > 0) syncSettings();
     return { categories: [...touched], keys, skipped };
 }
@@ -622,6 +684,12 @@ export function clearDataCategory(cat: DataCategory): void {
         for (const k of cat.keys) {
             store[k] = null;
             if (dev.has(k)) writeDeviceValue(k, null);
+        }
+        // And the device half. Clearing Outfits used to leave every outfit you
+        // had moved to this device sitting there, so the list came straight back
+        // and the button looked broken.
+        for (const k of cat.localKeys ?? []) {
+            try { localStorage.removeItem(k); } catch { /* ignore */ }
         }
         syncSettings();
     } catch { /* ignore */ }

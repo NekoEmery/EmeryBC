@@ -147,6 +147,19 @@ export function reinitFromExtensionSettings(ebcData?: Record<string, unknown>): 
 // split at the persistence layer means no feature code needs to know about it.
 
 const DEVICE_KEYS_LS = "EBC_deviceKeys";
+
+/**
+ * Whole lists kept on the device rather than per-key. Outfits and restraint
+ * sets are stored this way because they are moved to the device ONE AT A TIME
+ * (the per-item Account/Local pill), so there is no single settings key to flag
+ * - the list is split, half on the account and half here.
+ *
+ * Declared here rather than in outfitManager so the backup code can see them.
+ * It could not, which meant a backup silently left out every outfit you had
+ * moved to this device.
+ */
+export const LOCAL_OUTFITS_KEY    = "EBC_localOutfits";
+export const LOCAL_RESTRAINTS_KEY = "EBC_localRestraints";
 const DEVICE_VAL_PREFIX = "EBC_dev_";
 
 export function getDeviceKeys(): Set<string> {

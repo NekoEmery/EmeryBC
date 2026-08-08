@@ -1,5 +1,5 @@
 ﻿import { UI } from "./ui";
-import { getDisplayName, getSettings, syncSettings } from "./bcUtils";
+import { getDisplayName, getSettings, syncSettings, LOCAL_OUTFITS_KEY, LOCAL_RESTRAINTS_KEY } from "./bcUtils";
 import { getExpressionPresets, applyExpressionPreset } from "./expressions";
 
 export interface SerializedItem {
@@ -89,8 +89,7 @@ let cachedOutfits: ConfiguredOutfit[] | null = null;
 // Outfits/restraint sets flagged local:true live in localStorage instead of the
 // BC account: they use no account storage (so no server budget / relog risk)
 // and are visible to EVERY account logged in from this browser.
-const LOCAL_OUTFITS_KEY    = "EBC_localOutfits";
-const LOCAL_RESTRAINTS_KEY = "EBC_localRestraints";
+// Keys live in bcUtils so the backup code can see them too - see the note there.
 
 function readLocalList(key: string): ConfiguredOutfit[] {
     try {
@@ -123,6 +122,16 @@ function loadOutfitsFromSettings(): ConfiguredOutfit[] {
 
 export function getOutfits(): ConfiguredOutfit[] {
     return cachedOutfits ?? loadOutfitsFromSettings();
+}
+
+/**
+ * Drops the in-memory copies so the next read picks the lists up again.
+ * Needed after a backup restore, which writes localStorage underneath us - the
+ * cache would otherwise keep serving the pre-restore lists until a reload.
+ */
+export function reloadLocalLists(): void {
+    cachedOutfits = null;
+    cachedRestraints = null;
 }
 
 export function getDefaultNickname(): string {
