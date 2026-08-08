@@ -41347,8 +41347,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.3.3";
-    const SAL_VERSION = 273; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "9.0.0";
+    const SAL_VERSION = 274; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41362,6 +41362,23 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "9.0.0",
+            changes: [
+                "Version numbers. Stable and beta had drifted so far apart that the update check could not compare them - stable was on 5.5.8 while beta was on 8.3.3, and the higher number was the unreleased one. Both are on 9.0.0 from here, and the version you see is the version you have.",
+                "Toys. PiShock and Lovense are both fully supported, over BLE or the Lovense Connect app for browsers without it. You can drive your own equipped BC toys from MY TOYS, let a friend drive them, mirror BC toy activations onto a real one, and set chat phrases or body-touch actions as triggers. Anyone controlling you has to ask first unless you put them on the whitelist.",
+                "Outfits and storage. Each outfit and restraint set can now live on your BC account or on the device in front of you, chosen one at a time - device storage uses none of your account's limited space. STORAGE shows what every category is costing you, and everything EBC saves can be exported to a file and imported anywhere, so clearing your cache or moving to a new device no longer means losing it.",
+                "Friends and rooms. The Users tab shows where every online friend is, grouped by room, with a Join button on the public ones. Favourite rooms save the entire room - description, admins, bans, whitelist, background, size, map - and rebuild it exactly. The messenger gained group chats, quick replies, an emoji picker, notes and tags on people, and last-seen times.",
+                "Achievements. Bug Hunter for sending reports, Settled In and Comfy Captive for staying put, and two rare ones for meeting and headpatting everyone in the credits.",
+                "Safety. The safeword releases restraints and curses together and can be told to leave owner locks alone. EBC now routes what it sends through the game's own functions, so BCX rules that block beeps or speech apply to EBC's too - it used to be a way around them without meaning to be.",
+                "IMPORTANT fix: the cuddle, pet and boop buttons check permissions. They called the game's activity function directly, which checks nothing on its own - so someone who had never given you item permission could still be booped, and you could do it while tied up. All of EBC's activity buttons now ask the same three questions the game asks before offering an activity.",
+                "Dom tools. Position a target beside you or in your arms, fire quick activities at them, apply curses, and drive saved restraint sets - all behind one person picker. Creator-only.",
+                "Feedback. There is a Feedback & Bugs button in the footer that submits anonymously from inside the game, no browser tab and no account needed. Much of this release came from it.",
+                "Layout and commands. The panel has a tab layout with CREDITS as its own tab, a fade-when-not-hovered option, and a movable quick-action strip. /ebc is registered with the game's command system, so it appears in /help and Tab completes it and its subcommands. /ebc changelog is laid out to be skimmed, with each entry tagged.",
+                "Julia (#235962) is in the credits, for finding a very large number of these and writing every one of them up clearly.",
+                "Behind all of that: 187 beta releases and around 618 individual changes since 5.5.8, most of them fixes. Run /ebc changelog for the detail.",
+            ],
+        },
         {
             version: "8.3.3",
             changes: [
