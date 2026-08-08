@@ -1098,6 +1098,29 @@
         syncSettings();
         return true;
     }
+    /**
+     * Moves EVERY outfit to or from this-device storage in one save.
+     *
+     * The storage manager's category switch used to go through the generic
+     * device-key mechanism, which relocates the `outfits` settings key and leaves
+     * each outfit's own `local` flag untouched - but the size bar, the per-item
+     * Account/Local pills and the budget check all read that flag, so the switch
+     * went green while nothing they measure actually moved. This drives the flag
+     * they all agree on.
+     *
+     * One save rather than one per outfit: each save re-serialises the whole list,
+     * and doing that per item over a library big enough to hit the limit is exactly
+     * where it would be slowest.
+     */
+    function setAllOutfitsStorage(local) {
+        const list = getOutfits().map(o => (Object.assign(Object.assign({}, o), { local: local ? true : undefined })));
+        const ok = saveOutfits(list);
+        if (ok)
+            localNotice$2(local
+                ? `All ${list.length} outfits moved to THIS DEVICE - they use no account storage now.`
+                : `All ${list.length} outfits moved to your BC ACCOUNT - synced across devices.`);
+        return ok;
+    }
     /** Moves an outfit between account storage (synced) and this-device storage. */
     function setOutfitStorage(id, local) {
         const outfits = getOutfits().map(o => o.id === id ? Object.assign(Object.assign({}, o), { local: local ? true : undefined }) : o);
@@ -1759,6 +1782,16 @@
             accountRestraints: size(getRestraints().filter(o => !o.local)),
             deviceBytes,
         };
+    }
+    /** Every restraint set to or from this-device storage - see setAllOutfitsStorage. */
+    function setAllRestraintsStorage(local) {
+        const list = getRestraints().map(o => (Object.assign(Object.assign({}, o), { local: local ? true : undefined })));
+        const ok = saveRestraints(list);
+        if (ok)
+            localNotice$2(local
+                ? `All ${list.length} restraint sets moved to THIS DEVICE - they use no account storage now.`
+                : `All ${list.length} restraint sets moved to your BC ACCOUNT - synced across devices.`);
+        return ok;
     }
     /** Moves a restraint set between account storage and this-device storage. */
     function setRestraintStorage(id, local) {
@@ -3257,6 +3290,7 @@
     }
     /** Serialized size (chars ~ bytes) of one category's data. */
     function getDataCategorySize(cat) {
+        var _a, _b, _c;
         try {
             const store = getSettings();
             let n = 0;
@@ -3266,9 +3300,18 @@
                     continue;
                 n += JSON.stringify(v).length + k.length + 4;
             }
+            // Plus the device-stored half. Outfits moved to this device leave the
+            // account key empty, so counting only that would report a full library
+            // as 0 KB - the one number most likely to be checked after moving it.
+            for (const k of (_a = cat.localKeys) !== null && _a !== void 0 ? _a : []) {
+                try {
+                    n += (_c = (_b = localStorage.getItem(k)) === null || _b === void 0 ? void 0 : _b.length) !== null && _c !== void 0 ? _c : 0;
+                }
+                catch ( /* ignore */_d) { /* ignore */ }
+            }
             return n;
         }
-        catch (_a) {
+        catch (_e) {
             return 0;
         }
     }
@@ -3291,6 +3334,7 @@
     }
     /** Size of this category's data as currently held in memory. */
     function getDataCategoryDeviceSize(cat) {
+        var _a, _b, _c;
         let n = 0;
         for (const k of cat.keys) {
             const v = readDeviceValue(k);
@@ -3299,7 +3343,15 @@
             try {
                 n += JSON.stringify(v).length + k.length + 4;
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_d) { /* ignore */ }
+        }
+        // Per-item device lists count too - they are device storage by any measure,
+        // and this figure is quoted back to the user before they move a category.
+        for (const k of (_a = cat.localKeys) !== null && _a !== void 0 ? _a : []) {
+            try {
+                n += (_c = (_b = localStorage.getItem(k)) === null || _b === void 0 ? void 0 : _b.length) !== null && _c !== void 0 ? _c : 0;
+            }
+            catch ( /* ignore */_e) { /* ignore */ }
         }
         return n;
     }
@@ -14675,6 +14727,37 @@
     }
     const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
     const TOUCH_DEFS = [];
+    /**
+     * Outfits and restraint sets are stored per item, not per settings key: each one
+     * carries its own `local` flag. Everything that reports on outfit storage - the
+     * size bar, the Account/Local pill on each row, the save budget - reads that
+     * flag, so the storage manager's category switch has to drive it rather than the
+     * generic device-key mechanism, which would move the key and leave every flag
+     * (and therefore every reading) exactly as it was.
+     *
+     * Matched on the settings key rather than the label so a rename cannot silently
+     * detach this.
+     */
+    function catOwnLocalSetter(cat) {
+        if (cat.keys.includes("outfits"))
+            return setAllOutfitsStorage;
+        if (cat.keys.includes("restraints"))
+            return setAllRestraintsStorage;
+        return null;
+    }
+    /** Where that category currently lives, by the same per-item flag. */
+    function catOwnLocalLocation(cat) {
+        const list = cat.keys.includes("outfits") ? getOutfits()
+            : cat.keys.includes("restraints") ? getRestraints()
+                : null;
+        if (!list)
+            return null;
+        if (list.length === 0)
+            return "account"; // empty - nothing has moved anywhere
+        const anyAccount = list.some(o => !o.local);
+        const anyLocal = list.some(o => o.local === true);
+        return anyAccount && anyLocal ? "mixed" : anyAccount ? "account" : "device";
+    }
     class EBCDrawer {
         // -- Persist open beep windows across sessions -----------------------------
         static getOpenBeepWindows() {
@@ -18521,7 +18604,16 @@
                     sz.title = `${Math.round((size / Math.max(1, total)) * 100)}% of EBC's stored data`;
                     // Account <-> device switch. Moving is destructive on one side,
                     // so the confirm names which copy is about to become the only one.
-                    const loc = getDataCategoryLocation(cat);
+                    // Outfits and restraint sets keep their own per-item Account/Local
+                    // flag, and that flag is what the size bar, the per-item pills and
+                    // the save budget all read. The generic device-key switch moves the
+                    // settings KEY and leaves those flags alone, so using it here turned
+                    // this button green while nothing anyone could see actually moved -
+                    // and the "storage is full" refusal carried on unchanged. These two
+                    // categories go through the mechanism the rest of the outfit code
+                    // agrees on instead.
+                    const ownLoc = catOwnLocalLocation(cat);
+                    const loc = ownLoc !== null && ownLoc !== void 0 ? ownLoc : getDataCategoryLocation(cat);
                     const onDevice = loc === "device";
                     const locBtn = document.createElement("button");
                     locBtn.textContent = loc === "mixed" ? "Mixed" : onDevice ? "Device" : "Account";
@@ -18543,16 +18635,20 @@
                         const msg = toDevice
                             ? `Move "${cat.label}" to this device?\n\nYour account copy (${kb(size)} KB) will be cleared and this browser\'s copy becomes the only one. Your other devices will no longer see it.`
                             : `Move "${cat.label}" to your account?\n\nThis browser\'s copy (${kb(devSize || size)} KB) will be uploaded and becomes the version all your devices see, replacing anything currently stored on the account.`;
+                        const apply = () => {
+                            const own = catOwnLocalSetter(cat);
+                            if (own)
+                                own(toDevice);
+                            else
+                                setDataCategoryLocation(cat, toDevice ? "device" : "account");
+                            this.rerender();
+                        };
                         // Nothing to lose when the category is empty - just switch.
                         if (size === 0 && devSize === 0) {
-                            setDataCategoryLocation(cat, toDevice ? "device" : "account");
-                            this.rerender();
+                            apply();
                             return;
                         }
-                        showConfirmOverlay(msg, "Cancel", toDevice ? "Use device" : "Use account", () => {
-                            setDataCategoryLocation(cat, toDevice ? "device" : "account");
-                            this.rerender();
-                        });
+                        showConfirmOverlay(msg, "Cancel", toDevice ? "Use device" : "Use account", apply);
                     });
                     const exp = document.createElement("button");
                     exp.textContent = "Save";
@@ -41105,7 +41201,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.3";
-    const SAL_VERSION = 269; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 270; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41125,6 +41221,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "IMPORTANT fix: backups now include outfits and restraint sets you moved to device storage. They were kept in a separate list that the backup code could not see, so a backup taken after following EBC's own 'switch outfits to This device storage' advice came out with those outfits missing - and clearing your cache then lost them for good. Restoring puts them back on the device rather than onto your account, so a restore cannot push you over the account limit. Older backup files still import exactly as before.",
                 "Fix: clearing Outfits or Restraint sets in the storage manager now clears the device-stored ones as well. It only cleared the account half, so anything kept on this device came straight back and the button looked like it had done nothing.",
                 "Fix (reported by Julia): the quick action buttons now stay on the far right across a reload. The earlier fix stopped the saved position being squeezed through a fixed 700px guess when the page loaded, but the same guess was still used while drawing - and it was written back over the saved position on any frame where the chat window could not be measured, which is most of them right after a reload. The limit now reports honestly that it does not know, and the drawn position never overwrites the one you chose, so a narrow window holds the panel back on screen temporarily instead of permanently moving it.",
+                "IMPORTANT fix: switching Outfits or Restraint sets to device storage in the storage manager now actually moves them. The switch went green but drove a different mechanism to the one outfits are stored by, so nothing it claimed to do happened - the size bar did not move, every outfit still said Account, and the \"storage is full\" refusal carried on exactly as before. It now sets each item the way the per-outfit switch does, which is what the bar, the pills and the storage limit all read.",
+                "Fix: the storage manager no longer reports 0 KB for a category kept on this device. It only counted the account half, so a full outfit library moved to the device read as empty - the one number you would go and check straight after moving it.",
                 "New: /ebc is now part of the game's own command list, so it appears in /help alongside everything else and Tab completes it and its subcommands. Tab had no idea the word existed, so pressing it on /ebc found the nearest command it did know and rewrote your input to that instead - turning a working command into a broken one. Tab now takes '/ebc rel' to '/ebc release', and suggests on/off after '/ebc updates'.",
                 "Changed: the /ebc changelog is laid out to be skimmed rather than read end to end. Each entry is tagged FIX, NEW or IMPORTANT so you can see at a glance whether it applies to you, the change itself leads, and the reasoning behind it sits underneath in a quieter colour instead of running on in the same sentence.",
                 "Fix: friends in the same private room as you no longer show as 'in a private room' when the game rejoins that room for you at login. A friend in a private room can only be recognised by being in the room roster - the server strips the name - and the roster arrives after the room does, so classifying too early got them wrong. The previous fix waited a fixed 2.5 seconds, which covered a normal login and left a slow one wrong until the next 30-second refresh; it now retries on a ladder up to 9 seconds, so a slow roster is caught rather than waited out.",
