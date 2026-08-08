@@ -60,6 +60,8 @@ import {
     setRestraintStorage,
     getOutfitStorageUsage,
     reloadLocalLists,
+    setAllOutfitsStorage,
+    setAllRestraintsStorage,
     OUTFITS_BUDGET,
 } from "./outfitManager";
 import { getAllPalettes, getPalettesByType, captureCurrentPalette, captureRestraintPalette, applyPalette, deletePalette, renamePalette, getCustomColors, addCustomColor, removeCustomColor, applyColorToGroup, applyColorZoneToGroup, applyColorsToGroup, getGroupColors, getGroupZoneNames, getRestraintPresets, saveRestraintPreset, deleteRestraintPreset, renameRestraintPreset, type RestraintColorPreset } from "./palettes";
@@ -105,7 +107,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, EBC_DATA_CATEGORIES, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -4288,6 +4290,35 @@ interface LovenseTouchState {
 
 const TOUCH_DEFS: ReadonlyArray<{ key: string; label: string; activity: string; group?: string; dflt: boolean }> = [];
 
+/**
+ * Outfits and restraint sets are stored per item, not per settings key: each one
+ * carries its own `local` flag. Everything that reports on outfit storage - the
+ * size bar, the Account/Local pill on each row, the save budget - reads that
+ * flag, so the storage manager's category switch has to drive it rather than the
+ * generic device-key mechanism, which would move the key and leave every flag
+ * (and therefore every reading) exactly as it was.
+ *
+ * Matched on the settings key rather than the label so a rename cannot silently
+ * detach this.
+ */
+function catOwnLocalSetter(cat: DataCategory): ((local: boolean) => boolean) | null {
+    if (cat.keys.includes("outfits"))    return setAllOutfitsStorage;
+    if (cat.keys.includes("restraints")) return setAllRestraintsStorage;
+    return null;
+}
+
+/** Where that category currently lives, by the same per-item flag. */
+function catOwnLocalLocation(cat: DataCategory): "account" | "device" | "mixed" | null {
+    const list = cat.keys.includes("outfits")    ? getOutfits()
+               : cat.keys.includes("restraints") ? getRestraints()
+               : null;
+    if (!list) return null;
+    if (list.length === 0) return "account";   // empty - nothing has moved anywhere
+    const anyAccount = list.some(o => !o.local);
+    const anyLocal   = list.some(o => o.local === true);
+    return anyAccount && anyLocal ? "mixed" : anyAccount ? "account" : "device";
+}
+
 export class EBCDrawer {
     private static _instance: EBCDrawer | null = null;
     /** Gold paw data URI - set from main.ts after EBC_PAW_DATA is defined. */
@@ -8208,7 +8239,16 @@ export class EBCDrawer {
                 sz.title = `${Math.round((size / Math.max(1, total)) * 100)}% of EBC's stored data`;
                 // Account <-> device switch. Moving is destructive on one side,
                 // so the confirm names which copy is about to become the only one.
-                const loc = getDataCategoryLocation(cat);
+                // Outfits and restraint sets keep their own per-item Account/Local
+                // flag, and that flag is what the size bar, the per-item pills and
+                // the save budget all read. The generic device-key switch moves the
+                // settings KEY and leaves those flags alone, so using it here turned
+                // this button green while nothing anyone could see actually moved -
+                // and the "storage is full" refusal carried on unchanged. These two
+                // categories go through the mechanism the rest of the outfit code
+                // agrees on instead.
+                const ownLoc = catOwnLocalLocation(cat);
+                const loc = ownLoc ?? getDataCategoryLocation(cat);
                 const onDevice = loc === "device";
                 const locBtn = document.createElement("button");
                 locBtn.textContent = loc === "mixed" ? "Mixed" : onDevice ? "Device" : "Account";
@@ -8230,16 +8270,14 @@ export class EBCDrawer {
                     const msg = toDevice
                         ? `Move "${cat.label}" to this device?\n\nYour account copy (${kb(size)} KB) will be cleared and this browser\'s copy becomes the only one. Your other devices will no longer see it.`
                         : `Move "${cat.label}" to your account?\n\nThis browser\'s copy (${kb(devSize || size)} KB) will be uploaded and becomes the version all your devices see, replacing anything currently stored on the account.`;
+                    const apply = (): void => {
+                        const own = catOwnLocalSetter(cat);
+                        if (own) own(toDevice); else setDataCategoryLocation(cat, toDevice ? "device" : "account");
+                        this.rerender();
+                    };
                     // Nothing to lose when the category is empty - just switch.
-                    if (size === 0 && devSize === 0) {
-                        setDataCategoryLocation(cat, toDevice ? "device" : "account");
-                        this.rerender();
-                        return;
-                    }
-                    showConfirmOverlay(msg, "Cancel", toDevice ? "Use device" : "Use account", () => {
-                        setDataCategoryLocation(cat, toDevice ? "device" : "account");
-                        this.rerender();
-                    });
+                    if (size === 0 && devSize === 0) { apply(); return; }
+                    showConfirmOverlay(msg, "Cancel", toDevice ? "Use device" : "Use account", apply);
                 });
 
                 const exp = document.createElement("button");

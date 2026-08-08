@@ -617,6 +617,12 @@ export function getDataCategorySize(cat: DataCategory): number {
             if (v === undefined || v === null) continue;
             n += JSON.stringify(v).length + k.length + 4;
         }
+        // Plus the device-stored half. Outfits moved to this device leave the
+        // account key empty, so counting only that would report a full library
+        // as 0 KB - the one number most likely to be checked after moving it.
+        for (const k of cat.localKeys ?? []) {
+            try { n += localStorage.getItem(k)?.length ?? 0; } catch { /* ignore */ }
+        }
         return n;
     } catch { return 0; }
 }
@@ -645,6 +651,11 @@ export function getDataCategoryDeviceSize(cat: DataCategory): number {
         const v = readDeviceValue(k);
         if (v === null || v === undefined) continue;
         try { n += JSON.stringify(v).length + k.length + 4; } catch { /* ignore */ }
+    }
+    // Per-item device lists count too - they are device storage by any measure,
+    // and this figure is quoted back to the user before they move a category.
+    for (const k of cat.localKeys ?? []) {
+        try { n += localStorage.getItem(k)?.length ?? 0; } catch { /* ignore */ }
     }
     return n;
 }

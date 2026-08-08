@@ -191,6 +191,29 @@ function saveOutfits(list: ConfiguredOutfit[]): boolean {
     return true;
 }
 
+/**
+ * Moves EVERY outfit to or from this-device storage in one save.
+ *
+ * The storage manager's category switch used to go through the generic
+ * device-key mechanism, which relocates the `outfits` settings key and leaves
+ * each outfit's own `local` flag untouched - but the size bar, the per-item
+ * Account/Local pills and the budget check all read that flag, so the switch
+ * went green while nothing they measure actually moved. This drives the flag
+ * they all agree on.
+ *
+ * One save rather than one per outfit: each save re-serialises the whole list,
+ * and doing that per item over a library big enough to hit the limit is exactly
+ * where it would be slowest.
+ */
+export function setAllOutfitsStorage(local: boolean): boolean {
+    const list = getOutfits().map(o => ({ ...o, local: local ? true as const : undefined }));
+    const ok = saveOutfits(list);
+    if (ok) localNotice(local
+        ? `All ${list.length} outfits moved to THIS DEVICE - they use no account storage now.`
+        : `All ${list.length} outfits moved to your BC ACCOUNT - synced across devices.`);
+    return ok;
+}
+
 /** Moves an outfit between account storage (synced) and this-device storage. */
 export function setOutfitStorage(id: string, local: boolean): boolean {
     const outfits = getOutfits().map(o => o.id === id ? { ...o, local: local ? true : undefined } : o);
@@ -908,6 +931,16 @@ export function getOutfitStorageUsage(): { accountOutfits: number; accountRestra
         accountRestraints: size(getRestraints().filter(o => !o.local)),
         deviceBytes,
     };
+}
+
+/** Every restraint set to or from this-device storage - see setAllOutfitsStorage. */
+export function setAllRestraintsStorage(local: boolean): boolean {
+    const list = getRestraints().map(o => ({ ...o, local: local ? true as const : undefined }));
+    const ok = saveRestraints(list);
+    if (ok) localNotice(local
+        ? `All ${list.length} restraint sets moved to THIS DEVICE - they use no account storage now.`
+        : `All ${list.length} restraint sets moved to your BC ACCOUNT - synced across devices.`);
+    return ok;
 }
 
 /** Moves a restraint set between account storage and this-device storage. */
