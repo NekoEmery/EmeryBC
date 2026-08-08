@@ -5486,10 +5486,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function isInGrip(cx, cy) {
         const gripY = sidebarY - GRIP_H - 2;
-        return cx >= sidebarX && cx <= sidebarX + CHIP_W &&
+        const sbX = effectiveSidebarX();
+        return cx >= sbX && cx <= sbX + CHIP_W &&
             cy >= gripY && cy <= gripY + GRIP_H;
     }
-    /** Returns the maximum canvas-X the sidebar left edge may reach before overlapping the chat. */
+    /**
+     * Maximum canvas-X the sidebar's left edge may reach before overlapping the
+     * chat, or NaN when that cannot be measured yet.
+     *
+     * NaN rather than the fallback on purpose. Returning a guess made every caller
+     * unable to tell "the limit is 700" from "I have no idea", and the draw loop
+     * runs on frames where BC has not built the chat log yet - so the guess was
+     * treated as fact and clamped a far-right panel to 700 on every reload.
+     */
     function getSidebarMaxX() {
         // Try to read the left edge of BC's chat log (or EBC drawer) in real time.
         // "#TextAreaChatLog" is BC's native chat log element; we also check the EBC drawer.
@@ -5511,16 +5520,36 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     return Math.max(0, canvasX - CHIP_W - 8);
             }
         }
-        return SIDEBAR_MAX_X_FALLBACK;
+        return NaN; // nothing measurable - callers must not invent a limit
+    }
+    /**
+     * Where the panel is actually drawn and clicked.
+     *
+     * sidebarX is what the user chose and is never overwritten by this: a window
+     * that is temporarily narrow, or simply not measurable yet, must not silently
+     * become their new saved position. It is clamped for display only, so the panel
+     * stays reachable while a narrow window is up and returns to where they put it
+     * as soon as there is room again.
+     */
+    function effectiveSidebarX() {
+        const maxX = getSidebarMaxX();
+        return Number.isFinite(maxX) && maxX > 0 && sidebarX > maxX ? maxX : sidebarX;
     }
     function startDrag(cx, cy) {
         isDragging = true;
         dragAnchorMouseX = cx;
         dragAnchorMouseY = cy;
-        dragAnchorPanelX = sidebarX;
+        // Anchored to the drawn position, not the stored one, so grabbing a panel
+        // that is being held back by a narrow window does not make it jump first.
+        dragAnchorPanelX = effectiveSidebarX();
         dragAnchorPanelY = sidebarY;
         let hasMoved = false;
-        const maxX = getSidebarMaxX();
+        // A drag only happens with the chat window on screen, so the measurement
+        // all but always succeeds - the fallback is here for the case it does not,
+        // and this is the one place a guess is harmless because the user is
+        // watching the panel move and can put it where they want.
+        const liveMax = getSidebarMaxX();
+        const maxX = Number.isFinite(liveMax) ? liveMax : SIDEBAR_MAX_X_FALLBACK;
         const onMove = (e) => {
             const pt = "touches" in e ? e.touches[0] : e;
             const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
@@ -5630,7 +5659,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             _tooltipLastText = text;
         }
         const { scaleX, scaleY, left, top } = getCanvasScale();
-        const sx = left + (sidebarX + CHIP_W + 6) / scaleX;
+        const sx = left + (effectiveSidebarX() + CHIP_W + 6) / scaleX;
         const sy = top + canvasAnchorY / scaleY;
         tt.style.left = `${Math.max(0, Math.min(window.innerWidth - 220, sx))}px`;
         tt.style.top = `${Math.max(4, sy)}px`;
@@ -5751,14 +5780,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             _hideTooltip();
             return;
         }
-        // Clamp against the live limit rather than a load-time guess. Silent unless
-        // the window actually got narrower, in which case it pulls the panel back
-        // on screen without rewriting the saved position.
-        {
-            const liveMax = getSidebarMaxX();
-            if (Number.isFinite(liveMax) && liveMax > 0 && sidebarX > liveMax)
-                sidebarX = liveMax;
-        }
+        // Drawn position, resolved once per frame. Everything below - including the
+        // hover hit-tests - uses this rather than the stored position, so what is on
+        // screen and what responds to the mouse cannot drift apart.
+        const sbX = effectiveSidebarX();
         // Derived Y positions
         const gripY = sidebarY - GRIP_H - 2;
         const catChipY = sidebarY + CHIP_H + 4;
@@ -5769,14 +5794,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const bgChip = withAlpha("#2a0e1e", 0.88);
         const bgInactive = withAlpha("#1a0a14", 0.88);
         // Drag grip — hold & drag to reposition
-        DrawRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? bgActive : bgNormal);
-        DrawEmptyRect(sidebarX, gripY, CHIP_W, GRIP_H, isDragging ? UI.accent : UI.panelEdge, 1);
+        DrawRect(sbX, gripY, CHIP_W, GRIP_H, isDragging ? bgActive : bgNormal);
+        DrawEmptyRect(sbX, gripY, CHIP_W, GRIP_H, isDragging ? UI.accent : UI.panelEdge, 1);
         // 2×3 dot grid
         const dotCol = isDragging ? UI.accent : UI.accentDeep;
         const dotSize = 3;
         const dotGapX = 6;
         const dotGapY = 5;
-        const dotStartX = sidebarX + CHIP_W / 2 - dotGapX / 2 - dotSize / 2;
+        const dotStartX = sbX + CHIP_W / 2 - dotGapX / 2 - dotSize / 2;
         const dotStartY = gripY + GRIP_H / 2 - dotGapY - dotSize / 2;
         for (let row = 0; row < 3; row++) {
             for (let col = 0; col < 2; col++) {
@@ -5784,13 +5809,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
         }
         // Collapse toggle — same palette as grip; lit pink when collapsed so user knows it's there
-        DrawRect(sidebarX, sidebarY, CHIP_W, CHIP_H, sidebarCollapsed ? bgActive : bgNormal);
-        DrawEmptyRect(sidebarX, sidebarY, CHIP_W, CHIP_H, sidebarCollapsed ? UI.accent : UI.panelEdge, 1);
+        DrawRect(sbX, sidebarY, CHIP_W, CHIP_H, sidebarCollapsed ? bgActive : bgNormal);
+        DrawEmptyRect(sbX, sidebarY, CHIP_W, CHIP_H, sidebarCollapsed ? UI.accent : UI.panelEdge, 1);
         // Two short bars centered — subtle when open, bright when closed
         const bCol = sidebarCollapsed ? UI.accent : UI.accentSoft;
         const bW = Math.floor(CHIP_W * 0.55);
         const bH = 2;
-        const bX = sidebarX + Math.floor((CHIP_W - bW) / 2);
+        const bX = sbX + Math.floor((CHIP_W - bW) / 2);
         const bMid = sidebarY + Math.floor(CHIP_H / 2);
         DrawRect(bX, bMid - 4, bW, bH, bCol);
         DrawRect(bX, bMid + 2, bW, bH, bCol);
@@ -5804,13 +5829,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const label = cats.length > 1
             ? cats[idx].name.slice(0, 5)
             : cats[idx].name.slice(0, 7);
-        DrawButton(sidebarX, catChipY, CAT_ARR_W, CAT_CHIP_H, "◀", idx > 0 ? bgChip : bgInactive, "", "");
+        DrawButton(sbX, catChipY, CAT_ARR_W, CAT_CHIP_H, "◀", idx > 0 ? bgChip : bgInactive, "", "");
         if (cats.length > 1) {
-            DrawButton(sidebarX + CAT_ARR_W, catChipY, CHIP_W - CAT_ARR_W * 2, CAT_CHIP_H, label, bgChip, "", "");
-            DrawButton(sidebarX + CHIP_W - CAT_ARR_W, catChipY, CAT_ARR_W, CAT_CHIP_H, "▶", idx < cats.length - 1 ? bgChip : bgInactive, "", "");
+            DrawButton(sbX + CAT_ARR_W, catChipY, CHIP_W - CAT_ARR_W * 2, CAT_CHIP_H, label, bgChip, "", "");
+            DrawButton(sbX + CHIP_W - CAT_ARR_W, catChipY, CAT_ARR_W, CAT_CHIP_H, "▶", idx < cats.length - 1 ? bgChip : bgInactive, "", "");
         }
         else {
-            DrawButton(sidebarX, catChipY, CHIP_W, CAT_CHIP_H, label, bgChip, "", "");
+            DrawButton(sbX, catChipY, CHIP_W, CAT_CHIP_H, label, bgChip, "", "");
         }
         const buttons = getButtons();
         const now = Date.now();
@@ -5822,10 +5847,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const remainMs = BUTTON_COOLDOWN_MS - (now - ((_a = _btnCooldowns.get(cdKey)) !== null && _a !== void 0 ? _a : 0));
             const onCooldown = remainMs > 0;
             if (onCooldown) {
-                drawCooldownButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, remainMs);
+                drawCooldownButton(sbX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, remainMs);
             }
             else {
-                drawActionButton(sidebarX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, withAlpha(btn.color || "#c2185b", 0.90));
+                drawActionButton(sbX, btnStartY + i * BTN_SIZE, BTN_SIZE, btn.label, withAlpha(btn.color || "#c2185b", 0.90));
             }
         }
         // DOM tooltip - floats above BC's DOM chat layer so it's never hidden behind it
@@ -5833,12 +5858,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const my2 = (_c = window.MouseY) !== null && _c !== void 0 ? _c : 0;
         let ttText = null;
         let ttY = catChipY;
-        if (my2 >= catChipY && my2 <= catChipY + CAT_CHIP_H && mx2 >= sidebarX && mx2 <= sidebarX + CHIP_W) {
+        if (my2 >= catChipY && my2 <= catChipY + CAT_CHIP_H && mx2 >= sbX && mx2 <= sbX + CHIP_W) {
             if (cats.length > 1) {
-                if (mx2 <= sidebarX + CAT_ARR_W) {
+                if (mx2 <= sbX + CAT_ARR_W) {
                     ttText = idx > 0 ? "Previous category" : null;
                 }
-                else if (mx2 >= sidebarX + CHIP_W - CAT_ARR_W) {
+                else if (mx2 >= sbX + CHIP_W - CAT_ARR_W) {
                     ttText = idx < cats.length - 1 ? "Next category" : null;
                 }
                 else {
@@ -5852,7 +5877,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (!(tbtn === null || tbtn === void 0 ? void 0 : tbtn.enabled) || !tbtn.label || !tbtn.emote)
                     continue;
                 const ty = btnStartY + ti * BTN_SIZE;
-                if (mx2 >= sidebarX && mx2 <= sidebarX + BTN_SIZE && my2 >= ty && my2 <= ty + BTN_SIZE) {
+                if (mx2 >= sbX && mx2 <= sbX + BTN_SIZE && my2 >= ty && my2 <= ty + BTN_SIZE) {
                     ttText = tbtn.emote;
                     ttY = ty;
                     break;
@@ -5866,6 +5891,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function handleActionButtonClick() {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
+        // Same resolved position the frame was drawn at - see effectiveSidebarX.
+        const sbX = effectiveSidebarX();
         if (CurrentScreen !== "ChatRoom")
             return false;
         const mx = (_a = window.MouseX) !== null && _a !== void 0 ? _a : 0;
@@ -5874,7 +5901,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const catChipY = sidebarY + CHIP_H + 4;
         const btnStartY = catChipY + CAT_CHIP_H + 4;
         // Collapse toggle
-        if (mx >= sidebarX && mx <= sidebarX + CHIP_W &&
+        if (mx >= sbX && mx <= sbX + CHIP_W &&
             my >= sidebarY && my <= sidebarY + CHIP_H) {
             sidebarCollapsed = !sidebarCollapsed;
             try {
@@ -5889,14 +5916,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const cats = getCategories();
         const idx = getActiveCategoryIndex();
         if (my >= catChipY && my <= catChipY + CAT_CHIP_H &&
-            mx >= sidebarX && mx <= sidebarX + CHIP_W) {
+            mx >= sbX && mx <= sbX + CHIP_W) {
             if (cats.length > 1) {
-                if (mx >= sidebarX && mx <= sidebarX + CAT_ARR_W) {
+                if (mx >= sbX && mx <= sbX + CAT_ARR_W) {
                     if (idx > 0)
                         setActiveCategoryIndex(idx - 1);
                     return true;
                 }
-                if (mx >= sidebarX + CHIP_W - CAT_ARR_W && mx <= sidebarX + CHIP_W) {
+                if (mx >= sbX + CHIP_W - CAT_ARR_W && mx <= sbX + CHIP_W) {
                     if (idx < cats.length - 1)
                         setActiveCategoryIndex(idx + 1);
                     return true;
@@ -5911,7 +5938,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             if (!(btn === null || btn === void 0 ? void 0 : btn.enabled) || !btn.label)
                 continue;
             const y = btnStartY + i * BTN_SIZE;
-            if (mx >= sidebarX && mx <= sidebarX + BTN_SIZE &&
+            if (mx >= sbX && mx <= sbX + BTN_SIZE &&
                 my >= y && my <= y + BTN_SIZE) {
                 const cdKey = idx * 100 + i;
                 // Blocked: cooldown is active
@@ -41028,7 +41055,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.3";
-    const SAL_VERSION = 266; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 267; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41047,6 +41074,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             changes: [
                 "IMPORTANT fix: backups now include outfits and restraint sets you moved to device storage. They were kept in a separate list that the backup code could not see, so a backup taken after following EBC's own 'switch outfits to This device storage' advice came out with those outfits missing - and clearing your cache then lost them for good. Restoring puts them back on the device rather than onto your account, so a restore cannot push you over the account limit. Older backup files still import exactly as before.",
                 "Fix: clearing Outfits or Restraint sets in the storage manager now clears the device-stored ones as well. It only cleared the account half, so anything kept on this device came straight back and the button looked like it had done nothing.",
+                "Fix (reported by Julia): the quick action buttons now stay on the far right across a reload. The earlier fix stopped the saved position being squeezed through a fixed 700px guess when the page loaded, but the same guess was still used while drawing - and it was written back over the saved position on any frame where the chat window could not be measured, which is most of them right after a reload. The limit now reports honestly that it does not know, and the drawn position never overwrites the one you chose, so a narrow window holds the panel back on screen temporarily instead of permanently moving it.",
                 "Fix: friends in the same private room as you no longer show as 'in a private room' when the game rejoins that room for you at login. A friend in a private room can only be recognised by being in the room roster - the server strips the name - and the roster arrives after the room does, so classifying too early got them wrong. The previous fix waited a fixed 2.5 seconds, which covered a normal login and left a slow one wrong until the next 30-second refresh; it now retries on a ladder up to 9 seconds, so a slow roster is caught rather than waited out.",
             ],
         },

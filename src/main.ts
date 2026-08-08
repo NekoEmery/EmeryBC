@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.3";
-const SAL_VERSION  = 266;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 267;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -52,6 +52,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         changes: [
             "IMPORTANT fix: backups now include outfits and restraint sets you moved to device storage. They were kept in a separate list that the backup code could not see, so a backup taken after following EBC's own 'switch outfits to This device storage' advice came out with those outfits missing - and clearing your cache then lost them for good. Restoring puts them back on the device rather than onto your account, so a restore cannot push you over the account limit. Older backup files still import exactly as before.",
             "Fix: clearing Outfits or Restraint sets in the storage manager now clears the device-stored ones as well. It only cleared the account half, so anything kept on this device came straight back and the button looked like it had done nothing.",
+            "Fix (reported by Julia): the quick action buttons now stay on the far right across a reload. The earlier fix stopped the saved position being squeezed through a fixed 700px guess when the page loaded, but the same guess was still used while drawing - and it was written back over the saved position on any frame where the chat window could not be measured, which is most of them right after a reload. The limit now reports honestly that it does not know, and the drawn position never overwrites the one you chose, so a narrow window holds the panel back on screen temporarily instead of permanently moving it.",
             "Fix: friends in the same private room as you no longer show as 'in a private room' when the game rejoins that room for you at login. A friend in a private room can only be recognised by being in the room roster - the server strips the name - and the roster arrives after the room does, so classifying too early got them wrong. The previous fix waited a fixed 2.5 seconds, which covered a normal login and left a slow one wrong until the next 30-second refresh; it now retries on a ladder up to 9 seconds, so a slow roster is caught rather than waited out.",
         ],
     },
