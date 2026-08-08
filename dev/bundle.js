@@ -9089,6 +9089,90 @@
         return false;
     }
 
+    // Permission gate for BC activities EBC fires itself.
+    //
+    // ActivityRun does not check anything. In BC's own interface the checking has
+    // already happened by the time it is called - the dialog only offers activities
+    // on someone whose permissions allow it, and only while you are able to act at
+    // all. EBC calls ActivityRun straight from its own buttons, so none of that
+    // applied: a one-way friend with no item permission could still be booped, and
+    // you could boop people while bound hand and foot.
+    //
+    // The three checks below are the ones BC's interface applies, in the same order.
+    // Any one of them being unavailable means it is skipped rather than treated as a
+    // refusal - a missing function should never block something legitimate, and the
+    // remaining checks still stand.
+    function bc() {
+        return window;
+    }
+    /**
+     * Whether the player may run this activity on this target right now.
+     *
+     * Acting on yourself deliberately skips the permission check - BC treats the
+     * player as always allowed on themselves (`C.IsPlayer() || ...`), and requiring
+     * an item permission from yourself would refuse something BC permits.
+     */
+    function activityDenial(target, groupName, activityName) {
+        const w = bc();
+        try {
+            // 1. Can you act at all? False while bound, blindfolded into helplessness,
+            //    and so on - the same thing that greys out BC's own activity list.
+            // Cast because the local Character type does not declare it; BC's does.
+            const canInteract = Player === null || Player === void 0 ? void 0 : Player.CanInteract;
+            if (typeof canInteract === "function" && !canInteract.call(Player))
+                return "bound";
+            const isSelf = (target === null || target === void 0 ? void 0 : target.MemberNumber) === (Player === null || Player === void 0 ? void 0 : Player.MemberNumber);
+            // 2. Does the target allow you to act on them? This is the one the report
+            //    was about: a one-way friend with item permissions off.
+            if (!isSelf && typeof w.ServerChatRoomGetAllowItem === "function"
+                && !w.ServerChatRoomGetAllowItem(Player, target))
+                return "permission";
+            // 3. Is the activity actually valid for this person and this slot? Needs a
+            //    real AssetGroup - the bare { Name } object passed to ActivityRun is
+            //    not one, so this check is skipped rather than failed if the lookup is
+            //    unavailable.
+            if (typeof w.ActivityCheckPrerequisites === "function"
+                && typeof w.AssetGetActivity === "function"
+                && typeof w.AssetGroupGet === "function") {
+                const activity = w.AssetGetActivity("Female3DCG", activityName);
+                const group = w.AssetGroupGet("Female3DCG", groupName);
+                if (activity && group && !w.ActivityCheckPrerequisites(activity, Player, target, group)) {
+                    return "prerequisite";
+                }
+            }
+        }
+        catch ( /* a failing check must not block a legitimate action */_a) { /* a failing check must not block a legitimate action */ }
+        return null;
+    }
+    /**
+     * Runs the activity if it is allowed. Returns false when refused, so callers can
+     * report an honest count rather than claiming everything went through.
+     */
+    function runActivityOn(target, groupName, activityName) {
+        if (activityDenial(target, groupName, activityName) !== null)
+            return false;
+        const w = bc();
+        try {
+            if (typeof w.ActivityRun !== "function" || typeof w.AssetGetActivity !== "function")
+                return false;
+            const activity = w.AssetGetActivity("Female3DCG", activityName);
+            if (!activity)
+                return false;
+            w.ActivityRun(Player, target, { Name: groupName }, { Activity: activity, Item: null });
+            return true;
+        }
+        catch (_a) {
+            return false;
+        }
+    }
+    /** One line explaining a batch of refusals, or null when nothing was refused. */
+    function describeSkipped(skipped, verb) {
+        if (skipped <= 0)
+            return null;
+        return `[EBC] ${skipped} ${skipped === 1 ? "person was" : "people were"} not ${verb} - `
+            + "either they have not given you permission, or you cannot act right now.";
+    }
+
     // Creator-only DOM tools — visible exclusively to member #130267.
     // Supports multiple named restraint sets, each with its own items,
     // chat command, and announce text template.
@@ -9732,12 +9816,17 @@
             const target = findRoomChar(targetId);
             if (!target)
                 return false;
+            // Same rules BC's own dialog applies before offering the activity. The
+            // emote fallback below is refused too - announcing the action to the room
+            // without permission is the same bypass wearing different clothes.
+            const bcName = (_a = BC_ACTIVITY_NAME[activityName]) !== null && _a !== void 0 ? _a : activityName;
+            if (zone && activityDenial(target, zone, bcName) !== null)
+                return false;
             const win = window;
             const ActivityRun = win.ActivityRun;
             const AssetGetActivity = win.AssetGetActivity;
             if (ActivityRun && AssetGetActivity && zone) {
-                const family = (_a = Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG";
-                const bcName = (_b = BC_ACTIVITY_NAME[activityName]) !== null && _b !== void 0 ? _b : activityName;
+                const family = (_b = Player.AssetFamily) !== null && _b !== void 0 ? _b : "Female3DCG";
                 const act = AssetGetActivity(family, bcName);
                 if (act) {
                     ActivityRun(Player, target, { Name: zone }, { Activity: act, Item: null });
@@ -21690,128 +21779,106 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         // Sends BC's native "Boop Nose" activity (Pet on ItemNose) to a single target.
         // This is the exact same event as clicking a character and selecting Boop Nose -
         // targets with reaction mods (BCX, LSCG, etc.) will respond accordingly.
+        /** Returns false when BC's own rules would not have allowed it. */
         boopOne(target) {
-            try {
-                const win = window;
-                const ActivityRun = win.ActivityRun;
-                const AssetGetActivity = win.AssetGetActivity;
-                if (!ActivityRun || !AssetGetActivity)
-                    return;
-                const petActivity = AssetGetActivity("Female3DCG", "Pet");
-                if (!petActivity)
-                    return;
-                ActivityRun(Player, target, { Name: "ItemNose" }, { Activity: petActivity, Item: null });
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
+            return runActivityOn(target, "ItemNose", "Pet");
         }
+        /**
+         * Friends in the room this action is actually allowed on, and how many were
+         * refused. Filtered before scheduling rather than inside the per-person call
+         * so the button reports what really happened - it used to count everyone it
+         * was about to try, including people who would refuse.
+         */
         boopFriendsInRoom() {
             var _a;
             try {
                 const friendList = Player.FriendList;
                 if (!Array.isArray(friendList) || friendList.length === 0)
-                    return 0;
+                    return { done: 0, skipped: 0 };
                 const friendSet = new Set(friendList);
                 const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
                 const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber));
                 if (friends.length === 0)
-                    return 0;
-                let booped = 0;
-                for (const friend of friends) {
-                    const delay = booped * 1800;
-                    const target = friend; // capture for closure
+                    return { done: 0, skipped: 0 };
+                const allowed = friends.filter(c => activityDenial(c, "ItemNose", "Pet") === null);
+                allowed.forEach((friend, i) => {
                     window.setTimeout(() => { try {
-                        this.boopOne(target);
+                        this.boopOne(friend);
                     }
-                    catch ( /* ignore */_a) { /* ignore */ } }, delay);
-                    booped++;
-                }
-                return booped;
+                    catch ( /* ignore */_a) { /* ignore */ } }, i * 1800);
+                });
+                return { done: allowed.length, skipped: friends.length - allowed.length };
             }
             catch (_b) {
-                return 0;
+                return { done: 0, skipped: 0 };
             }
         }
         cuddleOne(target) {
-            try {
-                const win = window;
-                const ActivityRun = win.ActivityRun;
-                const AssetGetActivity = win.AssetGetActivity;
-                if (!ActivityRun || !AssetGetActivity)
-                    return;
-                const cuddleActivity = AssetGetActivity("Female3DCG", "Cuddle");
-                if (!cuddleActivity)
-                    return;
-                ActivityRun(Player, target, { Name: "ItemArms" }, { Activity: cuddleActivity, Item: null });
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
+            return runActivityOn(target, "ItemArms", "Cuddle");
         }
+        /**
+         * Friends in the room this action is actually allowed on, and how many were
+         * refused. Filtered before scheduling rather than inside the per-person call
+         * so the button reports what really happened - it used to count everyone it
+         * was about to try, including people who would refuse.
+         */
         cuddleFriendsInRoom() {
             var _a;
             try {
                 const friendList = Player.FriendList;
                 if (!Array.isArray(friendList) || friendList.length === 0)
-                    return 0;
+                    return { done: 0, skipped: 0 };
                 const friendSet = new Set(friendList);
                 const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
                 const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber));
                 if (friends.length === 0)
-                    return 0;
-                let count = 0;
-                for (const friend of friends) {
-                    const target = friend;
+                    return { done: 0, skipped: 0 };
+                const allowed = friends.filter(c => activityDenial(c, "ItemArms", "Cuddle") === null);
+                allowed.forEach((friend, i) => {
                     window.setTimeout(() => { try {
-                        this.cuddleOne(target);
+                        this.cuddleOne(friend);
                     }
-                    catch ( /* ignore */_a) { /* ignore */ } }, count * 1800);
-                    count++;
-                }
-                return count;
+                    catch ( /* ignore */_a) { /* ignore */ } }, i * 1800);
+                });
+                return { done: allowed.length, skipped: friends.length - allowed.length };
             }
             catch (_b) {
-                return 0;
+                return { done: 0, skipped: 0 };
             }
         }
         petOne(target) {
-            try {
-                const win = window;
-                const ActivityRun = win.ActivityRun;
-                const AssetGetActivity = win.AssetGetActivity;
-                if (!ActivityRun || !AssetGetActivity)
-                    return;
-                const petActivity = AssetGetActivity("Female3DCG", "Pet");
-                if (!petActivity)
-                    return;
-                ActivityRun(Player, target, { Name: "ItemHead" }, { Activity: petActivity, Item: null });
-            }
-            catch ( /* ignore */_a) { /* ignore */ }
+            return runActivityOn(target, "ItemHead", "Pet");
         }
+        /**
+         * Friends in the room this action is actually allowed on, and how many were
+         * refused. Filtered before scheduling rather than inside the per-person call
+         * so the button reports what really happened - it used to count everyone it
+         * was about to try, including people who would refuse.
+         */
         petFriendsInRoom() {
             var _a;
             try {
                 const friendList = Player.FriendList;
                 if (!Array.isArray(friendList) || friendList.length === 0)
-                    return 0;
+                    return { done: 0, skipped: 0 };
                 const friendSet = new Set(friendList);
                 const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
                 const friends = room.filter(c => c.MemberNumber !== Player.MemberNumber && friendSet.has(c.MemberNumber));
                 if (friends.length === 0)
-                    return 0;
-                let count = 0;
-                for (const friend of friends) {
-                    const target = friend;
+                    return { done: 0, skipped: 0 };
+                const allowed = friends.filter(c => activityDenial(c, "ItemHead", "Pet") === null);
+                allowed.forEach((friend, i) => {
                     window.setTimeout(() => { try {
-                        this.petOne(target);
+                        this.petOne(friend);
                     }
-                    catch ( /* ignore */_a) { /* ignore */ } }, count * 1800);
-                    count++;
-                }
-                return count;
+                    catch ( /* ignore */_a) { /* ignore */ } }, i * 1800);
+                });
+                return { done: allowed.length, skipped: friends.length - allowed.length };
             }
             catch (_b) {
-                return 0;
+                return { done: 0, skipped: 0 };
             }
         }
-        // -- Appearance diff -------------------------------------------------------
         renderDiff(panel, outfit) {
             while (panel.firstChild)
                 panel.removeChild(panel.firstChild);
@@ -32459,8 +32526,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             boopBtn.title = "Send a unique boop message to every friend currently in the room";
             boopBtn.textContent = t("kitty.boopAll");
             boopBtn.addEventListener("click", () => {
-                const booped = this.boopFriendsInRoom();
-                boopBtn.textContent = booped === 0 ? t("buttons.noFriendsHere") : t("buttons.boopedN", { n: booped });
+                const { done, skipped } = this.boopFriendsInRoom();
+                boopBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.boopedN", { n: done });
+                // Said once for the batch rather than per person - the refusals are
+                // usually the same reason, and one line per friend would be noise.
+                const note = describeSkipped(skipped, "booped");
+                if (note)
+                    appendLocalLogLine(note, UI.textMuted);
                 window.setTimeout(() => { boopBtn.textContent = t("kitty.boopAll"); }, 2000);
             });
             body.appendChild(boopBtn);
@@ -32468,8 +32540,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             cuddleBtn.title = "Send a cuddle to every friend currently in the room";
             cuddleBtn.textContent = t("kitty.cuddleAll");
             cuddleBtn.addEventListener("click", () => {
-                const count = this.cuddleFriendsInRoom();
-                cuddleBtn.textContent = count === 0 ? t("buttons.noFriendsHere") : t("buttons.cuddledN", { n: count });
+                const { done, skipped } = this.cuddleFriendsInRoom();
+                cuddleBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.cuddledN", { n: done });
+                // Said once for the batch rather than per person - the refusals are
+                // usually the same reason, and one line per friend would be noise.
+                const note = describeSkipped(skipped, "cuddled");
+                if (note)
+                    appendLocalLogLine(note, UI.textMuted);
                 window.setTimeout(() => { cuddleBtn.textContent = t("kitty.cuddleAll"); }, 2000);
             });
             body.appendChild(cuddleBtn);
@@ -32477,8 +32554,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             petBtn.title = "Pet every friend currently in the room";
             petBtn.textContent = t("kitty.petAll");
             petBtn.addEventListener("click", () => {
-                const count = this.petFriendsInRoom();
-                petBtn.textContent = count === 0 ? t("buttons.noFriendsHere") : t("buttons.pettedN", { n: count });
+                const { done, skipped } = this.petFriendsInRoom();
+                petBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.pettedN", { n: done });
+                // Said once for the batch rather than per person - the refusals are
+                // usually the same reason, and one line per friend would be noise.
+                const note = describeSkipped(skipped, "petted");
+                if (note)
+                    appendLocalLogLine(note, UI.textMuted);
                 window.setTimeout(() => { petBtn.textContent = t("kitty.petAll"); }, 2000);
             });
             body.appendChild(petBtn);
@@ -32924,7 +33006,6 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             };
             // Helper: run a BC activity on Emery (who must be in the room)
             const runKittyActivity = (bcGroup, bcActivity) => {
-                var _a;
                 try {
                     if (typeof CurrentScreen === "undefined" || CurrentScreen !== "ChatRoom")
                         return;
@@ -32933,16 +33014,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     const emery = room === null || room === void 0 ? void 0 : room.find(c => c.MemberNumber === EMERY_MEMBER);
                     if (!emery)
                         return;
-                    const ActivityRun = w.ActivityRun;
-                    const AssetGetActivity = w.AssetGetActivity;
-                    if (!ActivityRun || !AssetGetActivity)
-                        return;
-                    const act = AssetGetActivity((_a = Player.AssetFamily) !== null && _a !== void 0 ? _a : "Female3DCG", bcActivity);
-                    if (!act)
-                        return;
-                    ActivityRun(Player, emery, { Name: bcGroup }, { Activity: act, Item: null });
+                    // Gated like every other activity EBC fires. Being the creator is
+                    // not a permission - if item permissions are off, BC's own dialog
+                    // would not offer this either.
+                    runActivityOn(emery, bcGroup, bcActivity);
                 }
-                catch ( /* ignore */_b) { /* ignore */ }
+                catch ( /* ignore */_a) { /* ignore */ }
             };
             // Helper: send a single expression OR fire all commands in a named preset
             // expr can be "Group:State" (single) or "preset:<id>" (multi-expression preset)
@@ -41201,7 +41278,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.3";
-    const SAL_VERSION = 271; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 272; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41221,6 +41298,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "IMPORTANT fix: backups now include outfits and restraint sets you moved to device storage. They were kept in a separate list that the backup code could not see, so a backup taken after following EBC's own 'switch outfits to This device storage' advice came out with those outfits missing - and clearing your cache then lost them for good. Restoring puts them back on the device rather than onto your account, so a restore cannot push you over the account limit. Older backup files still import exactly as before.",
                 "Fix: clearing Outfits or Restraint sets in the storage manager now clears the device-stored ones as well. It only cleared the account half, so anything kept on this device came straight back and the button looked like it had done nothing.",
                 "Fix (reported by Julia): the quick action buttons now stay on the far right across a reload. The earlier fix stopped the saved position being squeezed through a fixed 700px guess when the page loaded, but the same guess was still used while drawing - and it was written back over the saved position on any frame where the chat window could not be measured, which is most of them right after a reload. The limit now reports honestly that it does not know, and the drawn position never overwrites the one you chose, so a narrow window holds the panel back on screen temporarily instead of permanently moving it.",
+                "IMPORTANT fix: the boop, cuddle and pet buttons now respect item permissions and being bound. They called BC's activity function directly, and that function checks nothing - all the checking normally happens in BC's dialog before it is ever reached. So adding someone one-way as a friend was enough to boop them with no permission from them, and you could boop people while tied up yourself. The same three checks BC makes are now applied first: whether you can act at all, whether they allow you, and whether the activity is valid for them. The DOM quick actions and the kitty menu went through the same gap and are fixed with it - including their fallback that announced the action to the room as plain text, which would otherwise have been the same bypass in a different form.",
+                "Fix: 'Boop all friends' and its cuddle and pet counterparts now report how many were actually booped. The count was worked out before anything was sent, so it counted everyone it was about to try, including people who would refuse. Anyone skipped is now mentioned once for the batch rather than once per person.",
                 "Fix: the automatic update check now follows the branch you are actually on. Only the manual /ebc update was taught about dev, so the hourly background check carried on comparing dev builds against the stable release - where the dev version is higher by definition, so a new dev build never once looked like an update. Both now ask the same code which branch to use, and both say which channel they are talking about. The already-told-you marker records the channel too, so hearing about dev v9.0.0 no longer silences the notice when stable reaches the same number.",
                 "IMPORTANT fix: switching Outfits or Restraint sets to device storage in the storage manager now actually moves them. The switch went green but drove a different mechanism to the one outfits are stored by, so nothing it claimed to do happened - the size bar did not move, every outfit still said Account, and the \"storage is full\" refusal carried on exactly as before. It now sets each item the way the per-outfit switch does, which is what the bar, the pills and the storage limit all read.",
                 "Fix: the storage manager no longer reports 0 KB for a category kept on this device. It only counted the account half, so a full outfit library moved to the device read as empty - the one number you would go and check straight after moving it.",
