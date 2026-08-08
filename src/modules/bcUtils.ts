@@ -160,6 +160,15 @@ const DEVICE_KEYS_LS = "EBC_deviceKeys";
  */
 export const LOCAL_OUTFITS_KEY    = "EBC_localOutfits";
 export const LOCAL_RESTRAINTS_KEY = "EBC_localRestraints";
+
+/**
+ * Settings keys that must never become device keys.
+ *
+ * These hold lists whose items each carry their own account/device flag, so
+ * moving the whole key is a second, conflicting way to say the same thing - and
+ * the two disagreeing is what stranded outfits on a single browser.
+ */
+export const PER_ITEM_SETTINGS_KEYS = ["outfits", "restraints", "restraintPresets"];
 const DEVICE_VAL_PREFIX = "EBC_dev_";
 
 export function getDeviceKeys(): Set<string> {
@@ -198,7 +207,56 @@ export function loadDeviceKeysIntoMem(): void {
             if (v !== null) _mem[k] = v;
         }
     } catch { /* ignore */ }
+    migrateOutfitKeysOffDeviceStorage();
 }
+
+/**
+ * Takes `outfits` and `restraints` back off the device-key mechanism.
+ *
+ * Those two are stored per item - each outfit carries its own `local` flag - and
+ * the storage manager now drives that flag. It used to move the whole settings
+ * KEY instead, and anyone who pressed the button back then still has the key
+ * registered here. That matters because the flush nulls the account copy of
+ * every device key on every sync, so the outfits stayed on the one browser that
+ * made the switch and every other device saw nothing - while the button, now
+ * reading the per-item flags, reported them as being on the account.
+ *
+ * The device copy is loaded into memory first, so this hands the outfits back to
+ * the account rather than dropping them: whichever device runs this is the one
+ * that still had them, and its copy is what gets uploaded.
+ */
+function migrateOutfitKeysOffDeviceStorage(): void {
+    try {
+        const dev = getDeviceKeys();
+        const stale = PER_ITEM_SETTINGS_KEYS.filter(k => dev.has(k));
+        if (stale.length === 0) return;
+
+        // _mem already holds the device copy (loaded just above). Dropping the
+        // registration is what lets the next flush put it back on the account.
+        for (const k of stale) {
+            const v = readDeviceValue(k);
+            if (v !== null) _mem[k] = v;
+            dev.delete(k);
+        }
+        setDeviceKeys(dev);
+
+        // The local copy is NOT deleted here. Until the account actually has the
+        // data, that copy is the only one there is - clearing it first would
+        // leave the outfits in memory alone, and a session that ended before the
+        // next flush would take them with it. Deferred so BC has finished
+        // setting up, then removed only once the flush reports it wrote.
+        setTimeout(() => {
+            try {
+                if (!flushToExtensionSettings()) return;   // retry on next load
+                try { ServerPlayerExtensionSettingsSync("EmeryBC"); } catch { /* ignore */ }
+                for (const k of stale) writeDeviceValue(k, null);
+                console.info(`[EBC] Moved ${stale.join(", ")} back to account storage - `
+                    + "these are managed per item now, not per key.");
+            } catch { /* ignore - the device copy is still intact */ }
+        }, 2000);
+    } catch { /* ignore */ }
+}
+
 
 /** Write _mem as plain keys to Player.ExtensionSettings.EmeryBC. */
 // Hard ceiling for EBC's ExtensionSettings blob. BC accounts share a ~180 KB

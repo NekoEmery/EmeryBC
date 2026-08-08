@@ -327,6 +327,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
      */
     const LOCAL_OUTFITS_KEY = "EBC_localOutfits";
     const LOCAL_RESTRAINTS_KEY = "EBC_localRestraints";
+    /**
+     * Settings keys that must never become device keys.
+     *
+     * These hold lists whose items each carry their own account/device flag, so
+     * moving the whole key is a second, conflicting way to say the same thing - and
+     * the two disagreeing is what stranded outfits on a single browser.
+     */
+    const PER_ITEM_SETTINGS_KEYS = ["outfits", "restraints", "restraintPresets"];
     const DEVICE_VAL_PREFIX = "EBC_dev_";
     function getDeviceKeys() {
         try {
@@ -372,6 +380,60 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 if (v !== null)
                     _mem[k] = v;
             }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        migrateOutfitKeysOffDeviceStorage();
+    }
+    /**
+     * Takes `outfits` and `restraints` back off the device-key mechanism.
+     *
+     * Those two are stored per item - each outfit carries its own `local` flag - and
+     * the storage manager now drives that flag. It used to move the whole settings
+     * KEY instead, and anyone who pressed the button back then still has the key
+     * registered here. That matters because the flush nulls the account copy of
+     * every device key on every sync, so the outfits stayed on the one browser that
+     * made the switch and every other device saw nothing - while the button, now
+     * reading the per-item flags, reported them as being on the account.
+     *
+     * The device copy is loaded into memory first, so this hands the outfits back to
+     * the account rather than dropping them: whichever device runs this is the one
+     * that still had them, and its copy is what gets uploaded.
+     */
+    function migrateOutfitKeysOffDeviceStorage() {
+        try {
+            const dev = getDeviceKeys();
+            const stale = PER_ITEM_SETTINGS_KEYS.filter(k => dev.has(k));
+            if (stale.length === 0)
+                return;
+            // _mem already holds the device copy (loaded just above). Dropping the
+            // registration is what lets the next flush put it back on the account.
+            for (const k of stale) {
+                const v = readDeviceValue(k);
+                if (v !== null)
+                    _mem[k] = v;
+                dev.delete(k);
+            }
+            setDeviceKeys(dev);
+            // The local copy is NOT deleted here. Until the account actually has the
+            // data, that copy is the only one there is - clearing it first would
+            // leave the outfits in memory alone, and a session that ended before the
+            // next flush would take them with it. Deferred so BC has finished
+            // setting up, then removed only once the flush reports it wrote.
+            setTimeout(() => {
+                try {
+                    if (!flushToExtensionSettings())
+                        return; // retry on next load
+                    try {
+                        ServerPlayerExtensionSettingsSync("EmeryBC");
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    for (const k of stale)
+                        writeDeviceValue(k, null);
+                    console.info(`[EBC] Moved ${stale.join(", ")} back to account storage - `
+                        + "these are managed per item now, not per key.");
+                }
+                catch ( /* ignore - the device copy is still intact */_b) { /* ignore - the device copy is still intact */ }
+            }, 2000);
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -3399,6 +3461,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const dev = getDeviceKeys();
             const store = getSettings();
             for (const k of cat.keys) {
+                // Outfits and restraint sets are moved per item, not per key. Doing
+                // both leaves two mechanisms disagreeing, and the flush nulls the
+                // account copy of any device key - which is how a library ended up
+                // stranded on one browser while the button said it was on the
+                // account. Refused here as well as routed around in the UI, so a
+                // future caller cannot reopen it.
+                if (PER_ITEM_SETTINGS_KEYS.includes(k))
+                    continue;
                 if (loc === "device") {
                     dev.add(k);
                     writeDeviceValue(k, (_a = store[k]) !== null && _a !== void 0 ? _a : null);
@@ -41313,7 +41383,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.3";
-    const SAL_VERSION = 272; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 273; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41333,6 +41403,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "IMPORTANT fix: backups now include outfits and restraint sets you moved to device storage. They were kept in a separate list that the backup code could not see, so a backup taken after following EBC's own 'switch outfits to This device storage' advice came out with those outfits missing - and clearing your cache then lost them for good. Restoring puts them back on the device rather than onto your account, so a restore cannot push you over the account limit. Older backup files still import exactly as before.",
                 "Fix: clearing Outfits or Restraint sets in the storage manager now clears the device-stored ones as well. It only cleared the account half, so anything kept on this device came straight back and the button looked like it had done nothing.",
                 "Fix (reported by Julia): the quick action buttons now stay on the far right across a reload. The earlier fix stopped the saved position being squeezed through a fixed 700px guess when the page loaded, but the same guess was still used while drawing - and it was written back over the saved position on any frame where the chat window could not be measured, which is most of them right after a reload. The limit now reports honestly that it does not know, and the drawn position never overwrites the one you chose, so a narrow window holds the panel back on screen temporarily instead of permanently moving it.",
+                "IMPORTANT fix: outfits that stopped appearing on your other devices are put back on your account. The storage manager used to move Outfits by relocating the whole settings key, and every sync then blanked the account copy - so the outfits lived on the one browser that made the switch and no other device could see them, while the button reported them as being on the account. That registration is now undone automatically on the device that still has them, and the local copy is only cleared once the upload has actually gone through, so nothing is dropped if it fails. Open EBC on the device where the outfits still show, and they will come back everywhere within a few seconds.",
                 "IMPORTANT fix: the boop, cuddle and pet buttons now respect item permissions and being bound. They called BC's activity function directly, and that function checks nothing - all the checking normally happens in BC's dialog before it is ever reached. So adding someone one-way as a friend was enough to boop them with no permission from them, and you could boop people while tied up yourself. The same three checks BC makes are now applied first: whether you can act at all, whether they allow you, and whether the activity is valid for them. The DOM quick actions and the kitty menu went through the same gap and are fixed with it - including their fallback that announced the action to the room as plain text, which would otherwise have been the same bypass in a different form.",
                 "Fix: 'Boop all friends' and its cuddle and pet counterparts now report how many were actually booped. The count was worked out before anything was sent, so it counted everyone it was about to try, including people who would refuse. Anyone skipped is now mentioned once for the batch rather than once per person.",
                 "Fix: the automatic update check now follows the branch you are actually on. Only the manual /ebc update was taught about dev, so the hourly background check carried on comparing dev builds against the stable release - where the dev version is higher by definition, so a new dev build never once looked like an update. Both now ask the same code which branch to use, and both say which channel they are talking about. The already-told-you marker records the channel too, so hearing about dev v9.0.0 no longer silences the notice when stable reaches the same number.",

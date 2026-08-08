@@ -1,6 +1,6 @@
 ﻿// General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
 
-import { callBC, getSettings, syncSettings, getDeviceKeys, setDeviceKeys, readDeviceValue, writeDeviceValue, LOCAL_OUTFITS_KEY, LOCAL_RESTRAINTS_KEY } from "./bcUtils";
+import { callBC, getSettings, syncSettings, getDeviceKeys, setDeviceKeys, readDeviceValue, writeDeviceValue, LOCAL_OUTFITS_KEY, LOCAL_RESTRAINTS_KEY, PER_ITEM_SETTINGS_KEYS } from "./bcUtils";
 
 
 // -- Emery Versioning (SAL sub-version display) --------------------------------
@@ -668,6 +668,13 @@ export function setDataCategoryLocation(cat: DataCategory, loc: "account" | "dev
         const dev = getDeviceKeys();
         const store = getSettings() as Record<string, unknown>;
         for (const k of cat.keys) {
+            // Outfits and restraint sets are moved per item, not per key. Doing
+            // both leaves two mechanisms disagreeing, and the flush nulls the
+            // account copy of any device key - which is how a library ended up
+            // stranded on one browser while the button said it was on the
+            // account. Refused here as well as routed around in the UI, so a
+            // future caller cannot reopen it.
+            if (PER_ITEM_SETTINGS_KEYS.includes(k)) continue;
             if (loc === "device") {
                 dev.add(k);
                 writeDeviceValue(k, store[k] ?? null);
