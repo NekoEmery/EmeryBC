@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "8.3.3";
-const SAL_VERSION  = 268;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 269;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -53,7 +53,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "IMPORTANT fix: backups now include outfits and restraint sets you moved to device storage. They were kept in a separate list that the backup code could not see, so a backup taken after following EBC's own 'switch outfits to This device storage' advice came out with those outfits missing - and clearing your cache then lost them for good. Restoring puts them back on the device rather than onto your account, so a restore cannot push you over the account limit. Older backup files still import exactly as before.",
             "Fix: clearing Outfits or Restraint sets in the storage manager now clears the device-stored ones as well. It only cleared the account half, so anything kept on this device came straight back and the button looked like it had done nothing.",
             "Fix (reported by Julia): the quick action buttons now stay on the far right across a reload. The earlier fix stopped the saved position being squeezed through a fixed 700px guess when the page loaded, but the same guess was still used while drawing - and it was written back over the saved position on any frame where the chat window could not be measured, which is most of them right after a reload. The limit now reports honestly that it does not know, and the drawn position never overwrites the one you chose, so a narrow window holds the panel back on screen temporarily instead of permanently moving it.",
-            "New: /ebc is now part of the game's own command list, so it appears in /help alongside everything else and Tab completes it properly. Tab had no idea the word existed, so pressing it on /ebc found the nearest command it did know and rewrote your input to that instead - turning a working command into a broken one.",
+            "New: /ebc is now part of the game's own command list, so it appears in /help alongside everything else and Tab completes it and its subcommands. Tab had no idea the word existed, so pressing it on /ebc found the nearest command it did know and rewrote your input to that instead - turning a working command into a broken one. Tab now takes '/ebc rel' to '/ebc release', and suggests on/off after '/ebc updates'.",
             "Changed: the /ebc changelog is laid out to be skimmed rather than read end to end. Each entry is tagged FIX, NEW or IMPORTANT so you can see at a glance whether it applies to you, the change itself leads, and the reasoning behind it sits underneath in a quieter colour instead of running on in the same sentence.",
             "Fix: friends in the same private room as you no longer show as 'in a private room' when the game rejoins that room for you at login. A friend in a private room can only be recognised by being in the room roster - the server strips the name - and the roster arrives after the room does, so classifying too early got them wrong. The previous fix waited a fixed 2.5 seconds, which covered a normal login and left a slow one wrong until the next 30-second refresh; it now retries on a ladder up to 9 seconds, so a slow roster is caught rather than waited out.",
         ],
@@ -6658,6 +6658,41 @@ function handleKittyCommand(msg: string): void {
     } catch { /* ignore */ }
 }
 
+/**
+ * Every /ebc subcommand, in one place.
+ *
+ * Used for both the /ebc help listing and what is handed to BC's command system,
+ * so the two cannot drift - a command added to one and forgotten in the other is
+ * exactly how /ebc afk ended up listed with no handler behind it.
+ */
+interface EBCSubcommand {
+    tag: string;
+    desc: string;
+    /** Extra worked examples, listed under the command in /ebc help. */
+    examples?: Array<{ suffix: string; desc: string }>;
+    /** Argument hints handed to BC so Tab can suggest values. */
+    args?: Array<{ id: string; name: string; description?: string; suggestions?: string[] }>;
+}
+
+const EBC_SUBCOMMANDS: EBCSubcommand[] = [
+    { tag: "version",   desc: "Show current EBC version" },
+    { tag: "changelog", desc: "Show recent changelog entries" },
+    { tag: "release",   desc: "Release all restraints from yourself" },
+    { tag: "unlock",    desc: "Remove all locks from yourself" },
+    { tag: "ameter",    desc: "Toggle arousal meter on / off",
+      examples: [{ suffix: "50", desc: "Set arousal to a specific % (0-100)" }],
+      args: [{ id: "percent", name: "0-100", description: "Leave empty to toggle on / off",
+               suggestions: ["0", "25", "50", "75", "100"] }] },
+    { tag: "update",    desc: "Check GitHub for a newer version" },
+    { tag: "updates",   desc: "Turn update notifications on or off",
+      examples: [
+          { suffix: "on",  desc: "Enable update notifications" },
+          { suffix: "off", desc: "Disable update notifications" },
+      ],
+      args: [{ id: "state", name: "on|off", suggestions: ["on", "off"] }] },
+    { tag: "help",      desc: "List every EBC command" },
+];
+
 function handleMetaCommand(inputValue: string): boolean {
     const trimmed = inputValue.trim();
     if (!trimmed.startsWith("/")) return false;
@@ -6731,16 +6766,11 @@ function handleMetaCommand(inputValue: string): boolean {
         appendLocalLogLine(`[EBC] Unknown command "/ebc ${subcommand}". Type /ebc help for the command list.`, UI.danger);
         return true;
     }
-    appendLocalLogLine("[EBC] Commands — click any to fill the chat bar:", UI.gold);
-    appendClickableCmd("/ebc version",       "Show current EBC version");
-    appendClickableCmd("/ebc changelog",     "Show recent changelog entries");
-    appendClickableCmd("/ebc release",       "Release all restraints from yourself");
-    appendClickableCmd("/ebc unlock",        "Remove all locks from yourself");
-    appendClickableCmd("/ebc ameter",        "Toggle arousal meter on / off");
-    appendClickableCmd("/ebc ameter 50",     "Set arousal to a specific % (0–100)");
-    appendClickableCmd("/ebc update",        "Check GitHub for a newer version");
-    appendClickableCmd("/ebc updates on",    "Enable update notifications");
-    appendClickableCmd("/ebc updates off",   "Disable update notifications");
+    appendLocalLogLine("[EBC] Commands - click any to fill the chat bar:", UI.gold);
+    for (const c of EBC_SUBCOMMANDS) {
+        appendClickableCmd(`/ebc ${c.tag}`, c.desc);
+        for (const ex of c.examples ?? []) appendClickableCmd(`/ebc ${c.tag} ${ex.suffix}`, ex.desc);
+    }
     return true;
 }
 
@@ -6759,28 +6789,35 @@ function handleMetaCommand(inputValue: string): boolean {
  * real word. If BC ever changes its command API this fails quietly and /ebc goes
  * on working exactly as before.
  *
- * Only Tag/Description/Action are set. BC also supports declaring subcommands so
- * they tab-complete too, but the exact shape it expects could not be verified
- * from here, and guessing wrong would put garbage in the completion list rather
- * than simply doing nothing. Worth adding once that is confirmed against a live
- * client - it would complete "/ebc rel" to "/ebc release".
+ * Subcommands and their arguments are declared too, so Tab completes "/ebc rel"
+ * to "/ebc release" and offers on/off after "/ebc updates". Built from
+ * EBC_SUBCOMMANDS, the same table /ebc help prints from.
  */
 function registerEBCCommand(): void {
     try {
         const w = window as unknown as Record<string, unknown>;
         const combine = w.CommandCombine;
         if (typeof combine !== "function") return;
-        (combine as (add: unknown[]) => void)([{
+
+        // Root and subcommands both hand the line straight back to
+        // handleMetaCommand instead of reimplementing anything, so whichever
+        // route BC takes behaves identically to typing the command normally.
+        // Not trimEnd() - the TS lib target here predates it.
+        const run = (line: string): void => {
+            try { handleMetaCommand(line.replace(/\s+$/, "")); } catch { /* ignore */ }
+        };
+
+        (combine as (add: unknown) => void)({
             Tag: "ebc",
-            Description: "- EmeryBC commands. Type /ebc help for the full list.",
-            Action: (args: string): boolean => {
-                // Rebuilt into the form handleMetaCommand parses, so both routes
-                // run the identical code and cannot drift apart.
-                // Not trimEnd() - the TS lib target here predates it.
-                try { handleMetaCommand(`/ebc ${args ?? ""}`.replace(/\s+$/, "")); } catch { /* ignore */ }
-                return true;
-            },
-        }]);
+            Description: "- EmeryBC. Type /ebc help for the full list.",
+            Action: (argumentsString: string): void => run(`/ebc ${argumentsString ?? ""}`),
+            Subcommands: EBC_SUBCOMMANDS.map(c => ({
+                Tag: c.tag,
+                Description: `- ${c.desc}`,
+                Action: (argumentsString: string): void => run(`/ebc ${c.tag} ${argumentsString ?? ""}`),
+                ...(c.args ? { Arguments: c.args } : {}),
+            })),
+        });
     } catch { /* BC command system unavailable - interception still handles /ebc */ }
 }
 
