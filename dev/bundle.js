@@ -280,6 +280,18 @@
     // writes _mem exactly as before - only where the data lands changes. Keeping the
     // split at the persistence layer means no feature code needs to know about it.
     const DEVICE_KEYS_LS = "EBC_deviceKeys";
+    /**
+     * Whole lists kept on the device rather than per-key. Outfits and restraint
+     * sets are stored this way because they are moved to the device ONE AT A TIME
+     * (the per-item Account/Local pill), so there is no single settings key to flag
+     * - the list is split, half on the account and half here.
+     *
+     * Declared here rather than in outfitManager so the backup code can see them.
+     * It could not, which meant a backup silently left out every outfit you had
+     * moved to this device.
+     */
+    const LOCAL_OUTFITS_KEY = "EBC_localOutfits";
+    const LOCAL_RESTRAINTS_KEY = "EBC_localRestraints";
     const DEVICE_VAL_PREFIX = "EBC_dev_";
     function getDeviceKeys() {
         try {
@@ -992,8 +1004,7 @@
     // Outfits/restraint sets flagged local:true live in localStorage instead of the
     // BC account: they use no account storage (so no server budget / relog risk)
     // and are visible to EVERY account logged in from this browser.
-    const LOCAL_OUTFITS_KEY = "EBC_localOutfits";
-    const LOCAL_RESTRAINTS_KEY = "EBC_localRestraints";
+    // Keys live in bcUtils so the backup code can see them too - see the note there.
     function readLocalList(key) {
         try {
             const raw = localStorage.getItem(key);
@@ -1027,6 +1038,15 @@
     }
     function getOutfits() {
         return cachedOutfits !== null && cachedOutfits !== void 0 ? cachedOutfits : loadOutfitsFromSettings();
+    }
+    /**
+     * Drops the in-memory copies so the next read picks the lists up again.
+     * Needed after a backup restore, which writes localStorage underneath us - the
+     * cache would otherwise keep serving the pre-restore lists until a reload.
+     */
+    function reloadLocalLists() {
+        cachedOutfits = null;
+        cachedRestraints = null;
     }
     function getDefaultNickname() {
         const raw = getSettings().defaultNickname;
@@ -3087,8 +3107,8 @@
         catch ( /* ignore */_a) { /* ignore */ }
     }
     const EBC_DATA_CATEGORIES = [
-        { label: "Outfits", keys: ["outfits"], help: "Every outfit you have saved, including the items, colours and settings in each one. This is usually the biggest thing EBC stores." },
-        { label: "Restraint sets", keys: ["restraints", "restraintPresets"], help: "Saved restraint sets and their presets - the groups of items you can apply in one go." },
+        { label: "Outfits", keys: ["outfits"], localKeys: [LOCAL_OUTFITS_KEY], help: "Every outfit you have saved, including the items, colours and settings in each one. This is usually the biggest thing EBC stores." },
+        { label: "Restraint sets", keys: ["restraints", "restraintPresets"], localKeys: [LOCAL_RESTRAINTS_KEY], help: "Saved restraint sets and their presets - the groups of items you can apply in one go." },
         { label: "Action buttons", keys: ["buttonCategories", "actionSlotCount", "activeCategoryIndex"], help: "Your custom chat buttons, their categories, and how many slots you show." },
         { label: "Pose combos", keys: ["poseCombos"], help: "Saved pose sequences you can play back." },
         { label: "Scenes", keys: ["scenes"], help: "Saved scenes - scripted sequences of poses, expressions and messages." },
@@ -3113,10 +3133,33 @@
         { label: "Restraint timers", keys: ["restraintTimers"], help: "How long each item you are wearing has been on. Feeds the bound timer." },
         { label: "Dom config", keys: ["domConfig"], help: "Your dom tool setup - targets and saved restraint sets for them." },
     ];
+    /** Every localStorage key any category declares - the import whitelist. */
+    function knownLocalKeys() {
+        var _a;
+        const out = new Set();
+        for (const cat of EBC_DATA_CATEGORIES)
+            for (const k of (_a = cat.localKeys) !== null && _a !== void 0 ? _a : [])
+                out.add(k);
+        return out;
+    }
+    function readLocalRaw(key) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw)
+                return null;
+            const v = JSON.parse(raw);
+            return Array.isArray(v) && v.length === 0 ? null : v;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
     /** Serialises the given categories. Keys holding nothing are skipped. */
     function exportDataCategories(cats) {
+        var _a;
         const store = getSettings();
         const data = {};
+        const local = {};
         const labels = [];
         for (const cat of cats) {
             let any = false;
@@ -3127,10 +3170,21 @@
                 data[k] = v;
                 any = true;
             }
+            // The device half, straight from localStorage. A category can be
+            // entirely device-stored, so this alone is enough to count as present.
+            for (const k of (_a = cat.localKeys) !== null && _a !== void 0 ? _a : []) {
+                const v = readLocalRaw(k);
+                if (v === null)
+                    continue;
+                local[k] = v;
+                any = true;
+            }
             if (any)
                 labels.push(cat.label);
         }
         const backup = { ebcBackup: 1, ts: Date.now(), categories: labels, data };
+        if (Object.keys(local).length > 0)
+            backup.local = local;
         return JSON.stringify(backup);
     }
     function exportAllData() {
@@ -3143,6 +3197,7 @@
      * honest about a partial import rather than claiming success.
      */
     function importDataBackup(json) {
+        var _a;
         const parsed = JSON.parse(json);
         if (!parsed || parsed.ebcBackup !== 1 || typeof parsed.data !== "object" || parsed.data === null) {
             throw new Error("Not an EBC backup file.");
@@ -3166,6 +3221,35 @@
             store[k] = v;
             touched.add(cat.label);
             keys++;
+        }
+        // Device-stored lists go back to localStorage, not to the account - restoring
+        // them into account storage is what the user moved them out of to begin with,
+        // and on a full account it would simply be refused.
+        if (parsed.local && typeof parsed.local === "object") {
+            const allowed = knownLocalKeys();
+            const byLocalKey = new Map();
+            for (const cat of EBC_DATA_CATEGORIES)
+                for (const lk of (_a = cat.localKeys) !== null && _a !== void 0 ? _a : [])
+                    byLocalKey.set(lk, cat);
+            for (const [k, v] of Object.entries(parsed.local)) {
+                if (!allowed.has(k)) {
+                    skipped.push(k);
+                    continue;
+                }
+                if (v === undefined || v === null)
+                    continue;
+                try {
+                    localStorage.setItem(k, JSON.stringify(v));
+                }
+                catch (_b) {
+                    skipped.push(k);
+                    continue;
+                }
+                const cat = byLocalKey.get(k);
+                if (cat)
+                    touched.add(cat.label);
+                keys++;
+            }
         }
         if (keys > 0)
             syncSettings();
@@ -3251,6 +3335,7 @@
      *  flush only COPIES keys to the server and never removes them, so a deleted key
      *  would keep its old (large) server value. */
     function clearDataCategory(cat) {
+        var _a;
         try {
             const store = getSettings();
             const dev = getDeviceKeys();
@@ -3259,9 +3344,18 @@
                 if (dev.has(k))
                     writeDeviceValue(k, null);
             }
+            // And the device half. Clearing Outfits used to leave every outfit you
+            // had moved to this device sitting there, so the list came straight back
+            // and the button looked broken.
+            for (const k of (_a = cat.localKeys) !== null && _a !== void 0 ? _a : []) {
+                try {
+                    localStorage.removeItem(k);
+                }
+                catch ( /* ignore */_b) { /* ignore */ }
+            }
             syncSettings();
         }
-        catch ( /* ignore */_a) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
     }
     // -- Quick actions placement ---------------------------------------------------
     // false (default) = Release Restraints / Remove Locks / restraint picker stay
@@ -18457,6 +18551,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                             say("Nothing imported - that backup held no EBC data.", false);
                             return;
                         }
+                        // A restore can write the device-stored outfit lists
+                        // straight to localStorage, which the in-memory copies
+                        // know nothing about. Drop them so the restored outfits
+                        // actually show up instead of waiting for a reload.
+                        reloadLocalLists();
                         const extra = r.skipped.length ? ` ${r.skipped.length} unrecognised entr${r.skipped.length === 1 ? "y was" : "ies were"} ignored.` : "";
                         say(`Restored ${r.categories.length} categor${r.categories.length === 1 ? "y" : "ies"}: ${r.categories.join(", ")}.${extra}`);
                         window.setTimeout(() => this.rerender(), 2500);
@@ -40893,8 +40992,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "8.3.2";
-    const SAL_VERSION = 264; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "8.3.3";
+    const SAL_VERSION = 265; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -40908,6 +41007,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "8.3.3",
+            changes: [
+                "IMPORTANT fix: backups now include outfits and restraint sets you moved to device storage. They were kept in a separate list that the backup code could not see, so a backup taken after following EBC's own 'switch outfits to This device storage' advice came out with those outfits missing - and clearing your cache then lost them for good. Restoring puts them back on the device rather than onto your account, so a restore cannot push you over the account limit. Older backup files still import exactly as before.",
+                "Fix: clearing Outfits or Restraint sets in the storage manager now clears the device-stored ones as well. It only cleared the account half, so anything kept on this device came straight back and the button looked like it had done nothing.",
+            ],
+        },
         {
             version: "8.3.2",
             changes: [
