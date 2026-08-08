@@ -8586,44 +8586,129 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_b) { /* ignore */ }
     }, TICK_MS);
 
+    function parseChange(raw) {
+        let text = raw.trim().replace(/^[••]\s*/, "");
+        let tag = null;
+        let tone = UI.accent;
+        let credit = null;
+        const lead = /^(IMPORTANT fix|Fix|New|Added|Removed|Changed)\s*(?:\(reported by ([^)]+)\))?\s*:\s*/i.exec(text);
+        if (lead) {
+            const label = lead[1].toLowerCase();
+            if (label === "important fix") {
+                tag = "IMPORTANT";
+                tone = UI.gold;
+            }
+            else if (label === "fix") {
+                tag = "FIX";
+                tone = UI.success;
+            }
+            else if (label === "new" || label === "added") {
+                tag = "NEW";
+                tone = UI.accent;
+            }
+            else {
+                tag = label.toUpperCase();
+                tone = UI.textSoft;
+            }
+            if (lead[2])
+                credit = lead[2].trim();
+            text = text.slice(lead[0].length);
+        }
+        // Some entries credit at the end instead ("Requested by Julia."). Same
+        // information, so it is shown the same way rather than left mid-sentence.
+        const trail = /\s*(?:Requested|Reported|Suggested|Found)\s+by\s+([A-Za-z0-9 #]+?)\.?\s*$/i.exec(text);
+        if (trail) {
+            credit = credit !== null && credit !== void 0 ? credit : trail[1].trim();
+            text = text.slice(0, trail.index);
+        }
+        text = text.trim();
+        // Split after the first sentence so there is something short to scan and the
+        // reasoning sits behind it, instead of one undifferentiated paragraph.
+        const stop = /\.\s+(?=[A-Z"'(])/.exec(text);
+        const headline = stop ? text.slice(0, stop.index + 1) : text;
+        const detail = stop ? text.slice(stop.index + 1).trim() : "";
+        return { tag, tone, headline, detail, credit };
+    }
     /**
-     * One dismissible block in the chat log, rather than a run of separate lines.
+     * The changelog, rendered to be skimmed.
      *
-     * Long output posted line by line cannot be cleared without scrolling past all
-     * of it, which is why a dismiss control was asked for - and a control per line
-     * would be worse than none. Kept scrollable so a long list never buries the
-     * conversation underneath it.
+     * Every line used to be the same italic pink at the same weight, which for
+     * entries this long meant reading all of it to find out whether any of it
+     * applied to you. Category becomes a tag, the first sentence carries the change,
+     * the reasoning sits underneath in a quieter colour, and who reported it moves
+     * out of the sentence.
      */
-    function appendLocalLogBlock(title, lines, color = UI.accent) {
+    function appendChangelogBlock(title, changes, footer) {
         const doAppend = () => {
             const log = document.getElementById("TextAreaChatLog");
             if (!log)
                 return false;
             const box = document.createElement("div");
             box.style.cssText = `background:${UI.cardMuted};border-left:3px solid ${UI.accent};`
-                + "border-radius:4px;padding:5px 8px 7px;margin:3px 0;font-size:12px;position:relative;";
+                + "border-radius:4px;padding:6px 9px 8px;margin:3px 0;font-size:12px;position:relative;";
             const head = document.createElement("div");
-            head.style.cssText = `color:${UI.gold};font-weight:bold;padding-right:18px;`;
+            head.style.cssText = `color:${UI.gold};font-weight:bold;padding-right:18px;`
+                + `border-bottom:1px solid ${UI.accentSoft};padding-bottom:4px;margin-bottom:2px;`;
             head.textContent = title;
             box.appendChild(head);
             const close = document.createElement("span");
             close.textContent = "×";
             close.title = "Dismiss";
-            close.style.cssText = `position:absolute;top:2px;right:6px;cursor:pointer;color:${UI.textMuted};`
-                + "font-size:15px;line-height:1;padding:0 3px;";
+            close.style.cssText = `position:absolute;top:3px;right:6px;cursor:pointer;color:${UI.textSoft};`
+                + "font-size:16px;line-height:1;padding:0 3px;";
             close.addEventListener("mouseenter", () => { close.style.color = UI.accent; });
-            close.addEventListener("mouseleave", () => { close.style.color = UI.textMuted; });
+            close.addEventListener("mouseleave", () => { close.style.color = UI.textSoft; });
             close.addEventListener("click", () => box.remove());
             box.appendChild(close);
             const body = document.createElement("div");
-            body.style.cssText = "max-height:190px;overflow-y:auto;margin-top:3px;";
-            for (const line of lines) {
+            body.style.cssText = "max-height:230px;overflow-y:auto;margin-top:4px;";
+            changes.forEach((raw, i) => {
+                const c = parseChange(raw);
                 const row = document.createElement("div");
-                row.style.cssText = `color:${color};font-style:italic;line-height:1.45;padding:1px 0;`;
-                row.textContent = line;
+                row.style.cssText = "display:grid;grid-template-columns:auto 1fr;gap:7px;align-items:start;"
+                    + `padding:5px 0;${i > 0 ? `border-top:1px solid ${UI.accentSoft};` : ""}`;
+                const chip = document.createElement("span");
+                if (c.tag) {
+                    chip.textContent = c.tag;
+                    chip.style.cssText = `color:${c.tone};border:1px solid ${c.tone};border-radius:8px;`
+                        + "font-size:9px;font-weight:bold;letter-spacing:0.05em;padding:1px 6px;"
+                        + "line-height:13px;white-space:nowrap;display:inline-block;margin-top:1px;";
+                }
+                else {
+                    // No category - keep the column so the text still lines up.
+                    chip.textContent = "•";
+                    chip.style.cssText = `color:${UI.accentDeep};font-size:11px;padding:0 4px;line-height:15px;`;
+                }
+                row.appendChild(chip);
+                const textCol = document.createElement("div");
+                textCol.style.cssText = "min-width:0;";
+                const h = document.createElement("div");
+                h.style.cssText = `color:${UI.text};line-height:1.45;`;
+                h.textContent = c.headline;
+                textCol.appendChild(h);
+                if (c.detail) {
+                    const d = document.createElement("div");
+                    d.style.cssText = `color:${UI.textSoft};line-height:1.4;margin-top:2px;font-size:11px;`;
+                    d.textContent = c.detail;
+                    textCol.appendChild(d);
+                }
+                if (c.credit) {
+                    const cr = document.createElement("div");
+                    cr.style.cssText = `color:${UI.accentDeep};font-size:10px;margin-top:2px;`;
+                    cr.textContent = `reported by ${c.credit}`;
+                    textCol.appendChild(cr);
+                }
+                row.appendChild(textCol);
                 body.appendChild(row);
-            }
+            });
             box.appendChild(body);
+            if (footer) {
+                const f = document.createElement("div");
+                f.style.cssText = `color:${UI.textSoft};font-size:10.5px;margin-top:5px;`
+                    + `border-top:1px solid ${UI.accentSoft};padding-top:4px;`;
+                f.textContent = footer;
+                box.appendChild(f);
+            }
             log.appendChild(box);
             log.scrollTop = log.scrollHeight;
             return true;
@@ -41055,7 +41140,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "8.3.3";
-    const SAL_VERSION = 267; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 268; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41075,6 +41160,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "IMPORTANT fix: backups now include outfits and restraint sets you moved to device storage. They were kept in a separate list that the backup code could not see, so a backup taken after following EBC's own 'switch outfits to This device storage' advice came out with those outfits missing - and clearing your cache then lost them for good. Restoring puts them back on the device rather than onto your account, so a restore cannot push you over the account limit. Older backup files still import exactly as before.",
                 "Fix: clearing Outfits or Restraint sets in the storage manager now clears the device-stored ones as well. It only cleared the account half, so anything kept on this device came straight back and the button looked like it had done nothing.",
                 "Fix (reported by Julia): the quick action buttons now stay on the far right across a reload. The earlier fix stopped the saved position being squeezed through a fixed 700px guess when the page loaded, but the same guess was still used while drawing - and it was written back over the saved position on any frame where the chat window could not be measured, which is most of them right after a reload. The limit now reports honestly that it does not know, and the drawn position never overwrites the one you chose, so a narrow window holds the panel back on screen temporarily instead of permanently moving it.",
+                "New: /ebc is now part of the game's own command list, so it appears in /help alongside everything else and Tab completes it properly. Tab had no idea the word existed, so pressing it on /ebc found the nearest command it did know and rewrote your input to that instead - turning a working command into a broken one.",
+                "Changed: the /ebc changelog is laid out to be skimmed rather than read end to end. Each entry is tagged FIX, NEW or IMPORTANT so you can see at a glance whether it applies to you, the change itself leads, and the reasoning behind it sits underneath in a quieter colour instead of running on in the same sentence.",
                 "Fix: friends in the same private room as you no longer show as 'in a private room' when the game rejoins that room for you at login. A friend in a private room can only be recognised by being in the room roster - the server strips the name - and the roster arrives after the room does, so classifying too early got them wrong. The previous fix waited a fixed 2.5 seconds, which covered a normal login and left a slow one wrong until the next 30-second refresh; it now retries on a ladder up to 9 seconds, so a slow roster is caught rather than waited out.",
             ],
         },
@@ -47159,11 +47246,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         // version has well over a hundred entries behind it, so posting them
         // individually buried the conversation with no way to clear it.
         const MAX_SHOWN = 15;
-        const shown = latest.changes.slice(0, MAX_SHOWN).map(c => `• ${c}`);
-        if (latest.changes.length > MAX_SHOWN) {
-            shown.push(`… and ${latest.changes.length - MAX_SHOWN} more - the full list is in SETTINGS → Credits.`);
-        }
-        appendLocalLogBlock(`[EBC] v${latest.version} — what's new:`, shown);
+        const shown = latest.changes.slice(0, MAX_SHOWN);
+        const hidden = latest.changes.length - shown.length;
+        appendChangelogBlock(`EBC v${latest.version} - what's new`, shown, hidden > 0 ? `+ ${hidden} more - the full list is in SETTINGS -> Credits.` : undefined);
     }
     // Last non-Inactive arousal level, so toggling off → on restores it.
     // Defaults to "Manual" if the setting was already Inactive at load time.
@@ -47765,6 +47850,50 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         appendClickableCmd("/ebc updates on", "Enable update notifications");
         appendClickableCmd("/ebc updates off", "Disable update notifications");
         return true;
+    }
+    /**
+     * Registers /ebc with BC's own command system.
+     *
+     * EBC reads the chat box directly and acts on /ebc before BC's parser ever sees
+     * it, which works but leaves the command invisible to everything BC builds on
+     * that list: it is missing from /help, and tab completion does not know the word
+     * exists - so pressing Tab on "/ebc" looked for the nearest thing it did know and
+     * rewrote it to "/ebch", turning a valid command into a broken one.
+     *
+     * This is purely additive. The interception above still handles the command and
+     * clears the input, so Action here is a fallback that in practice does not run;
+     * what registration actually buys is the /help entry and Tab knowing "ebc" is a
+     * real word. If BC ever changes its command API this fails quietly and /ebc goes
+     * on working exactly as before.
+     *
+     * Only Tag/Description/Action are set. BC also supports declaring subcommands so
+     * they tab-complete too, but the exact shape it expects could not be verified
+     * from here, and guessing wrong would put garbage in the completion list rather
+     * than simply doing nothing. Worth adding once that is confirmed against a live
+     * client - it would complete "/ebc rel" to "/ebc release".
+     */
+    function registerEBCCommand() {
+        try {
+            const w = window;
+            const combine = w.CommandCombine;
+            if (typeof combine !== "function")
+                return;
+            combine([{
+                    Tag: "ebc",
+                    Description: "- EmeryBC commands. Type /ebc help for the full list.",
+                    Action: (args) => {
+                        // Rebuilt into the form handleMetaCommand parses, so both routes
+                        // run the identical code and cannot drift apart.
+                        // Not trimEnd() - the TS lib target here predates it.
+                        try {
+                            handleMetaCommand(`/ebc ${args !== null && args !== void 0 ? args : ""}`.replace(/\s+$/, ""));
+                        }
+                        catch ( /* ignore */_a) { /* ignore */ }
+                        return true;
+                    },
+                }]);
+        }
+        catch ( /* BC command system unavailable - interception still handles /ebc */_a) { /* BC command system unavailable - interception still handles /ebc */ }
     }
     // -- Update notification -------------------------------------------------------
     // Fetches package.json from GitHub after a short delay, then every hour.
@@ -48548,11 +48677,16 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             initDragListener();
         }
         catch ( /* ignore */_c) { /* ignore */ }
+        // Put /ebc in BC's command list so /help and Tab know about it.
+        try {
+            registerEBCCommand();
+        }
+        catch ( /* ignore */_d) { /* ignore */ }
         // Canvas listeners for badge repositioning drag mode
         try {
             initBadgeDragListeners();
         }
-        catch ( /* ignore */_d) { /* ignore */ }
+        catch ( /* ignore */_e) { /* ignore */ }
         // DOM drawer - outfit switcher panel beside the chat log
         let drawer = null;
         try {
@@ -48580,13 +48714,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             try {
                 migratePeopleMetToLocal();
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
             try {
                 const n = dedupeSentBeeps();
                 if (n > 0)
                     console.info(`[EBC] Removed ${n} duplicated sent beep${n === 1 ? "" : "s"} from history.`);
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
             // Seed default badge settings for first-time users.
             window.setTimeout(() => { try {
                 seedDefaultBadgeSettings();
@@ -49696,7 +49830,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             const sock = window.ServerSocket;
             sock === null || sock === void 0 ? void 0 : sock.on("AccountQueryResult", handleAccountQueryResult);
         }
-        catch ( /* ignore */_g) { /* ignore */ }
+        catch ( /* ignore */_h) { /* ignore */ }
         // Initial query — fire 3 s after load so the connection is settled, then every
         // 30 s to stay current. (Previously was 60 s with no initial query, so the list
         // could stay stale for a full minute if BC's own query burst got deduplicated.)
