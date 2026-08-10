@@ -8662,7 +8662,26 @@
     }
     // Debounced settings sync - counters can bump rapidly during play.
     let _saveTimer = null;
+    /**
+     * Told whenever a counter moves, so an open Achievements panel can redraw.
+     *
+     * The panel used to build itself once and never look again, so anything earned
+     * while it was open simply did not appear - and the panel is exactly what you
+     * have open when you are trying to earn something.
+     *
+     * Fired on every bump rather than only on unlocks, because the progress bars
+     * move long before a tier does.
+     */
+    let _onChanged = null;
+    function setAchievementsChangedCallback(fn) {
+        _onChanged = fn;
+    }
     function save() {
+        // Notified immediately; only the server write is debounced.
+        try {
+            _onChanged === null || _onChanged === void 0 ? void 0 : _onChanged();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
         if (_saveTimer !== null)
             return;
         _saveTimer = setTimeout(() => {
@@ -29822,8 +29841,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             const overlay = document.createElement("div");
             overlay.id = "ebc-ach-overlay";
             overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999999;display:flex;align-items:center;justify-content:center;";
+            // Unsubscribed on close, so a shut panel is not still rebuilding itself.
+            const closeOverlay = () => {
+                setAchievementsChangedCallback(null);
+                overlay.remove();
+            };
             overlay.addEventListener("click", (e) => { if (e.target === overlay)
-                overlay.remove(); });
+                closeOverlay(); });
             const panel = document.createElement("div");
             panel.style.cssText = "background:radial-gradient(130% 90% at 50% 0%, #221022, #0f060c 70%);border:2px solid #cf6f98;border-radius:12px;padding:14px 16px;width:min(430px, 92vw);max-height:78vh;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.05);";
             makeDraggable(panel);
@@ -29835,7 +29859,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             const closeBtn = document.createElement("button");
             closeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:2px 9px;border-radius:6px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;";
             closeBtn.textContent = "X";
-            closeBtn.addEventListener("click", () => overlay.remove());
+            closeBtn.addEventListener("click", closeOverlay);
             head.appendChild(title);
             head.appendChild(closeBtn);
             panel.appendChild(head);
@@ -29861,6 +29885,29 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 scroll.style.cssText = "overflow-y:auto;min-height:0;padding-right:4px;";
                 scroll.appendChild(this.buildAchievementCards());
                 panel.appendChild(scroll);
+                // Redraw while the panel is open. It used to build once and never
+                // look again, so anything earned while watching it never appeared -
+                // and this is the panel you have open when you are chasing one.
+                let redrawPending = false;
+                setAchievementsChangedCallback(() => {
+                    if (redrawPending || !document.body.contains(overlay))
+                        return;
+                    redrawPending = true;
+                    // Coalesced to the next frame: one action can bump several
+                    // counters, and rebuilding per bump would flicker.
+                    window.requestAnimationFrame(() => {
+                        redrawPending = false;
+                        if (!document.body.contains(overlay))
+                            return;
+                        // Scroll position kept, or the list jumps to the top under
+                        // you every time a counter ticks.
+                        const keepScroll = scroll.scrollTop;
+                        while (scroll.firstChild)
+                            scroll.removeChild(scroll.firstChild);
+                        scroll.appendChild(this.buildAchievementCards());
+                        scroll.scrollTop = keepScroll;
+                    });
+                });
                 // Opt-out lives here, in the achievements popup itself.
                 const plaqueBtn = document.createElement("button");
                 const paintPlaque = () => {
@@ -42107,7 +42154,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.6";
-    const SAL_VERSION = 299; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 300; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42124,6 +42171,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.6",
             changes: [
+                "Fix: the Achievements window updates while it is open. It built itself once and never looked again, so anything you earned while watching it did not appear until you closed and reopened - and that window is exactly what you have open when you are chasing one. Your scroll position is kept, so the list no longer jumps to the top under you when a counter ticks.",
                 "IMPORTANT fix: a restraint that was on you before you switched auto-escape on can no longer be swapped off you. Escaping the item someone swapped IN was not enough on its own - the swap had already taken the original off, so removing the replacement just left the slot bare and the swap had stripped you anyway. The original is now put straight back. It only fires when the slot would otherwise be left empty, so it cannot fight a change you made yourself, and taking something off yourself stops it being guarded.",
                 "Fix (spotted by Julia): the escape emote uses an item's crafted name. It named the underlying item instead, so the room saw 'Angel swaps Julia's Cuffs...' followed by EBC saying the Leather Deluxe Leg Cuffs fell away - which reads as though it removed something else entirely.",
                 "The Achievements window and the Tutorial can be dragged too, so all three floating windows behave the same way. Grab any empty part of one and move it; they stay inside the screen and start centred each time. Buttons, text boxes and links are not drag handles, so nothing you click gets stolen by a drag.",
