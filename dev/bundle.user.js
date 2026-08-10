@@ -4800,7 +4800,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
      * arms for cuffs read as the same restraint and was never escaped.
      */
     function wornKey(item) {
-        return item.Asset.Group.Name + " " + getItemKey(item);
+        return item.Asset.Group.Name + "\u0000" + getItemKey(item);
     }
     function wornNow() {
         const out = new Map();
@@ -4894,12 +4894,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     }
     function doEscape(newItems, restrainer, itemName) {
         var _a;
-        for (const item of newItems) {
-            try {
-                InventoryRemove(Player, item.Asset.Group.Name, false);
-            }
-            catch ( /* ignore */_b) { /* ignore */ }
+        // Direct array filter, not InventoryRemove.
+        //
+        // InventoryRemove runs BC's own lock checks and silently refuses anything it
+        // does not think you may take off - a locked item, most obviously. That is
+        // the wrong behaviour for this feature: auto-escape is a switch you set on
+        // your own body meaning "nothing gets put on me", so a lock is exactly the
+        // case it has to handle rather than the case it gives up on. Refusing
+        // quietly is also why it looked broken - the item stayed on with no error.
+        //
+        // This is the same technique /ebc release already uses, for the same reason.
+        const removeGroups = new Set(newItems.map(i => i.Asset.Group.Name));
+        try {
+            Player.Appearance = Player.Appearance.filter((item) => !removeGroups.has(item.Asset.Group.Name));
         }
+        catch ( /* ignore */_b) { /* ignore */ }
         const stillPresent = new Set(Player.Appearance
             .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
             .map((i) => i.Asset.Group.Name));
@@ -41695,7 +41704,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.3";
-    const SAL_VERSION = 284; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 285; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
