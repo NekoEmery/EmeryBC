@@ -295,7 +295,25 @@ export function restoreAchievements(): boolean {
 
 // Debounced settings sync - counters can bump rapidly during play.
 let _saveTimer: ReturnType<typeof setTimeout> | null = null;
+/**
+ * Told whenever a counter moves, so an open Achievements panel can redraw.
+ *
+ * The panel used to build itself once and never look again, so anything earned
+ * while it was open simply did not appear - and the panel is exactly what you
+ * have open when you are trying to earn something.
+ *
+ * Fired on every bump rather than only on unlocks, because the progress bars
+ * move long before a tier does.
+ */
+let _onChanged: (() => void) | null = null;
+
+export function setAchievementsChangedCallback(fn: (() => void) | null): void {
+    _onChanged = fn;
+}
+
 function save(): void {
+    // Notified immediately; only the server write is debounced.
+    try { _onChanged?.(); } catch { /* ignore */ }
     if (_saveTimer !== null) return;
     _saveTimer = setTimeout(() => {
         _saveTimer = null;

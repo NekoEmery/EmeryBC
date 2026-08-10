@@ -115,7 +115,7 @@ import { getFriendList, getFriendStatus, isEBCComplete, getFriendTagList, setFri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, hasCompletedEverything, completionProgress, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
+import { isAchievementUser, hasCompletedEverything, completionProgress, setAchievementsChangedCallback, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -18967,7 +18967,12 @@ This cannot be undone.`,
         const overlay = document.createElement("div");
         overlay.id = "ebc-ach-overlay";
         overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999999;display:flex;align-items:center;justify-content:center;";
-        overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+        // Unsubscribed on close, so a shut panel is not still rebuilding itself.
+        const closeOverlay = (): void => {
+            setAchievementsChangedCallback(null);
+            overlay.remove();
+        };
+        overlay.addEventListener("click", (e) => { if (e.target === overlay) closeOverlay(); });
         const panel = document.createElement("div");
         panel.style.cssText = "background:radial-gradient(130% 90% at 50% 0%, #221022, #0f060c 70%);border:2px solid #cf6f98;border-radius:12px;padding:14px 16px;width:min(430px, 92vw);max-height:78vh;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.05);";
         makeDraggable(panel);
@@ -18979,7 +18984,7 @@ This cannot be undone.`,
         const closeBtn = document.createElement("button");
         closeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:2px 9px;border-radius:6px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;";
         closeBtn.textContent = "X";
-        closeBtn.addEventListener("click", () => overlay.remove());
+        closeBtn.addEventListener("click", closeOverlay);
         head.appendChild(title);
         head.appendChild(closeBtn);
         panel.appendChild(head);
@@ -19004,6 +19009,27 @@ This cannot be undone.`,
             scroll.style.cssText = "overflow-y:auto;min-height:0;padding-right:4px;";
             scroll.appendChild(this.buildAchievementCards());
             panel.appendChild(scroll);
+
+            // Redraw while the panel is open. It used to build once and never
+            // look again, so anything earned while watching it never appeared -
+            // and this is the panel you have open when you are chasing one.
+            let redrawPending = false;
+            setAchievementsChangedCallback(() => {
+                if (redrawPending || !document.body.contains(overlay)) return;
+                redrawPending = true;
+                // Coalesced to the next frame: one action can bump several
+                // counters, and rebuilding per bump would flicker.
+                window.requestAnimationFrame(() => {
+                    redrawPending = false;
+                    if (!document.body.contains(overlay)) return;
+                    // Scroll position kept, or the list jumps to the top under
+                    // you every time a counter ticks.
+                    const keepScroll = scroll.scrollTop;
+                    while (scroll.firstChild) scroll.removeChild(scroll.firstChild);
+                    scroll.appendChild(this.buildAchievementCards());
+                    scroll.scrollTop = keepScroll;
+                });
+            });
             // Opt-out lives here, in the achievements popup itself.
             const plaqueBtn = document.createElement("button");
             const paintPlaque = (): void => {
