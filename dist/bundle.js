@@ -41611,7 +41611,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "9.0.1";
+    const MOD_VERSION = "9.0.2";
     const SAL_VERSION = 280; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
@@ -41627,10 +41627,15 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "9.0.1",
+            version: "9.0.2",
             changes: [
                 "Fix: sharing an achievement no longer leaves the message stuck half-sent. It went out with a dictionary in a shape the game does not recognise, so the message was never acknowledged - it sat in the pale still-sending state with the dots after it and never turned into normal chat text, which is why it read as almost invisible. It now uses a shape the game knows. Shares from anyone still on an older build are still understood, so nobody loses their plaques while updating.",
                 "Fix (suggested by Sally): the time-based bondage achievements now need you to actually be restrained. They counted anything worn in a restraint slot - and that list includes ears, nose, piercings and handhelds, so a pair of earrings counted the same as a hogtie. Excluding collars, which the timer settings already did, only covered the most obvious case of a much wider one. All three now ask the game whether you are restrained, gagged or chaste, which it answers from item effects, so only something that genuinely restricts you counts. Time still comes from the per-item timers, so offline hours are included. Your visible bound timer is unchanged - it keeps its own exclusion list.",
+            ],
+        },
+        {
+            version: "9.0.1",
+            changes: [
                 "Storage is explained properly now. There are three separate ways storage can be full - your BC account, this browser, and EBC total - with three different fixes, and the messages looked alike enough that people read a browser problem as an account one. The Storage page now says in plain words what Account and This device mean and what to do when a bar fills, each message says which storage it is talking about, and all of them say the thing that was least obvious: deleting and moving still work while it is full, because they make it smaller.",
                 "IMPORTANT fix: EBC now tells you when it has stopped saving to your account. Going over the total the game allows meant saving silently stopped, with nothing but a line in the browser console that nobody has open - so changes looked like they worked and then vanished on reload. It says so on screen instead, once, with what to do about it.",
                 "IMPORTANT fix (reported by Julia): cuddling works again while your arms are tied. The permission check added last release was too blunt - it asked whether you could act at all, when the game asks per activity. Its own rules include ones that only apply while you ARE tied, and cuddling with bound arms is allowed. That blanket check is gone; the per-activity check it already did is the correct one and stays.",
