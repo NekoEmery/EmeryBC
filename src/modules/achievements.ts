@@ -83,16 +83,20 @@ export interface AchievementDef {
 }
 
 /**
- * Achievements that do NOT count toward Completionist.
+ * Completionist means everything. The crew and Emery ones count too.
  *
- * The crew and Emery ones need other specific people to be online and willing,
- * so requiring them would put finishing the list outside the player's hands
- * entirely. They stay in the list to chase; they just do not gate the reward.
+ * They are the hardest ones precisely because they need other people, and that
+ * is the point - a reward for finishing the whole list should mean the whole
+ * list. Emery can reach hers because the Emery achievements retarget to the
+ * credited crew when she is the player.
+ *
+ * Only Completionist itself is excluded, since it is derived from the others
+ * and would otherwise be waiting on itself.
  */
-const COMPLETION_EXCLUDES = new Set(["crew_met", "completionist"]);
+const COMPLETION_EXCLUDES = new Set(["completionist"]);
 
 function countsTowardCompletion(a: AchievementDef): boolean {
-    return a.cls !== "emery" && !COMPLETION_EXCLUDES.has(a.id);
+    return !COMPLETION_EXCLUDES.has(a.id);
 }
 
 /** How far along the 100% reward is: [done, total]. */

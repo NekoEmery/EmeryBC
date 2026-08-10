@@ -29,8 +29,8 @@ import bcModSdk from "bondage-club-mod-sdk";
 import { isAchievementUser, hasCompletedEverything, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.0.4";
-const SAL_VERSION  = 287;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.0.5";
+const SAL_VERSION  = 290;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -47,6 +47,14 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "9.0.5",
+        changes: [
+            "Fix: you are in your own room list now, at the top, marked YOU. Your own card listed one fewer person than the count beside it claimed, because the count came from the real room roster while the rows were built from a copy with you removed. It also meant you could never see your own row - your name, your colours, your paw - which is the one thing you would most want to look at.",
+            "Fix: Completionist needs EVERY achievement, the crew and Emery ones included. Yesterday's version let you off those, which was my misreading rather than a decision - they are the hardest ones precisely because they need other people, and a reward for finishing the whole list should mean the whole list.",
+            "Fix: the Completionist card is readable. The name preview was drawn at half opacity, which on a dark panel made the gold almost invisible - and it is the one thing on the card you are meant to be looking at. The explaining text underneath was too dim as well. The preview now shows at full strength with a gold border once earned, and the small print is a good deal lighter.",
+        ],
+    },
     {
         version: "9.0.4",
         changes: [
