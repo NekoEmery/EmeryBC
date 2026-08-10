@@ -30,8 +30,8 @@ import { isAchievementUser, hasCompletedEverything, achievementScanRoom, achieve
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.4";
-const SAL_VERSION  = 287;   // internal sub-version - shown when Emery Versioning is ON
-const IS_DEV_BUILD = false; // true on dev branch, false on master
+const SAL_VERSION  = 288;   // internal sub-version - shown when Emery Versioning is ON
+const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
 // Set to true by the beep hook when we want to let the mod chain through
