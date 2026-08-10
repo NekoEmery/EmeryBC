@@ -4884,15 +4884,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const itemName = firstItem.Asset.Description
                 || firstItem.Asset.Name
                 || "restraint";
-            const restrainer = lastRestrainerName;
-            lastRestrainerName = null;
-            doEscape(newItems, restrainer, itemName);
+            // The name is deliberately NOT read here.
+            //
+            // Who did it is only known from the chat line BC sends about it, and
+            // that arrives as its own message - often after the appearance change
+            // that triggers this. Reading it at this point usually found nothing,
+            // and then cleared it, so the later message could not help either. That
+            // is why the emote kept glaring at nobody. It is read when the emote is
+            // actually sent instead, by which point the message has landed.
+            doEscape(newItems, itemName);
         }
         catch (_a) {
             escaping = false;
         }
     }
-    function doEscape(newItems, restrainer, itemName) {
+    function doEscape(newItems, itemName) {
         var _a;
         // Direct array filter, not InventoryRemove.
         //
@@ -4934,7 +4940,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             callBC(() => ServerPlayerAppearanceSync());
         }
         mergeCurrentRestraints();
-        window.setTimeout(() => {
+        const announce = (restrainer) => {
             try {
                 if (anySucceeded && getAntiRestraintAnnounce()) {
                     const customEmote = getEscapeEmoteText();
@@ -4964,6 +4970,23 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             catch ( /* ignore */_a) { /* ignore */ }
             escaping = false;
+        };
+        // Give the chat line a moment to arrive, then one more short wait if it
+        // still has not - a slow server should not cost you the name. Whatever it
+        // is by then is what gets used, and it is cleared so it cannot leak into
+        // the next escape by someone else.
+        window.setTimeout(() => {
+            if (lastRestrainerName === null) {
+                window.setTimeout(() => {
+                    const who = lastRestrainerName;
+                    lastRestrainerName = null;
+                    announce(who);
+                }, 300);
+                return;
+            }
+            const who = lastRestrainerName;
+            lastRestrainerName = null;
+            announce(who);
         }, 200);
     }
 
@@ -41704,7 +41727,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.3";
-    const SAL_VERSION = 285; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 286; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
