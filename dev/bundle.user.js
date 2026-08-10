@@ -41647,7 +41647,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.2";
-    const SAL_VERSION = 281; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 282; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41664,6 +41664,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.2",
             changes: [
+                "IMPORTANT fix (reported by Angel): the friends list stops going stale after you have been online a while. EBC listened for friend updates in two ways. The main one named the wrong thing - it hooked the socket EVENT name rather than the function, so it had never worked and only warned about it in the browser console. That left a socket listener as the only path, and that listener was attached once to the connection you had at the time. Every reconnect replaced the connection and left the listener behind, so friend updates stopped for good: the list froze on whatever it last knew, and someone standing in the room with you still showed as offline. It now hooks the real function, which survives reconnects, and the socket listener re-attaches if the connection changes. This is also what was behind the friends list freezing after a void.",
                 "Fix: sharing an achievement no longer leaves the message stuck half-sent. It went out with a dictionary in a shape the game does not recognise, so the message was never acknowledged - it sat in the pale still-sending state with the dots after it and never turned into normal chat text, which is why it read as almost invisible. It now uses a shape the game knows. Shares from anyone still on an older build are still understood, so nobody loses their plaques while updating.",
                 "Fix (suggested by Sally): the time-based bondage achievements now need you to actually be restrained. They counted anything worn in a restraint slot - and that list includes ears, nose, piercings and handhelds, so a pair of earrings counted the same as a hogtie. Excluding collars, which the timer settings already did, only covered the most obvious case of a much wider one. All three now ask the game whether you are restrained, gagged or chaste, which it answers from item effects, so only something that genuinely restricts you counts. Time still comes from the per-item timers, so offline hours are included. Your visible bound timer is unchanged - it keeps its own exclusion list.",
             ],
@@ -50416,15 +50417,45 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             }
             catch ( /* ignore */_e) { /* ignore */ }
         };
-        // Primary: hook the BC global (reliable in R128 where it is a patchable function)
+        // The function is called ServerAccountQueryResult. "AccountQueryResult" is
+        // the SOCKET EVENT name, not a function - hooking it has been failing
+        // silently (tryHookFunction only warns to the console), which left the
+        // socket listener below as the only working path.
+        //
+        // That listener is bound once, to whichever socket existed at load. BC
+        // replaces the socket when it reconnects, and every reconnect therefore
+        // ended friend updates permanently: the list froze on whatever it last
+        // knew, and someone standing in the room with you still read as offline.
+        // "After some time being online" is how long it takes to hit a reconnect.
+        //
+        // Hooking the real function fixes it properly, because mod hooks are
+        // applied to the function itself and survive any number of reconnects.
+        tryHookFunction(modAPI, "ServerAccountQueryResult", 3, (args, next) => {
+            handleAccountQueryResult(args[0]);
+            return next(args);
+        });
+        // Older BC exposed it under the short name. Harmless where it does not.
         tryHookFunction(modAPI, "AccountQueryResult", 3, (args, next) => {
             handleAccountQueryResult(args[0]);
             return next(args);
         });
-        // Fallback: socket listener for BC versions where AccountQueryResult is not hookable
+        // Socket listener as a last resort, re-bound whenever the socket changes so
+        // it cannot be left attached to a dead one. Cheap: it only rebinds when the
+        // object identity actually differs.
         try {
-            const sock = window.ServerSocket;
-            sock === null || sock === void 0 ? void 0 : sock.on("AccountQueryResult", handleAccountQueryResult);
+            let boundSocket = null;
+            const bindSocket = () => {
+                const sock = window.ServerSocket;
+                if (!sock || sock === boundSocket)
+                    return;
+                boundSocket = sock;
+                try {
+                    sock.on("AccountQueryResult", handleAccountQueryResult);
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            };
+            bindSocket();
+            setInterval(bindSocket, 20000);
         }
         catch ( /* ignore */_h) { /* ignore */ }
         // Initial query — fire 3 s after load so the connection is settled, then every
