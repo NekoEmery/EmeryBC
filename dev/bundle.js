@@ -4758,22 +4758,65 @@
     // Tracks failed removal attempts per group. Items here are NOT merged into
     // knownRestraints so they remain detectable for a retry.
     const failAttempts = new Map();
+    /**
+     * Identity of a worn restraint: the slot AND which item is in it.
+     *
+     * This used to be the slot name alone, which meant swapping the rope on your
+     * arms for cuffs read as the same restraint and was never escaped.
+     */
+    function wornKey(item) {
+        return item.Asset.Group.Name + " " + getItemKey(item);
+    }
+    function wornNow() {
+        const out = new Map();
+        try {
+            for (const i of Player.Appearance) {
+                if (RESTRAINT_GROUPS.has(i.Asset.Group.Name))
+                    out.set(wornKey(i), i);
+            }
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+        return out;
+    }
     function snapshotPlayerRestraints() {
         try {
-            knownRestraints = new Set(Player.Appearance
-                .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
-                .map((i) => i.Asset.Group.Name));
+            knownRestraints = new Set(wornNow().keys());
             failAttempts.clear();
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    // Merge currently worn restraint groups into knownRestraints, but skip groups
-    // that still have pending retry attempts — they need to stay detectable.
+    /**
+     * Drops anything from the known set that is no longer being worn.
+     *
+     * Without this the set only ever grew, and that is what broke auto-escape. A
+     * restraint that could not be removed - a locked one, most obviously - was
+     * given up on after two tries and written into the known set to stop it
+     * retrying forever. Nothing ever took it back out, so that slot stayed ignored
+     * for the rest of the session: once someone locked your arms, no arm restraint
+     * was ever escaped again, including new ones applied long after the lock was
+     * gone. Only changing room cleared it, because that re-snapshots from scratch.
+     *
+     * Forgetting an item the moment it comes off means the give-up is temporary -
+     * it lasts as long as the thing that caused it, and no longer.
+     */
+    function forgetRemoved(worn) {
+        for (const key of [...knownRestraints]) {
+            if (!worn.has(key))
+                knownRestraints.delete(key);
+        }
+        for (const key of [...failAttempts.keys()]) {
+            if (!worn.has(key))
+                failAttempts.delete(key);
+        }
+    }
+    // Merge currently worn restraints into knownRestraints, but skip ones that
+    // still have pending retry attempts - they need to stay detectable.
     function mergeCurrentRestraints() {
         try {
-            Player.Appearance
-                .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !failAttempts.has(i.Asset.Group.Name))
-                .forEach((i) => knownRestraints.add(i.Asset.Group.Name));
+            for (const [key] of wornNow()) {
+                if (!failAttempts.has(key))
+                    knownRestraints.add(key);
+            }
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
@@ -4784,16 +4827,21 @@
             return;
         try {
             const whitelist = getAntiRestraintWhitelist();
-            const current = Player.Appearance.filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
-            // Whitelist is now item-key based ("AssetName" or "AssetName|CraftName")
-            const candidates = current.filter((i) => !knownRestraints.has(i.Asset.Group.Name) &&
-                !whitelist.includes(getItemKey(i)));
-            // Promote items that have hit the retry limit: add to known and drop them.
-            for (const item of candidates.filter(i => { var _a; return ((_a = failAttempts.get(i.Asset.Group.Name)) !== null && _a !== void 0 ? _a : 0) >= 2; })) {
-                knownRestraints.add(item.Asset.Group.Name);
-                failAttempts.delete(item.Asset.Group.Name);
+            const worn = wornNow();
+            // Anything no longer on you is forgotten, so a slot that was given up on
+            // becomes eligible again as soon as the item causing it comes off.
+            forgetRemoved(worn);
+            // Whitelist is item-key based ("AssetName" or "AssetName|CraftName")
+            const candidates = [...worn.entries()].filter(([key, i]) => !knownRestraints.has(key) && !whitelist.includes(getItemKey(i)));
+            // Give up on ones that have hit the retry limit. Still recorded, but the
+            // record now disappears with the item rather than lasting the session.
+            for (const [key] of candidates.filter(([k]) => { var _a; return ((_a = failAttempts.get(k)) !== null && _a !== void 0 ? _a : 0) >= 2; })) {
+                knownRestraints.add(key);
+                failAttempts.delete(key);
             }
-            const newItems = candidates.filter((i) => !knownRestraints.has(i.Asset.Group.Name));
+            const newItems = candidates
+                .filter(([key]) => !knownRestraints.has(key))
+                .map(([, i]) => i);
             if (newItems.length === 0)
                 return;
             escaping = true;
@@ -4822,13 +4870,13 @@
             .map((i) => i.Asset.Group.Name));
         let anySucceeded = false;
         for (const item of newItems) {
-            const group = item.Asset.Group.Name;
-            if (stillPresent.has(group)) {
-                failAttempts.set(group, ((_a = failAttempts.get(group)) !== null && _a !== void 0 ? _a : 0) + 1);
+            const key = wornKey(item);
+            if (stillPresent.has(item.Asset.Group.Name)) {
+                failAttempts.set(key, ((_a = failAttempts.get(key)) !== null && _a !== void 0 ? _a : 0) + 1);
             }
             else {
                 anySucceeded = true;
-                failAttempts.delete(group);
+                failAttempts.delete(key);
             }
         }
         callBC(() => CharacterRefresh(Player, false));
@@ -41612,7 +41660,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.3";
-    const SAL_VERSION = 283; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 284; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
