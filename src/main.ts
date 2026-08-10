@@ -29,8 +29,8 @@ import bcModSdk from "bondage-club-mod-sdk";
 import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.0.1";
-const SAL_VERSION  = 277;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.0.2";
+const SAL_VERSION  = 280;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -47,6 +47,13 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "9.0.2",
+        changes: [
+            "Fix: sharing an achievement no longer leaves the message stuck half-sent. It went out with a dictionary in a shape the game does not recognise, so the message was never acknowledged - it sat in the pale still-sending state with the dots after it and never turned into normal chat text, which is why it read as almost invisible. It now uses a shape the game knows. Shares from anyone still on an older build are still understood, so nobody loses their plaques while updating.",
+            "Fix (suggested by Sally): the time-based bondage achievements now need you to actually be restrained. They counted anything worn in a restraint slot - and that list includes ears, nose, piercings and handhelds, so a pair of earrings counted the same as a hogtie. Excluding collars, which the timer settings already did, only covered the most obvious case of a much wider one. All three now ask the game whether you are restrained, gagged or chaste, which it answers from item effects, so only something that genuinely restricts you counts. Time still comes from the per-item timers, so offline hours are included. Your visible bound timer is unchanged - it keeps its own exclusion list.",
+        ],
+    },
     {
         version: "9.0.1",
         changes: [

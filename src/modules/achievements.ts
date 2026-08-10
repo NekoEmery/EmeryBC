@@ -6,7 +6,7 @@
 // tiny); tier-ups pop a toast. Fed from main.ts's ChatRoomMessage hook.
 
 import { getSettings, syncSettings } from "./bcUtils";
-import { getRestraintMs, getGaggedMs, getChastityMs } from "./timer";
+import { getRestrainedMs, getGaggedMs, getChastityMs } from "./timer";
 import { CREDITED, ACHIEVEMENT_MEMBERS, isCredited, hasCreatorAccess } from "./crew";
 
 // Crew whitelist - only these members track or see achievements.
@@ -111,7 +111,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "tickler",   icon: "🪶", name: "Tickle Monster", desc: "Tickle others {n} times",   counter: "tickle_give", tiers: [10, 50, 250], cls: "given" },
     // ⛓ Bondage
     { id: "tied",   icon: "⛓",  name: "Tied Down",      desc: "Have restraints put on you {n} times", counter: "tied_recv", tiers: [5, 25, 100],  cls: "bondage" },
-    { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight",        counter: "bound_h",   tiers: [24, 100, 500], cls: "bondage" },
+    { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay properly restrained {n} hours straight",        counter: "bound_h",   tiers: [24, 100, 500], cls: "bondage" },
     { id: "rigger", icon: "🪢", name: "Rigger",         desc: "Put restraints on others {n} times",   counter: "tie_give",  tiers: [10, 50, 250], cls: "bondage" },
     // Suggested by Sally. Measured from the per-item timers, so they carry across
     // rooms and offline time the same way the bound streak does. A collar does
@@ -552,7 +552,15 @@ export function shareAchievement(
         const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
         const desc = achievementDesc(a, a.tiers[tier - 1]);
         const content = `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`;
-        const dict = [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }];
+        // TextDictionaryEntry - { Tag, Text } - is a shape BC knows. The old entry
+        // invented AchId/AchTier fields, and a dictionary BC cannot parse leaves
+        // the message unacknowledged: it stays in the pale "still sending" state
+        // with the dots after it and never turns into normal chat text. That is
+        // why the share looked half invisible and stuck.
+        //
+        // Nothing in the message contains the tag text, so no substitution
+        // happens - it is only along for the ride.
+        const dict = [{ Tag: "EBCACH", Text: JSON.stringify({ id: a.id, tier }) }];
 
         if (mode.kind === "public") {
             ServerSend("ChatRoomChat", { Content: content, Type: "Emote", Dictionary: dict } as never);
@@ -603,7 +611,21 @@ export function handleAchievementShareMessage(data: Record<string, unknown> | nu
         // Respect the viewer: opted out, or plaques switched off = show nothing
         // special, let BC render the plain message instead.
         if (!getShowSharedPlaques()) return false;
-        const a = ACHIEVEMENTS.find(x => x.id === entry.AchId);
+        // Read the new { Text: "{id,tier}" } form, falling back to the old
+        // AchId/AchTier fields so shares from anyone still on an older build
+        // keep rendering as a plaque instead of silently doing nothing.
+        let sharedId: unknown = entry.AchId;
+        let sharedTier: unknown = entry.AchTier;
+        if (typeof entry.Text === "string") {
+            try {
+                const parsed = JSON.parse(entry.Text) as { id?: unknown; tier?: unknown };
+                if (parsed && typeof parsed === "object") {
+                    sharedId = parsed.id ?? sharedId;
+                    sharedTier = parsed.tier ?? sharedTier;
+                }
+            } catch { /* not ours after all - fall through to the old fields */ }
+        }
+        const a = ACHIEVEMENTS.find(x => x.id === sharedId);
         if (!a) return false;
         const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
         // Our own room share comes straight back to us, and shareAchievement has
@@ -614,7 +636,7 @@ export function handleAchievementShareMessage(data: Record<string, unknown> | nu
         const last = _plaqueLastBySender.get(senderNum) ?? 0;
         if (Date.now() - last < 30_000) return true; // swallow the spam silently
         _plaqueLastBySender.set(senderNum, Date.now());
-        const tier = typeof entry.AchTier === "number" ? Math.max(1, Math.min(entry.AchTier, a.tiers.length)) : 1;
+        const tier = typeof sharedTier === "number" ? Math.max(1, Math.min(sharedTier, a.tiers.length)) : 1;
         let senderName = `#${senderNum}`;
         try {
             const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
@@ -744,7 +766,7 @@ setInterval(() => {
             const hours = Math.floor(ms / 3_600_000);
             if (hours > (st.c[key] ?? 0)) st.c[key] = hours;
         };
-        best("bound_h",  getRestraintMs());
+        best("bound_h",  getRestrainedMs());
         best("gag_h",    getGaggedMs());
         best("chaste_h", getChastityMs());
 
