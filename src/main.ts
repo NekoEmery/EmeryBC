@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, achievementScanRoom, achieve
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.6";
-const SAL_VERSION  = 298;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 299;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.0.6",
         changes: [
+            "IMPORTANT fix: a restraint that was on you before you switched auto-escape on can no longer be swapped off you. Escaping the item someone swapped IN was not enough on its own - the swap had already taken the original off, so removing the replacement just left the slot bare and the swap had stripped you anyway. The original is now put straight back. It only fires when the slot would otherwise be left empty, so it cannot fight a change you made yourself, and taking something off yourself stops it being guarded.",
+            "Fix (spotted by Julia): the escape emote uses an item's crafted name. It named the underlying item instead, so the room saw 'Angel swaps Julia's Cuffs...' followed by EBC saying the Leather Deluxe Leg Cuffs fell away - which reads as though it removed something else entirely.",
             "The Achievements window and the Tutorial can be dragged too, so all three floating windows behave the same way. Grab any empty part of one and move it; they stay inside the screen and start centred each time. Buttons, text boxes and links are not drag handles, so nothing you click gets stolen by a drag.",
             "The Suggestions & Bugs window can be dragged, and no longer blurs the game behind it. It dims like the achievements window instead. You are usually writing about something that just happened on screen, and blurring the exact thing you are describing meant writing it from memory. Drag it by any empty part of the window; it cannot be dragged off the edge, and it starts centred each time.",
             "Fix: the thank-you after sending says what you actually sent. Reporting a bug and being thanked for your suggestion reads as though it was not understood. Bug reports, suggestions and anything else now each get their own wording, in all seven languages.",
