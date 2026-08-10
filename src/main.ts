@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, achievementScanRoom, achieve
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.5";
-const SAL_VERSION  = 292;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 293;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -61,6 +61,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "IMPORTANT fix: auto-escape works properly again. Three separate things were wrong. It kept a list of restraints to leave alone that only ever grew - anything it failed to remove was written in and never taken out, so once something stuck on a slot, every later restraint on that slot was ignored for the rest of the session. It also used the game's normal remove call, which silently refuses locked items, so a lock simply defeated it. And it looked up who restrained you before the game had said who it was, so the emote glared at nobody nearly every time. Entries are now forgotten the moment an item comes off, locked items are removed the same way /ebc release does it, and the name is looked up when the emote is actually sent. Anything already on you when you switch it on stays on, including owner locks - it only stops new things going on.",
             "New: six more rare achievements. Kitty's Mark, Good Pet, Nose Booped and Held Close for being spanked, headpatted, booped and hugged by Emery, Caught for being tied up by her, and Menace for tickling her. Being spanked or tickled was not noticed at all before, so those needed new tracking rather than just new entries.",
             "New: Completionist. Unlock every achievement at its highest level and your name gets a gold sparkle in the people lists, which everyone else running EBC can see. The crew and Emery ones do not count towards it - those need particular people to be online and willing, so requiring them would put finishing outside your hands. If you already have your own name colour you keep it and just gain the sparkles, because your name is yours. The Achievements panel shows the reward whether or not you have it, using your own name, so you can see what you are working towards.",
+            "Fix: for Emery, the Emery achievements now SAY what they actually count. They retarget to the credited crew when she is the player, since she cannot do things to herself, but the cards still read 'Spank Emery 5 times' - which was simply untrue on her screen. They now read 'a crew member'.",
             "Fix: the creator paw beside Emery's name is the real gold paw EBC uses everywhere else, not an emoji standing in for it. It now matches the overhead mark and the credits card.",
             "Emery gets a gold paw beside her name in the people lists, for everyone. It needs nothing sent - her member number is already in EBC for the credits, so every copy knows which row is hers and nobody can wear it by claiming to.",
             "Emery can now earn the achievements that are about her. They all said Emery, and she cannot do things to herself, so her own list could never be finished. When the player is Emery they point at the credited crew instead - same achievement, same reward, a target she can reach.",

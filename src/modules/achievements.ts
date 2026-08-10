@@ -116,9 +116,20 @@ export function hasCompletedEverything(): boolean {
     return total > 0 && done >= total;
 }
 
-/** Fills {n} in a description, honouring the def's formatter. */
+/**
+ * Fills {n} in a description, honouring the def's formatter.
+ *
+ * For Emery herself the word "Emery" is swapped for a crew member, because the
+ * achievements retarget to the credited crew when she is the player - see
+ * specialNums(). Showing her "Spank Emery 5 times" while actually counting
+ * spanks aimed at Sin or Julia would just be a lie on the card.
+ */
 export function achievementDesc(a: AchievementDef, n: number): string {
-    return a.desc.replace("{n}", a.fmtN ? a.fmtN(n) : String(n));
+    const text = a.desc.replace("{n}", a.fmtN ? a.fmtN(n) : String(n));
+    if ((Player?.MemberNumber ?? 0) !== EMERY || !text.includes("Emery")) return text;
+    return text
+        .replace(/^Emery/, "A crew member")
+        .replace(/Emery/g, "a crew member");
 }
 
 export const ACHIEVEMENT_CLASSES: Array<{ id: string; label: string; icon: string }> = [
