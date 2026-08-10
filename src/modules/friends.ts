@@ -324,6 +324,21 @@ export function getEBCVersion(memberNumber: number): string | null {
     return ebcVersionCache.get(memberNumber) ?? null;
 }
 
+// Who has finished every achievement. Memory only, on purpose: it arrives with
+// the presence marker whenever you share a room, and someone's progress is
+// theirs to broadcast rather than ours to remember about them.
+const ebcCompleteCache = new Set<number>();
+
+export function cacheEBCComplete(memberNumber: number, complete: boolean): void {
+    if (complete) ebcCompleteCache.add(memberNumber);
+    else ebcCompleteCache.delete(memberNumber);
+}
+
+/** True when this person has told us they finished every achievement. */
+export function isEBCComplete(memberNumber: number): boolean {
+    return ebcCompleteCache.has(memberNumber);
+}
+
 export function updateOnlineFriends(entries: Array<Record<string, unknown>>): void {
     const prevOnline = new Set(onlineSet);
     onlineSet.clear();

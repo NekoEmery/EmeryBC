@@ -82,6 +82,36 @@ export interface AchievementDef {
     fmtN?: (n: number) => string;
 }
 
+/**
+ * Achievements that do NOT count toward Completionist.
+ *
+ * The crew and Emery ones need other specific people to be online and willing,
+ * so requiring them would put finishing the list outside the player's hands
+ * entirely. They stay in the list to chase; they just do not gate the reward.
+ */
+const COMPLETION_EXCLUDES = new Set(["crew_met", "completionist"]);
+
+function countsTowardCompletion(a: AchievementDef): boolean {
+    return a.cls !== "emery" && !COMPLETION_EXCLUDES.has(a.id);
+}
+
+/** How far along the 100% reward is: [done, total]. */
+export function completionProgress(): [number, number] {
+    const list = ACHIEVEMENTS.filter(countsTowardCompletion);
+    let done = 0;
+    for (const a of list) {
+        const value = getState().c[a.counter] ?? 0;
+        if (tiersReached(a, value) >= a.tiers.length) done++;
+    }
+    return [done, list.length];
+}
+
+/** True once every counting achievement is at its highest tier. */
+export function hasCompletedEverything(): boolean {
+    const [done, total] = completionProgress();
+    return total > 0 && done >= total;
+}
+
 /** Fills {n} in a description, honouring the def's formatter. */
 export function achievementDesc(a: AchievementDef, n: number): string {
     return a.desc.replace("{n}", a.fmtN ? a.fmtN(n) : String(n));
@@ -126,11 +156,24 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "spank_the_dev", icon: "⭐", name: "Brave Soul",      desc: "Spank Emery {n} times",        counter: "spank_emery", tiers: [5],  cls: "emery", rare: true },
     { id: "dev_wrangler",  icon: "⭐", name: "Kitty Rigger",    desc: "Tie Emery up",                 counter: "bind_emery",  tiers: [1],  cls: "emery", rare: true },
     { id: "devs_favorite", icon: "⭐", name: "Kitty's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
+
+    // Things done TO you. The receiving side had no idea about spanks or
+    // tickles before these, so both are now detected there too.
+    { id: "spanked_by_dev", icon: "⭐", name: "Kitty's Mark", desc: "Get spanked by Emery",     counter: "spank_from_emery", tiers: [1], cls: "emery", rare: true },
+    { id: "patted_by_dev",  icon: "⭐", name: "Good Pet",     desc: "Get headpatted by Emery",  counter: "pet_from_emery",   tiers: [1], cls: "emery", rare: true },
+    { id: "booped_by_dev",  icon: "⭐", name: "Nose Booped",  desc: "Get booped by Emery",      counter: "boop_from_emery",  tiers: [1], cls: "emery", rare: true },
+    { id: "hugged_by_dev",  icon: "⭐", name: "Held Close",   desc: "Get hugged by Emery",      counter: "hug_from_emery",   tiers: [1], cls: "emery", rare: true },
+    { id: "tied_by_dev",    icon: "⭐", name: "Caught",       desc: "Get tied up by Emery",     counter: "tied_by_emery",    tiers: [1], cls: "emery", rare: true },
+    { id: "tickle_the_dev", icon: "⭐", name: "Menace",       desc: "Tickle Emery {n} times",   counter: "tickle_emery",     tiers: [5], cls: "emery", rare: true },
     // Thresholds track the roster length so they stay right if it grows. If you
     // are credited yourself you count toward your own total - you already know
     // who you are - so everyone needs the same number.
     { id: "crew_met", icon: "⭐", name: "Met the Crew",  desc: "Share a room with all {n} credited EBC people", counter: "crew_met", tiers: [CREDITED.length], cls: "emery", rare: true },
-    { id: "crew_pet", icon: "⭐", name: "Crew Cuddler",  desc: "Headpat all {n} credited EBC people",           counter: "crew_pet", tiers: [CREDITED.length], cls: "emery", rare: true },
+
+    // Completionist is not tracked like the others - its progress is derived
+    // from everything else, in completionProgress() below. It is listed last so
+    // it reads as the summary of the list rather than another entry in it.
+    { id: "completionist", icon: "🏆", name: "Completionist", desc: "Every achievement at its highest level", counter: "completion", tiers: [1], cls: "emery", rare: true },
 ];
 
 interface AchState {
@@ -308,7 +351,10 @@ function collectCredited(key: "cm" | "cp", counter: string, num: number): void {
  * happened. Naming who is left makes it obvious it registered.
  */
 export function crewRosterStatus(id: string): { done: string[]; left: string[]; all: Array<{ name: string; done: boolean }> } | null {
-    const key = id === "crew_met" ? "cm" : id === "crew_pet" ? "cp" : null;
+    // "cp" was Crew Cuddler, removed - headpatting six people to finish a list
+    // is pressure to touch someone who never asked. Old saved data is simply
+    // ignored rather than migrated.
+    const key = id === "crew_met" ? "cm" : null;
     if (!key) return null;
     try {
         const st = getState();
@@ -425,6 +471,29 @@ function bump(counter: string, by = 1): void {
  *  The GROUP matters - BC's "Boop Nose" is the Pet activity on ItemNose, while
  *  a headpat is the same Pet activity on ItemHead. Without the group the two
  *  are indistinguishable. */
+/**
+ * Who the "Emery" achievements point at.
+ *
+ * They all say Emery, and Emery cannot do things to herself - so as written she
+ * could never finish her own list. When the player IS Emery, they point at the
+ * credited crew instead. Same achievement, same reward, a target she can
+ * actually reach.
+ *
+ * Deliberately not "anyone": that would turn Brave Soul into the ordinary
+ * Heavy Hand achievement and the rare ones would stop meaning anything.
+ */
+function specialNums(): number[] {
+    const me = Player?.MemberNumber ?? 0;
+    if (me !== EMERY) return [EMERY];
+    return CREDITED.map(p => p.num).filter(n => n !== EMERY);
+}
+
+function isSpecialTarget(n: number | undefined): boolean {
+    return typeof n === "number" && specialNums().includes(n);
+}
+
+const isFromSpecial = isSpecialTarget;
+
 export function achievementOnActivity(
     sourceNum: number | undefined,
     targetNum: number | undefined,
@@ -447,11 +516,21 @@ export function achievementOnActivity(
 
         if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
             // Done TO you
+            const isSpank  = act.includes("spank");
+            const isTickle = act.includes("tickle");
             if (isBoop) bump("boop_recv");
             if (isPat) bump("pet_recv");
             if (isHug) bump("hug_recv");
             if (act.includes("kiss")) bump("kiss_recv");
-            if (sourceNum === EMERY) bump("from_emery");
+            // Who it came from, per activity. Only the total existed before, so
+            // "get spanked by Emery" had nothing to read.
+            if (isFromSpecial(sourceNum)) {
+                bump("from_emery");
+                if (isSpank)  bump("spank_from_emery");
+                if (isPat)    bump("pet_from_emery");
+                if (isBoop)   bump("boop_from_emery");
+                if (isHug)    bump("hug_from_emery");
+            }
             // Distinct people who have done anything to you
             const st = getState();
             if (!Array.isArray(st.p)) st.p = [];
@@ -464,7 +543,7 @@ export function achievementOnActivity(
             }
         } else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
             // Things YOU do to others
-            const toEmery = targetNum === EMERY;
+            const toEmery = isSpecialTarget(targetNum);
             if (isBoop) {
                 bump("boop_give");
                 if (toEmery) bump("boop_emery");
@@ -472,7 +551,6 @@ export function achievementOnActivity(
             if (isPat) {
                 bump("pet_give");
                 if (toEmery) bump("pet_emery");
-                collectCredited("cp", "crew_pet", targetNum);
             }
             if (isHug) {
                 bump("hug_give");
@@ -483,7 +561,10 @@ export function achievementOnActivity(
                 bump("spank_give");
                 if (toEmery) bump("spank_emery");
             }
-            if (act.includes("tickle")) bump("tickle_give");
+            if (act.includes("tickle")) {
+                bump("tickle_give");
+                if (toEmery) bump("tickle_emery");
+            }
         }
     } catch { /* ignore */ }
 }
@@ -500,9 +581,10 @@ export function achievementOnItemApply(
         const me = Player.MemberNumber ?? 0;
         if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
             bump("tied_recv");
+            if (isFromSpecial(sourceNum)) bump("tied_by_emery");
         } else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
             bump("tie_give");
-            if (targetNum === EMERY) bump("bind_emery");
+            if (isSpecialTarget(targetNum)) bump("bind_emery");
         }
     } catch { /* ignore */ }
 }

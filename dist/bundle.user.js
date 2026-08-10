@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      9.0.3
+// @version      9.0.4
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -7365,6 +7365,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         var _a;
         return (_a = ebcVersionCache.get(memberNumber)) !== null && _a !== void 0 ? _a : null;
     }
+    // Who has finished every achievement. Memory only, on purpose: it arrives with
+    // the presence marker whenever you share a room, and someone's progress is
+    // theirs to broadcast rather than ours to remember about them.
+    const ebcCompleteCache = new Set();
+    function cacheEBCComplete(memberNumber, complete) {
+        if (complete)
+            ebcCompleteCache.add(memberNumber);
+        else
+            ebcCompleteCache.delete(memberNumber);
+    }
+    /** True when this person has told us they finished every achievement. */
+    function isEBCComplete(memberNumber) {
+        return ebcCompleteCache.has(memberNumber);
+    }
     function updateOnlineFriends(entries) {
         var _a, _b, _c;
         const prevOnline = new Set(onlineSet);
@@ -8401,6 +8415,34 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function isAchievementUser(memberNumber) {
         return typeof memberNumber === "number" && !isAchievementsOptedOut();
     }
+    /**
+     * Achievements that do NOT count toward Completionist.
+     *
+     * The crew and Emery ones need other specific people to be online and willing,
+     * so requiring them would put finishing the list outside the player's hands
+     * entirely. They stay in the list to chase; they just do not gate the reward.
+     */
+    const COMPLETION_EXCLUDES = new Set(["crew_met", "completionist"]);
+    function countsTowardCompletion(a) {
+        return a.cls !== "emery" && !COMPLETION_EXCLUDES.has(a.id);
+    }
+    /** How far along the 100% reward is: [done, total]. */
+    function completionProgress() {
+        var _a;
+        const list = ACHIEVEMENTS.filter(countsTowardCompletion);
+        let done = 0;
+        for (const a of list) {
+            const value = (_a = getState().c[a.counter]) !== null && _a !== void 0 ? _a : 0;
+            if (tiersReached(a, value) >= a.tiers.length)
+                done++;
+        }
+        return [done, list.length];
+    }
+    /** True once every counting achievement is at its highest tier. */
+    function hasCompletedEverything() {
+        const [done, total] = completionProgress();
+        return total > 0 && done >= total;
+    }
     /** Fills {n} in a description, honouring the def's formatter. */
     function achievementDesc(a, n) {
         return a.desc.replace("{n}", a.fmtN ? a.fmtN(n) : String(n));
@@ -8443,11 +8485,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { id: "spank_the_dev", icon: "⭐", name: "Brave Soul", desc: "Spank Emery {n} times", counter: "spank_emery", tiers: [5], cls: "emery", rare: true },
         { id: "dev_wrangler", icon: "⭐", name: "Kitty Rigger", desc: "Tie Emery up", counter: "bind_emery", tiers: [1], cls: "emery", rare: true },
         { id: "devs_favorite", icon: "⭐", name: "Kitty's Favorite", desc: "Emery does {n} things to you", counter: "from_emery", tiers: [25], cls: "emery", rare: true },
+        // Things done TO you. The receiving side had no idea about spanks or
+        // tickles before these, so both are now detected there too.
+        { id: "spanked_by_dev", icon: "⭐", name: "Kitty's Mark", desc: "Get spanked by Emery", counter: "spank_from_emery", tiers: [1], cls: "emery", rare: true },
+        { id: "patted_by_dev", icon: "⭐", name: "Good Pet", desc: "Get headpatted by Emery", counter: "pet_from_emery", tiers: [1], cls: "emery", rare: true },
+        { id: "booped_by_dev", icon: "⭐", name: "Nose Booped", desc: "Get booped by Emery", counter: "boop_from_emery", tiers: [1], cls: "emery", rare: true },
+        { id: "hugged_by_dev", icon: "⭐", name: "Held Close", desc: "Get hugged by Emery", counter: "hug_from_emery", tiers: [1], cls: "emery", rare: true },
+        { id: "tied_by_dev", icon: "⭐", name: "Caught", desc: "Get tied up by Emery", counter: "tied_by_emery", tiers: [1], cls: "emery", rare: true },
+        { id: "tickle_the_dev", icon: "⭐", name: "Menace", desc: "Tickle Emery {n} times", counter: "tickle_emery", tiers: [5], cls: "emery", rare: true },
         // Thresholds track the roster length so they stay right if it grows. If you
         // are credited yourself you count toward your own total - you already know
         // who you are - so everyone needs the same number.
         { id: "crew_met", icon: "⭐", name: "Met the Crew", desc: "Share a room with all {n} credited EBC people", counter: "crew_met", tiers: [CREDITED.length], cls: "emery", rare: true },
-        { id: "crew_pet", icon: "⭐", name: "Crew Cuddler", desc: "Headpat all {n} credited EBC people", counter: "crew_pet", tiers: [CREDITED.length], cls: "emery", rare: true },
+        // Completionist is not tracked like the others - its progress is derived
+        // from everything else, in completionProgress() below. It is listed last so
+        // it reads as the summary of the list rather than another entry in it.
+        { id: "completionist", icon: "🏆", name: "Completionist", desc: "Every achievement at its highest level", counter: "completion", tiers: [1], cls: "emery", rare: true },
     ];
     function getState() {
         try {
@@ -8634,7 +8687,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         st.c[counter] = list.length;
         if (announce) {
             const who = (_c = (_b = CREDITED.find(p => p.num === num)) === null || _b === void 0 ? void 0 : _b.name) !== null && _c !== void 0 ? _c : `#${num}`;
-            showCrewToast(who, key === "cm" ? "met" : "petted", list.length, CREDITED.length);
+            showCrewToast(who, "met" , list.length, CREDITED.length);
         }
         checkUnlocks();
         save();
@@ -8648,7 +8701,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
      */
     function crewRosterStatus(id) {
         var _a;
-        const key = id === "crew_met" ? "cm" : id === "crew_pet" ? "cp" : null;
+        // "cp" was Crew Cuddler, removed - headpatting six people to finish a list
+        // is pressure to touch someone who never asked. Old saved data is simply
+        // ignored rather than migrated.
+        const key = id === "crew_met" ? "cm" : null;
         if (!key)
             return null;
         try {
@@ -8775,6 +8831,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
      *  The GROUP matters - BC's "Boop Nose" is the Pet activity on ItemNose, while
      *  a headpat is the same Pet activity on ItemHead. Without the group the two
      *  are indistinguishable. */
+    /**
+     * Who the "Emery" achievements point at.
+     *
+     * They all say Emery, and Emery cannot do things to herself - so as written she
+     * could never finish her own list. When the player IS Emery, they point at the
+     * credited crew instead. Same achievement, same reward, a target she can
+     * actually reach.
+     *
+     * Deliberately not "anyone": that would turn Brave Soul into the ordinary
+     * Heavy Hand achievement and the rare ones would stop meaning anything.
+     */
+    function specialNums() {
+        var _a;
+        const me = (_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+        if (me !== EMERY)
+            return [EMERY];
+        return CREDITED.map(p => p.num).filter(n => n !== EMERY);
+    }
+    function isSpecialTarget(n) {
+        return typeof n === "number" && specialNums().includes(n);
+    }
+    const isFromSpecial = isSpecialTarget;
     function achievementOnActivity(sourceNum, targetNum, actName, actGroup) {
         var _a;
         try {
@@ -8795,6 +8873,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const isHug = act.includes("hug") || act.includes("cuddle") || act.includes("nuzzle");
             if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
                 // Done TO you
+                const isSpank = act.includes("spank");
+                const isTickle = act.includes("tickle");
                 if (isBoop)
                     bump("boop_recv");
                 if (isPat)
@@ -8803,8 +8883,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     bump("hug_recv");
                 if (act.includes("kiss"))
                     bump("kiss_recv");
-                if (sourceNum === EMERY)
+                // Who it came from, per activity. Only the total existed before, so
+                // "get spanked by Emery" had nothing to read.
+                if (isFromSpecial(sourceNum)) {
                     bump("from_emery");
+                    if (isSpank)
+                        bump("spank_from_emery");
+                    if (isPat)
+                        bump("pet_from_emery");
+                    if (isBoop)
+                        bump("boop_from_emery");
+                    if (isHug)
+                        bump("hug_from_emery");
+                }
                 // Distinct people who have done anything to you
                 const st = getState();
                 if (!Array.isArray(st.p))
@@ -8820,7 +8911,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
                 // Things YOU do to others
-                const toEmery = targetNum === EMERY;
+                const toEmery = isSpecialTarget(targetNum);
                 if (isBoop) {
                     bump("boop_give");
                     if (toEmery)
@@ -8830,7 +8921,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     bump("pet_give");
                     if (toEmery)
                         bump("pet_emery");
-                    collectCredited("cp", "crew_pet", targetNum);
                 }
                 if (isHug) {
                     bump("hug_give");
@@ -8844,8 +8934,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                     if (toEmery)
                         bump("spank_emery");
                 }
-                if (act.includes("tickle"))
+                if (act.includes("tickle")) {
                     bump("tickle_give");
+                    if (toEmery)
+                        bump("tickle_emery");
+                }
             }
         }
         catch ( /* ignore */_c) { /* ignore */ }
@@ -8861,10 +8954,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const me = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
             if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
                 bump("tied_recv");
+                if (isFromSpecial(sourceNum))
+                    bump("tied_by_emery");
             }
             else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
                 bump("tie_give");
-                if (targetNum === EMERY)
+                if (isSpecialTarget(targetNum))
                     bump("bind_emery");
             }
         }
@@ -11558,6 +11653,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 @keyframes ebc-dot-pulse {
     0%, 100% { box-shadow: 0 0 4px #cf6f98; transform: scale(1); }
     50%       { box-shadow: 0 0 10px #e890b8, 0 0 18px #cf6f9855; transform: scale(1.25); }
+}
+
+@keyframes ebc-paw-glow {
+    0%, 100% { filter: drop-shadow(0 0 1px #c9954a); }
+    50%       { filter: drop-shadow(0 0 5px #ffd77a); }
+}
+
+@keyframes ebc-twinkle {
+    0%, 100% { opacity: 0.22; transform: scale(0.8); }
+    50%       { opacity: 1;    transform: scale(1.2); }
 }
 
 @keyframes ebc-gradient-flow {
@@ -15095,6 +15200,44 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const VIP_MEMBERS = {};
     for (const _p of CREDITED) {
         VIP_MEMBERS[_p.num] = { label: (_a = _p.vipLabel) !== null && _a !== void 0 ? _a : _p.name, color: _p.color, gradient: _p.gradient };
+    }
+    function decorateName(el, num, forcePreview = false) {
+        const before = [];
+        const after = [];
+        const vip = VIP_MEMBERS[num];
+        if (vip)
+            applyGradientText(el, vip.gradient[0], vip.gradient[1]);
+        // The paw needs nothing sent - Emery's number is already in the credits
+        // roster, so every copy of EBC knows which row is hers and nobody else can
+        // wear it by claiming to.
+        if (num === EMERY_MEMBER) {
+            const paw = document.createElement("span");
+            paw.textContent = "🐾";
+            paw.title = "EBC creator";
+            paw.style.cssText = "font-size:12px;flex-shrink:0;animation:ebc-paw-glow 2.6s ease-in-out infinite;";
+            before.push(paw);
+        }
+        const complete = forcePreview || (num === (Player === null || Player === void 0 ? void 0 : Player.MemberNumber)
+            ? (() => { try {
+                return hasCompletedEverything();
+            }
+            catch (_a) {
+                return false;
+            } })()
+            : isEBCComplete(num));
+        if (complete) {
+            if (!vip)
+                applyGradientText(el, "#c9ab72", "#fff3c4");
+            for (const [arr, delay] of [[before, "0s"], [after, "0.65s"]]) {
+                const st = document.createElement("span");
+                st.textContent = "✦";
+                st.title = "Every achievement unlocked";
+                st.style.cssText = "color:#ffe9a8;font-size:11px;flex-shrink:0;"
+                    + `animation:ebc-twinkle 1.9s ease-in-out infinite;animation-delay:${delay};`;
+                arr.push(st);
+            }
+        }
+        return { before, after };
     }
     /** Apply an animated flowing gradient as text fill colour to an element. */
     function applyGradientText(el, from, to) {
@@ -27198,9 +27341,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         const nameEl = document.createElement("span");
                         nameEl.className = "ebc-friend-name";
                         nameEl.textContent = name;
-                        const vipRoom = VIP_MEMBERS[num];
-                        if (vipRoom)
-                            applyGradientText(nameEl, vipRoom.gradient[0], vipRoom.gradient[1]);
+                        const decorRoom = decorateName(nameEl, num);
                         // Member number
                         const numEl = document.createElement("span");
                         numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a9ab8;flex-shrink:0;";
@@ -27251,7 +27392,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         const nameRow = document.createElement("div");
                         nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                         // nameEl uses .ebc-friend-name flex:0 1 auto - no override needed
+                        for (const d of decorRoom.before)
+                            nameRow.appendChild(d);
                         nameRow.appendChild(nameEl);
+                        for (const d of decorRoom.after)
+                            nameRow.appendChild(d);
                         // Show account name in muted text when they use a different nickname
                         const acctNameRoom = char.Name;
                         const nickNameRoom = (_b = (_a = char.Nickname) === null || _a === void 0 ? void 0 : _a.trim()) !== null && _b !== void 0 ? _b : "";
@@ -27831,9 +27976,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     const nameEl = document.createElement("span");
                     nameEl.className = "ebc-friend-name";
                     nameEl.textContent = name;
-                    const vipFriend = VIP_MEMBERS[num];
-                    if (vipFriend)
-                        applyGradientText(nameEl, vipFriend.gradient[0], vipFriend.gradient[1]);
+                    const decorFriend = decorateName(nameEl, num);
                     const numEl = document.createElement("span");
                     numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a9ab8;flex-shrink:0;";
                     numEl.textContent = "#" + num;
@@ -27989,7 +28132,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     const nameRow = document.createElement("div");
                     nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                     // nameEl uses .ebc-friend-name flex:0 1 auto - no override needed
+                    for (const d of decorFriend.before)
+                        nameRow.appendChild(d);
                     nameRow.appendChild(nameEl);
+                    for (const d of decorFriend.after)
+                        nameRow.appendChild(d);
                     // If this person has a nickname, show their account name in muted text
                     // so you can tell "Lucy" is actually "Lucas" on their account.
                     const acctName = getAccountName(num);
@@ -29150,10 +29297,82 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         }
         /** Class-grouped achievement cards - category filter chips, medal coins,
          *  tier plates and progress bars. */
+        /**
+         * The 100% reward, shown whether or not you have it.
+         *
+         * A reward nobody can see until they already have it is not much of a
+         * reward - you cannot want something you have never been shown. This
+         * renders your own name exactly as it would appear in the people lists,
+         * dimmed while it is still out of reach.
+         */
+        buildRewardPreview() {
+            var _a;
+            const [done, total] = completionProgress();
+            const earned = done >= total && total > 0;
+            const me = (_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
+            const card = document.createElement("div");
+            card.style.cssText = "background:#1a0d16;border:1px solid " + (earned ? "#c9ab72" : "#3a1828")
+                + ";border-radius:8px;padding:9px 11px;";
+            const head = document.createElement("div");
+            head.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:7px;";
+            const trophy = document.createElement("span");
+            trophy.textContent = "🏆";
+            trophy.style.cssText = "font-size:17px;" + (earned ? "" : "filter:grayscale(1);opacity:0.5;");
+            const titles = document.createElement("div");
+            titles.style.cssText = "flex:1;min-width:0;";
+            const t1 = document.createElement("div");
+            t1.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;color:"
+                + (earned ? "#f0dbe6" : "#a08090") + ";";
+            t1.textContent = "Completionist";
+            const t2 = document.createElement("div");
+            t2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#7a5a6a;margin-top:1px;";
+            t2.textContent = earned
+                ? "Every achievement at its highest level."
+                : "Every achievement at its highest level. Crew and Emery ones are not required.";
+            titles.appendChild(t1);
+            titles.appendChild(t2);
+            const count = document.createElement("span");
+            count.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:10px;flex-shrink:0;"
+                + "border:1px solid " + (earned ? "#c9ab72" : "#4c2537") + ";color:" + (earned ? "#e8cf9a" : "#8a7080")
+                + ";border-radius:9px;padding:1px 7px;";
+            count.textContent = done + " / " + total;
+            head.appendChild(trophy);
+            head.appendChild(titles);
+            head.appendChild(count);
+            card.appendChild(head);
+            const lbl = document.createElement("div");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;letter-spacing:0.1em;"
+                + "text-transform:uppercase;color:#6f5766;margin-bottom:4px;";
+            lbl.textContent = earned ? "Your name in the people lists" : "What you would get";
+            card.appendChild(lbl);
+            // The preview is built by the same function the real lists use, so it
+            // cannot drift from the thing it is previewing.
+            const strip = document.createElement("div");
+            strip.style.cssText = "display:flex;align-items:center;gap:7px;padding:6px 9px;background:#12070d;"
+                + "border:1px solid #2a1421;border-radius:6px;" + (earned ? "" : "opacity:0.5;");
+            const nameEl = document.createElement("span");
+            nameEl.className = "ebc-friend-name";
+            nameEl.textContent = resolveName(me) || "You";
+            const decor = decorateName(nameEl, me, true);
+            for (const d of decor.before)
+                strip.appendChild(d);
+            strip.appendChild(nameEl);
+            for (const d of decor.after)
+                strip.appendChild(d);
+            card.appendChild(strip);
+            const foot = document.createElement("div");
+            foot.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#6a4a5a;margin-top:6px;line-height:1.45;";
+            foot.textContent = earned
+                ? "Everyone else running EBC sees this too."
+                : "Everyone else running EBC would see it too. If you already have your own name colour, you keep it and gain the sparkles.";
+            card.appendChild(foot);
+            return card;
+        }
         buildAchievementCards() {
             var _a;
             const outer = document.createElement("div");
             outer.style.cssText = "display:flex;flex-direction:column;gap:7px;";
+            outer.appendChild(this.buildRewardPreview());
             let filter = "all";
             try {
                 filter = (_a = localStorage.getItem("EBC_achFilter")) !== null && _a !== void 0 ? _a : "all";
@@ -41726,8 +41945,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "9.0.3";
-    const SAL_VERSION = 286; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "9.0.4";
+    const SAL_VERSION = 287; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41741,6 +41960,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "9.0.4",
+            changes: [
+                "IMPORTANT fix: auto-escape works properly again. Three separate things were wrong. It kept a list of restraints to leave alone that only ever grew - anything it failed to remove was written in and never taken out, so once something stuck on a slot, every later restraint on that slot was ignored for the rest of the session. It also used the game's normal remove call, which silently refuses locked items, so a lock simply defeated it. And it looked up who restrained you before the game had said who it was, so the emote glared at nobody nearly every time. Entries are now forgotten the moment an item comes off, locked items are removed the same way /ebc release does it, and the name is looked up when the emote is actually sent. Anything already on you when you switch it on stays on, including owner locks - it only stops new things going on.",
+                "New: six more rare achievements. Kitty's Mark, Good Pet, Nose Booped and Held Close for being spanked, headpatted, booped and hugged by Emery, Caught for being tied up by her, and Menace for tickling her. Being spanked or tickled was not noticed at all before, so those needed new tracking rather than just new entries.",
+                "New: Completionist. Unlock every achievement at its highest level and your name gets a gold sparkle in the people lists, which everyone else running EBC can see. The crew and Emery ones do not count towards it - those need particular people to be online and willing, so requiring them would put finishing outside your hands. If you already have your own name colour you keep it and just gain the sparkles, because your name is yours. The Achievements panel shows the reward whether or not you have it, using your own name, so you can see what you are working towards.",
+                "Emery gets a gold paw beside her name in the people lists, for everyone. It needs nothing sent - her member number is already in EBC for the credits, so every copy knows which row is hers and nobody can wear it by claiming to.",
+                "Emery can now earn the achievements that are about her. They all said Emery, and she cannot do things to herself, so her own list could never be finished. When the player is Emery they point at the credited crew instead - same achievement, same reward, a target she can reach.",
+                "Removed: Crew Cuddler. Finishing it meant headpatting six particular people, which is pressure to touch someone who never asked for it. Met the Crew stays, because it only asks you to be in a room with them and needs nothing from anyone.",
+            ],
+        },
         {
             version: "9.0.3",
             changes: [
@@ -48721,18 +48951,25 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     let lastPresenceSyncTime = 0;
     const PRESENCE_SYNC_COOLDOWN_MS = 6000; // 6 s between sends
     function syncPresenceMarker() {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
         // getBadgeEnabled() is a LOCAL display toggle only — it does not affect
         // broadcasting. Your EBC presence is always sent so others always see
         // your tag. The toggle only controls whether YOU see it above your own head.
-        const presence = Object.assign({ version: MOD_VERSION, marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } ));
+        const done100 = (() => { try {
+            return hasCompletedEverything();
+        }
+        catch (_a) {
+            return false;
+        } })();
+        const presence = Object.assign(Object.assign({ version: MOD_VERSION, marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } )), (done100 ? { done100: true } : {}));
         // Write to ExtensionSettings only if presence isn't already recorded —
         // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
         const settings = getAddonSettings(Player, true);
         if (settings) {
             const alreadyStored = ((_b = settings.presence) === null || _b === void 0 ? void 0 : _b.version) === MOD_VERSION
-                && ((_c = settings.presence) === null || _c === void 0 ? void 0 : _c.isDev) === (true );
+                && ((_c = settings.presence) === null || _c === void 0 ? void 0 : _c.isDev) === (true )
+                && ((_d = settings.presence) === null || _d === void 0 ? void 0 : _d.done100) === (done100 ? true : undefined);
             if (!alreadyStored) {
                 settings.presence = presence;
                 ServerPlayerExtensionSettingsSync(MOD_NAME);
@@ -49589,8 +49826,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                             const p = shared.presence;
                             if (p && typeof p === "object") {
                                 const v = p.version;
-                                if (p.marker === "EBC" && typeof v === "string")
+                                if (p.marker === "EBC" && typeof v === "string") {
                                     cacheEBCVersion(c.MemberNumber, v);
+                                    cacheEBCComplete(c.MemberNumber, p.done100 === true);
+                                }
                             }
                         }
                     }

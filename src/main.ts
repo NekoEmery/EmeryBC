@@ -18,7 +18,7 @@ import { UI } from "./modules/ui";
 import { appendLocalLogLine, appendChangelogBlock } from "./modules/notify";
 import { getCursedGroups, isCursePaused, getCurseExpiry, handleCurseCommand, releaseAllCurses, describeCursedGroups } from "./modules/curse";
 import { broadcastRoom, parseShareMessage, noteSharedRoom } from "./modules/privateRooms";
-import { sendBeep, addBeepEntry, dedupeSentBeeps, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
+import { sendBeep, addBeepEntry, dedupeSentBeeps, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, cacheEBCComplete, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
@@ -26,11 +26,11 @@ import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import { isXToysUser, isXToysEnabled, xtoysConnect, xtoysStatus, xtoysActivityEvent, xtoysActivityOnOtherEvent, xtoysItemAdded, xtoysItemRemoved, xtoysShockEvent, xtoysToyEvent, parseXToysActivity, getXToysWebhookId } from "./modules/xtoys";
 import bcModSdk from "bondage-club-mod-sdk";
-import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
+import { isAchievementUser, hasCompletedEverything, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.0.3";
-const SAL_VERSION  = 286;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.0.4";
+const SAL_VERSION  = 287;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -47,6 +47,17 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "9.0.4",
+        changes: [
+            "IMPORTANT fix: auto-escape works properly again. Three separate things were wrong. It kept a list of restraints to leave alone that only ever grew - anything it failed to remove was written in and never taken out, so once something stuck on a slot, every later restraint on that slot was ignored for the rest of the session. It also used the game's normal remove call, which silently refuses locked items, so a lock simply defeated it. And it looked up who restrained you before the game had said who it was, so the emote glared at nobody nearly every time. Entries are now forgotten the moment an item comes off, locked items are removed the same way /ebc release does it, and the name is looked up when the emote is actually sent. Anything already on you when you switch it on stays on, including owner locks - it only stops new things going on.",
+            "New: six more rare achievements. Kitty's Mark, Good Pet, Nose Booped and Held Close for being spanked, headpatted, booped and hugged by Emery, Caught for being tied up by her, and Menace for tickling her. Being spanked or tickled was not noticed at all before, so those needed new tracking rather than just new entries.",
+            "New: Completionist. Unlock every achievement at its highest level and your name gets a gold sparkle in the people lists, which everyone else running EBC can see. The crew and Emery ones do not count towards it - those need particular people to be online and willing, so requiring them would put finishing outside your hands. If you already have your own name colour you keep it and just gain the sparkles, because your name is yours. The Achievements panel shows the reward whether or not you have it, using your own name, so you can see what you are working towards.",
+            "Emery gets a gold paw beside her name in the people lists, for everyone. It needs nothing sent - her member number is already in EBC for the credits, so every copy knows which row is hers and nobody can wear it by claiming to.",
+            "Emery can now earn the achievements that are about her. They all said Emery, and she cannot do things to herself, so her own list could never be finished. When the player is Emery they point at the credited crew instead - same achievement, same reward, a target she can reach.",
+            "Removed: Crew Cuddler. Finishing it meant headpatting six particular people, which is pressure to touch someone who never asked for it. Met the Crew stays, because it only asks you to be in a room with them and needs nothing from anyone.",
+        ],
+    },
     {
         version: "9.0.3",
         changes: [
@@ -7002,6 +7013,8 @@ interface EmeryPresence {
     version: string;
     marker: string;
     isDev?: boolean;
+    /** Set once every counting achievement is maxed - drives the 100% sparkle. */
+    done100?: true;
     /** Unix timestamp (seconds) when this presence was last broadcast.
      *  Absent on old EBC versions (pre-2.8.5).  Presences without a ts are
      *  rejected so stale OnlineSharedSettings from previous EBC sessions no
@@ -7070,11 +7083,13 @@ function syncPresenceMarker(): void {
     // broadcasting. Your EBC presence is always sent so others always see
     // your tag. The toggle only controls whether YOU see it above your own head.
 
+    const done100 = (() => { try { return hasCompletedEverything(); } catch { return false; } })();
     const presence: EmeryPresence = {
         version: MOD_VERSION,
         marker:  "EBC",
         ts:      Math.floor(Date.now() / 1000), // seconds — refreshed every broadcast
         ...(IS_DEV_BUILD ? { isDev: true } : {}),
+        ...(done100 ? { done100: true as const } : {}),
     };
 
     // Write to ExtensionSettings only if presence isn't already recorded —
@@ -7082,7 +7097,8 @@ function syncPresenceMarker(): void {
     const settings = getAddonSettings(Player, true);
     if (settings) {
         const alreadyStored = settings.presence?.version === MOD_VERSION
-            && settings.presence?.isDev === (IS_DEV_BUILD ? true : undefined);
+            && settings.presence?.isDev === (IS_DEV_BUILD ? true : undefined)
+            && settings.presence?.done100 === (done100 ? true : undefined);
         if (!alreadyStored) {
             settings.presence = presence;
             ServerPlayerExtensionSettingsSync(MOD_NAME);
@@ -7859,8 +7875,10 @@ function init(): void {
                     const p = (shared as Record<string, unknown>).presence;
                     if (p && typeof p === "object") {
                         const v = (p as Record<string, unknown>).version;
-                        if ((p as Record<string, unknown>).marker === "EBC" && typeof v === "string")
+                        if ((p as Record<string, unknown>).marker === "EBC" && typeof v === "string") {
                             cacheEBCVersion(c.MemberNumber, v);
+                            cacheEBCComplete(c.MemberNumber, (p as Record<string, unknown>).done100 === true);
+                        }
                     }
                 }
             }
