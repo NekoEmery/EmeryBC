@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      9.0.4
+// @version      9.0.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -8416,15 +8416,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return typeof memberNumber === "number" && !isAchievementsOptedOut();
     }
     /**
-     * Achievements that do NOT count toward Completionist.
+     * Completionist means everything. The crew and Emery ones count too.
      *
-     * The crew and Emery ones need other specific people to be online and willing,
-     * so requiring them would put finishing the list outside the player's hands
-     * entirely. They stay in the list to chase; they just do not gate the reward.
+     * They are the hardest ones precisely because they need other people, and that
+     * is the point - a reward for finishing the whole list should mean the whole
+     * list. Emery can reach hers because the Emery achievements retarget to the
+     * credited crew when she is the player.
+     *
+     * Only Completionist itself is excluded, since it is derived from the others
+     * and would otherwise be waiting on itself.
      */
-    const COMPLETION_EXCLUDES = new Set(["crew_met", "completionist"]);
+    const COMPLETION_EXCLUDES = new Set(["completionist"]);
     function countsTowardCompletion(a) {
-        return a.cls !== "emery" && !COMPLETION_EXCLUDES.has(a.id);
+        return !COMPLETION_EXCLUDES.has(a.id);
     }
     /** How far along the 100% reward is: [done, total]. */
     function completionProgress() {
@@ -29317,23 +29321,23 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             head.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:7px;";
             const trophy = document.createElement("span");
             trophy.textContent = "🏆";
-            trophy.style.cssText = "font-size:17px;" + (earned ? "" : "filter:grayscale(1);opacity:0.5;");
+            trophy.style.cssText = "font-size:18px;" + (earned ? "" : "filter:grayscale(0.6);opacity:0.85;");
             const titles = document.createElement("div");
             titles.style.cssText = "flex:1;min-width:0;";
             const t1 = document.createElement("div");
-            t1.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;color:"
-                + (earned ? "#f0dbe6" : "#a08090") + ";";
+            t1.style.cssText = "font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;color:"
+                + (earned ? "#f0dbe6" : "#e2cad6") + ";";
             t1.textContent = "Completionist";
             const t2 = document.createElement("div");
-            t2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#7a5a6a;margin-top:1px;";
+            t2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b79aa8;margin-top:2px;line-height:1.45;";
             t2.textContent = earned
                 ? "Every achievement at its highest level."
-                : "Every achievement at its highest level. Crew and Emery ones are not required.";
+                : "Every achievement at its highest level. Yes, including the rare ones.";
             titles.appendChild(t1);
             titles.appendChild(t2);
             const count = document.createElement("span");
             count.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:10px;flex-shrink:0;"
-                + "border:1px solid " + (earned ? "#c9ab72" : "#4c2537") + ";color:" + (earned ? "#e8cf9a" : "#8a7080")
+                + "border:1px solid " + (earned ? "#c9ab72" : "#4c2537") + ";color:" + (earned ? "#e8cf9a" : "#c0a8b4")
                 + ";border-radius:9px;padding:1px 7px;";
             count.textContent = done + " / " + total;
             head.appendChild(trophy);
@@ -29342,14 +29346,14 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             card.appendChild(head);
             const lbl = document.createElement("div");
             lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;letter-spacing:0.1em;"
-                + "text-transform:uppercase;color:#6f5766;margin-bottom:4px;";
+                + "text-transform:uppercase;color:#a3859a;margin-bottom:5px;";
             lbl.textContent = earned ? "Your name in the people lists" : "What you would get";
             card.appendChild(lbl);
             // The preview is built by the same function the real lists use, so it
             // cannot drift from the thing it is previewing.
             const strip = document.createElement("div");
             strip.style.cssText = "display:flex;align-items:center;gap:7px;padding:6px 9px;background:#12070d;"
-                + "border:1px solid #2a1421;border-radius:6px;" + (earned ? "" : "opacity:0.5;");
+                + "border:1px solid " + (earned ? "#c9ab72" : "#4c2537") + ";border-radius:6px;";
             const nameEl = document.createElement("span");
             nameEl.className = "ebc-friend-name";
             nameEl.textContent = resolveName(me) || "You";
@@ -29361,7 +29365,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 strip.appendChild(d);
             card.appendChild(strip);
             const foot = document.createElement("div");
-            foot.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#6a4a5a;margin-top:6px;line-height:1.45;";
+            foot.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b79aa8;margin-top:7px;line-height:1.5;";
             foot.textContent = earned
                 ? "Everyone else running EBC sees this too."
                 : "Everyone else running EBC would see it too. If you already have your own name colour, you keep it and gain the sparkles.";
@@ -41945,8 +41949,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "9.0.4";
-    const SAL_VERSION = 288; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "9.0.5";
+    const SAL_VERSION = 289; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41960,6 +41964,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "9.0.5",
+            changes: [
+                "Fix: Completionist needs EVERY achievement, the crew and Emery ones included. Yesterday's version let you off those, which was my misreading rather than a decision - they are the hardest ones precisely because they need other people, and a reward for finishing the whole list should mean the whole list.",
+                "Fix: the Completionist card is readable. The name preview was drawn at half opacity, which on a dark panel made the gold almost invisible - and it is the one thing on the card you are meant to be looking at. The explaining text underneath was too dim as well. The preview now shows at full strength with a gold border once earned, and the small print is a good deal lighter.",
+            ],
+        },
         {
             version: "9.0.4",
             changes: [
