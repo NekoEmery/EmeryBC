@@ -8833,7 +8833,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             const tierLabel = a.tiers.length > 1 ? ` ${tier}` : "";
             const desc = achievementDesc(a, a.tiers[tier - 1]);
             const content = `shares an achievement: 🏆 ${a.name}${tierLabel} - ${desc}`;
-            const dict = [{ Tag: "EBCACH", AchId: a.id, AchTier: tier }];
+            // TextDictionaryEntry - { Tag, Text } - is a shape BC knows. The old entry
+            // invented AchId/AchTier fields, and a dictionary BC cannot parse leaves
+            // the message unacknowledged: it stays in the pale "still sending" state
+            // with the dots after it and never turns into normal chat text. That is
+            // why the share looked half invisible and stuck.
+            //
+            // Nothing in the message contains the tag text, so no substitution
+            // happens - it is only along for the ride.
+            const dict = [{ Tag: "EBCACH", Text: JSON.stringify({ id: a.id, tier }) }];
             if (mode.kind === "public") {
                 ServerSend("ChatRoomChat", { Content: content, Type: "Emote", Dictionary: dict });
                 _lastShareTs = Date.now();
@@ -8878,7 +8886,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     /** Detects an incoming achievement share. Renders the plaque and returns true
      *  so the caller suppresses the plain whisper. Works for EVERY EBC user. */
     function handleAchievementShareMessage(data) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d, _e;
         try {
             if (!data || (data.Type !== "Emote" && data.Type !== "Chat" && data.Type !== "Whisper"))
                 return false;
@@ -8890,7 +8898,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // special, let BC render the plain message instead.
             if (!getShowSharedPlaques())
                 return false;
-            const a = ACHIEVEMENTS.find(x => x.id === entry.AchId);
+            // Read the new { Text: "{id,tier}" } form, falling back to the old
+            // AchId/AchTier fields so shares from anyone still on an older build
+            // keep rendering as a plaque instead of silently doing nothing.
+            let sharedId = entry.AchId;
+            let sharedTier = entry.AchTier;
+            if (typeof entry.Text === "string") {
+                try {
+                    const parsed = JSON.parse(entry.Text);
+                    if (parsed && typeof parsed === "object") {
+                        sharedId = (_a = parsed.id) !== null && _a !== void 0 ? _a : sharedId;
+                        sharedTier = (_b = parsed.tier) !== null && _b !== void 0 ? _b : sharedTier;
+                    }
+                }
+                catch ( /* not ours after all - fall through to the old fields */_f) { /* not ours after all - fall through to the old fields */ }
+            }
+            const a = ACHIEVEMENTS.find(x => x.id === sharedId);
             if (!a)
                 return false;
             const senderNum = typeof data.Sender === "number" ? data.Sender : 0;
@@ -8898,24 +8921,24 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // already drawn the nicer "you shared with the room" plaque. Without this
             // the sharer saw the same achievement twice, once as themselves and once
             // as "shared by <own name>".
-            if (senderNum && senderNum === ((_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : -1))
+            if (senderNum && senderNum === ((_c = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _c !== void 0 ? _c : -1))
                 return true;
-            const last = (_b = _plaqueLastBySender.get(senderNum)) !== null && _b !== void 0 ? _b : 0;
+            const last = (_d = _plaqueLastBySender.get(senderNum)) !== null && _d !== void 0 ? _d : 0;
             if (Date.now() - last < 30000)
                 return true; // swallow the spam silently
             _plaqueLastBySender.set(senderNum, Date.now());
-            const tier = typeof entry.AchTier === "number" ? Math.max(1, Math.min(entry.AchTier, a.tiers.length)) : 1;
+            const tier = typeof sharedTier === "number" ? Math.max(1, Math.min(sharedTier, a.tiers.length)) : 1;
             let senderName = `#${senderNum}`;
             try {
                 const room = window.ChatRoomCharacter;
                 const c = room === null || room === void 0 ? void 0 : room.find(x => x.MemberNumber === senderNum);
                 if (c)
-                    senderName = ((_c = c.Nickname) !== null && _c !== void 0 ? _c : "").trim() || c.Name || senderName;
+                    senderName = ((_e = c.Nickname) !== null && _e !== void 0 ? _e : "").trim() || c.Name || senderName;
             }
-            catch ( /* ignore */_d) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
             return renderSharedPlaque(`shared by ${senderName}`, a, tier);
         }
-        catch (_e) {
+        catch (_h) {
             return false;
         }
     }
@@ -41624,7 +41647,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.1";
-    const SAL_VERSION = 279; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 280; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41641,6 +41664,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.1",
             changes: [
+                "Fix: sharing an achievement no longer leaves the message stuck half-sent. It went out with a dictionary in a shape the game does not recognise, so the message was never acknowledged - it sat in the pale still-sending state with the dots after it and never turned into normal chat text, which is why it read as almost invisible. It now uses a shape the game knows. Shares from anyone still on an older build are still understood, so nobody loses their plaques while updating.",
                 "Fix (suggested by Sally): the time-based bondage achievements now need you to actually be restrained. They counted anything worn in a restraint slot - and that list includes ears, nose, piercings and handhelds, so a pair of earrings counted the same as a hogtie. Excluding collars, which the timer settings already did, only covered the most obvious case of a much wider one. All three now ask the game whether you are restrained, gagged or chaste, which it answers from item effects, so only something that genuinely restricts you counts. Time still comes from the per-item timers, so offline hours are included. Your visible bound timer is unchanged - it keeps its own exclusion list.",
                 "Storage is explained properly now. There are three separate ways storage can be full - your BC account, this browser, and EBC total - with three different fixes, and the messages looked alike enough that people read a browser problem as an account one. The Storage page now says in plain words what Account and This device mean and what to do when a bar fills, each message says which storage it is talking about, and all of them say the thing that was least obvious: deleting and moving still work while it is full, because they make it smaller.",
                 "IMPORTANT fix: EBC now tells you when it has stopped saving to your account. Going over the total the game allows meant saving silently stopped, with nothing but a line in the browser console that nobody has open - so changes looked like they worked and then vanished on reload. It says so on screen instead, once, with what to do about it.",
