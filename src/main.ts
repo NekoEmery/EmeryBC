@@ -29,8 +29,8 @@ import bcModSdk from "bondage-club-mod-sdk";
 import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.0.2";
-const SAL_VERSION  = 280;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.0.3";
+const SAL_VERSION  = 282;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -47,6 +47,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "9.0.3",
+        changes: [
+            "IMPORTANT fix (reported by Angel): the friends list stops going stale after you have been online a while. EBC listened for friend updates in two ways. The main one named the wrong thing - it hooked the socket EVENT name rather than the function, so it had never worked and only warned about it in the browser console. That left a socket listener as the only path, and that listener was attached once to the connection you had at the time. Every reconnect replaced the connection and left the listener behind, so friend updates stopped for good: the list froze on whatever it last knew, and someone standing in the room with you still showed as offline. It now hooks the real function, which survives reconnects, and the socket listener re-attaches if the connection changes. This is also what was behind the friends list freezing after a void.",
+        ],
+    },
     {
         version: "9.0.2",
         changes: [
@@ -8617,17 +8623,43 @@ function init(): void {
         } catch { /* ignore */ }
     };
 
-    // Primary: hook the BC global (reliable in R128 where it is a patchable function)
+    // The function is called ServerAccountQueryResult. "AccountQueryResult" is
+    // the SOCKET EVENT name, not a function - hooking it has been failing
+    // silently (tryHookFunction only warns to the console), which left the
+    // socket listener below as the only working path.
+    //
+    // That listener is bound once, to whichever socket existed at load. BC
+    // replaces the socket when it reconnects, and every reconnect therefore
+    // ended friend updates permanently: the list froze on whatever it last
+    // knew, and someone standing in the room with you still read as offline.
+    // "After some time being online" is how long it takes to hit a reconnect.
+    //
+    // Hooking the real function fixes it properly, because mod hooks are
+    // applied to the function itself and survive any number of reconnects.
+    tryHookFunction(modAPI, "ServerAccountQueryResult", 3, (args, next) => {
+        handleAccountQueryResult(args[0]);
+        return next(args);
+    });
+    // Older BC exposed it under the short name. Harmless where it does not.
     tryHookFunction(modAPI, "AccountQueryResult", 3, (args, next) => {
         handleAccountQueryResult(args[0]);
         return next(args);
     });
 
-    // Fallback: socket listener for BC versions where AccountQueryResult is not hookable
+    // Socket listener as a last resort, re-bound whenever the socket changes so
+    // it cannot be left attached to a dead one. Cheap: it only rebinds when the
+    // object identity actually differs.
     try {
-        const sock = (window as unknown as Record<string, unknown>).ServerSocket as
-            { on(event: string, cb: (data: unknown) => void): void } | undefined;
-        sock?.on("AccountQueryResult", handleAccountQueryResult);
+        let boundSocket: unknown = null;
+        const bindSocket = (): void => {
+            const sock = (window as unknown as Record<string, unknown>).ServerSocket as
+                { on(event: string, cb: (data: unknown) => void): void } | undefined;
+            if (!sock || sock === boundSocket) return;
+            boundSocket = sock;
+            try { sock.on("AccountQueryResult", handleAccountQueryResult); } catch { /* ignore */ }
+        };
+        bindSocket();
+        setInterval(bindSocket, 20_000);
     } catch { /* ignore */ }
 
     // Initial query — fire 3 s after load so the connection is settled, then every
