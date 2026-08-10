@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, achievementScanRoom, achieve
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.6";
-const SAL_VERSION  = 295;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 296;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;

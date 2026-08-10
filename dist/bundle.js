@@ -8425,9 +8425,15 @@
         const text = a.desc.replace("{n}", a.fmtN ? a.fmtN(n) : String(n));
         if (((_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0) !== EMERY || !text.includes("Emery"))
             return text;
-        return text
-            .replace(/^Emery/, "A crew member")
-            .replace(/Emery/g, "a crew member");
+        // Plain splitting rather than a regex with word boundaries. The escapes in
+        // the previous version were mangled into control characters on their way
+        // into the file, so it silently matched nothing - this cannot happen to a
+        // string with no escapes in it. "Emery" only ever appears as a whole word
+        // in these descriptions, so nothing is lost by not asserting that.
+        const swapped = text.split("Emery").join("a crew member");
+        return swapped.startsWith("a crew member")
+            ? "A crew member" + swapped.slice("a crew member".length)
+            : swapped;
     }
     const ACHIEVEMENT_CLASSES = [
         { id: "received", label: "Received", icon: "💝" },
@@ -41979,7 +41985,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.6";
-    const SAL_VERSION = 295; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 296; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through

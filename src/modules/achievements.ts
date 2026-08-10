@@ -127,9 +127,15 @@ export function hasCompletedEverything(): boolean {
 export function achievementDesc(a: AchievementDef, n: number): string {
     const text = a.desc.replace("{n}", a.fmtN ? a.fmtN(n) : String(n));
     if ((Player?.MemberNumber ?? 0) !== EMERY || !text.includes("Emery")) return text;
-    return text
-        .replace(/^Emery/, "A crew member")
-        .replace(/Emery/g, "a crew member");
+    // Plain splitting rather than a regex with word boundaries. The escapes in
+    // the previous version were mangled into control characters on their way
+    // into the file, so it silently matched nothing - this cannot happen to a
+    // string with no escapes in it. "Emery" only ever appears as a whole word
+    // in these descriptions, so nothing is lost by not asserting that.
+    const swapped = text.split("Emery").join("a crew member");
+    return swapped.startsWith("a crew member")
+        ? "A crew member" + swapped.slice("a crew member".length)
+        : swapped;
 }
 
 export const ACHIEVEMENT_CLASSES: Array<{ id: string; label: string; icon: string }> = [
