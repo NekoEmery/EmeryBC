@@ -8381,17 +8381,17 @@
         return typeof memberNumber === "number" && !isAchievementsOptedOut();
     }
     /**
-     * Completionist means everything. The crew and Emery ones count too.
+     * Completionist means everything except two.
      *
-     * They are the hardest ones precisely because they need other people, and that
-     * is the point - a reward for finishing the whole list should mean the whole
-     * list. Emery can reach hers because the Emery achievements retarget to the
-     * credited crew when she is the player.
+     * Met the Crew needs five specific people online and in the same room at once,
+     * which is not a thing you can go and do - it is luck and other people's
+     * schedules. Met the Kitty replaces it as the required one: still meeting
+     * someone, but one person rather than five.
      *
-     * Only Completionist itself is excluded, since it is derived from the others
-     * and would otherwise be waiting on itself.
+     * Completionist itself is excluded because it is derived from the others and
+     * would otherwise be waiting on itself.
      */
-    const COMPLETION_EXCLUDES = new Set(["completionist"]);
+    const COMPLETION_EXCLUDES = new Set(["completionist", "crew_met"]);
     function countsTowardCompletion(a) {
         return !COMPLETION_EXCLUDES.has(a.id);
     }
@@ -8478,6 +8478,7 @@
         // Thresholds track the roster length so they stay right if it grows. If you
         // are credited yourself you count toward your own total - you already know
         // who you are - so everyone needs the same number.
+        { id: "met_emery", icon: "⭐", name: "Met the Kitty", desc: "Share a room with Emery", counter: "met_emery", tiers: [1], cls: "emery", rare: true },
         { id: "crew_met", icon: "⭐", name: "Met the Crew", desc: "Share a room with all {n} credited EBC people", counter: "crew_met", tiers: [CREDITED.length], cls: "emery", rare: true },
         // Completionist is not tracked like the others - its progress is derived
         // from everything else, in completionProgress() below. It is listed last so
@@ -8713,7 +8714,7 @@
     /** Marks every credited person currently in the room as met. Called from the
      *  room-sync hooks rather than polled, so a brief visit still counts. */
     function achievementScanRoom() {
-        var _a;
+        var _a, _b;
         try {
             if (!isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber))
                 return;
@@ -8722,8 +8723,20 @@
                 return;
             for (const c of room)
                 collectCredited("cm", "crew_met", (_a = c.MemberNumber) !== null && _a !== void 0 ? _a : -1);
+            // Meeting Emery - or, when you ARE Emery, any of the credited crew,
+            // since she cannot share a room with herself. Recorded once and left
+            // alone; the room is scanned constantly and this is not a counter.
+            const specials = specialNums();
+            if (room.some(c => typeof c.MemberNumber === "number" && specials.includes(c.MemberNumber))) {
+                const st = getState();
+                if (((_b = st.c["met_emery"]) !== null && _b !== void 0 ? _b : 0) < 1) {
+                    st.c["met_emery"] = 1;
+                    checkUnlocks();
+                    save();
+                }
+            }
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore */_c) { /* ignore */ }
     }
     function tiersReached(def, count) {
         let n = 0;
@@ -41965,8 +41978,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "9.0.5";
-    const SAL_VERSION = 293; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "9.0.6";
+    const SAL_VERSION = 294; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41981,6 +41994,15 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
+            version: "9.0.6",
+            changes: [
+                "New: Met the Kitty - share a room with Emery. This is the meeting achievement Completionist needs now.",
+                "Changed: Met the Crew is no longer required for Completionist. It asks for five particular people online and in the same room at once, which is not something you can go and do - it is luck and other people's diaries. It stays as an achievement to chase, it just no longer stands between you and the reward. Met the Kitty takes its place: still meeting someone, but one person instead of five.",
+                "Fix: for Emery, the Emery achievements now SAY what they actually count. They retarget to the credited crew when she is the player, since she cannot do things to herself, but the cards still read 'Spank Emery 5 times' - which was simply untrue on her screen. They now read 'a crew member'.",
+                "Fix: the creator paw beside Emery's name is the real gold paw EBC uses everywhere else, not an emoji standing in for it. It now matches the overhead mark and the credits card.",
+            ],
+        },
+        {
             version: "9.0.5",
             changes: [
                 "Fix: you are in your own room list now, at the top, marked YOU. Your own card listed one fewer person than the count beside it claimed, because the count came from the real room roster while the rows were built from a copy with you removed. It also meant you could never see your own row - your name, your colours, your paw - which is the one thing you would most want to look at.",
@@ -41994,8 +42016,6 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "IMPORTANT fix: auto-escape works properly again. Three separate things were wrong. It kept a list of restraints to leave alone that only ever grew - anything it failed to remove was written in and never taken out, so once something stuck on a slot, every later restraint on that slot was ignored for the rest of the session. It also used the game's normal remove call, which silently refuses locked items, so a lock simply defeated it. And it looked up who restrained you before the game had said who it was, so the emote glared at nobody nearly every time. Entries are now forgotten the moment an item comes off, locked items are removed the same way /ebc release does it, and the name is looked up when the emote is actually sent. Anything already on you when you switch it on stays on, including owner locks - it only stops new things going on.",
                 "New: six more rare achievements. Kitty's Mark, Good Pet, Nose Booped and Held Close for being spanked, headpatted, booped and hugged by Emery, Caught for being tied up by her, and Menace for tickling her. Being spanked or tickled was not noticed at all before, so those needed new tracking rather than just new entries.",
                 "New: Completionist. Unlock every achievement at its highest level and your name gets a gold sparkle in the people lists, which everyone else running EBC can see. The crew and Emery ones do not count towards it - those need particular people to be online and willing, so requiring them would put finishing outside your hands. If you already have your own name colour you keep it and just gain the sparkles, because your name is yours. The Achievements panel shows the reward whether or not you have it, using your own name, so you can see what you are working towards.",
-                "Fix: for Emery, the Emery achievements now SAY what they actually count. They retarget to the credited crew when she is the player, since she cannot do things to herself, but the cards still read 'Spank Emery 5 times' - which was simply untrue on her screen. They now read 'a crew member'.",
-                "Fix: the creator paw beside Emery's name is the real gold paw EBC uses everywhere else, not an emoji standing in for it. It now matches the overhead mark and the credits card.",
                 "Emery gets a gold paw beside her name in the people lists, for everyone. It needs nothing sent - her member number is already in EBC for the credits, so every copy knows which row is hers and nobody can wear it by claiming to.",
                 "Emery can now earn the achievements that are about her. They all said Emery, and she cannot do things to herself, so her own list could never be finished. When the player is Emery they point at the credited crew instead - same achievement, same reward, a target she can reach.",
                 "Removed: Crew Cuddler. Finishing it meant headpatting six particular people, which is pressure to touch someone who never asked for it. Met the Crew stays, because it only asks you to be in a room with them and needs nothing from anyone.",
