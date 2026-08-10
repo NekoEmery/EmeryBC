@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      9.0.0
+// @version      9.0.1
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -1175,13 +1175,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const localList = sanitized.filter(o => o.local === true);
         try {
             const size = JSON.stringify(account).length;
-            // Refuse only a save that does not IMPROVE things. Refusing every save
-            // while over budget also refused deleting one and moving one to this
-            // device - the exact two actions the message tells you to take - so
-            // anyone who got over the line was stuck there with no way back.
+            // Refuse only a save that makes the account portion BIGGER. Refusing
+            // every save while over budget also refused deleting one and moving one
+            // to this device - the exact two actions the message tells you to take.
+            // The first attempt at this used >=, which still refused any save that
+            // left the account portion the same size: deleting a device-stored
+            // outfit, or renaming one, neither of which touches the account at all.
             const storedAccount = getSettings().outfits;
             const prevSize = Array.isArray(storedAccount) ? JSON.stringify(storedAccount).length : 0;
-            if (size > OUTFITS_BUDGET && size >= prevSize) {
+            if (size > OUTFITS_BUDGET && size > prevSize) {
                 localNotice$2(`Account outfit storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
                     "Not saved - delete some outfits, or switch outfits to 💾 This device storage (no account limit).", "#ff8a8a");
                 return false;
@@ -1838,13 +1840,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const localList = sanitized.filter(o => o.local === true);
         try {
             const size = JSON.stringify(account).length;
-            // Refuse only a save that does not IMPROVE things. Refusing every save
-            // while over budget also refused deleting one and moving one to this
-            // device - the exact two actions the message tells you to take - so
-            // anyone who got over the line was stuck there with no way back.
+            // Refuse only a save that makes the account portion BIGGER. Refusing
+            // every save while over budget also refused deleting one and moving one
+            // to this device - the exact two actions the message tells you to take.
+            // The first attempt at this used >=, which still refused any save that
+            // left the account portion the same size: deleting a device-stored
+            // outfit, or renaming one, neither of which touches the account at all.
             const storedAccount = getSettings().restraints;
             const prevSize = Array.isArray(storedAccount) ? JSON.stringify(storedAccount).length : 0;
-            if (size > OUTFITS_BUDGET && size >= prevSize) {
+            if (size > OUTFITS_BUDGET && size > prevSize) {
                 localNotice$2(`Account restraint-set storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
                     "Not saved - delete some sets, or switch sets to 💾 This device storage (no account limit).", "#ff8a8a");
                 return false;
@@ -2714,7 +2718,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
      * think to check, and it happened: #140712 got the tools and no achievements.
      * Deriving it here means access and the trophy cannot drift apart again.
      */
-    const ACHIEVEMENT_MEMBERS = [...new Set([...CREDITED_NUMS, ...CREATOR_ACCESS, ...EXTRA_CREW])];
+    [...new Set([...CREDITED_NUMS, ...CREATOR_ACCESS, ...EXTRA_CREW])];
 
     // General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
     // -- Emery Versioning (SAL sub-version display) --------------------------------
@@ -5043,6 +5047,31 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function getRestraintMs() {
         return restraintStartTime !== null ? Date.now() - restraintStartTime : 0;
     }
+    // Groups that make each state true. Read from the persisted per-item timers, so
+    // these survive reloads, room changes and being offline - the same reason the
+    // overall bound streak reads from them rather than from session state.
+    const GAG_GROUPS = ["ItemMouth", "ItemMouth2", "ItemMouth3"];
+    const CHASTITY_GROUPS = ["ItemPelvis", "ItemVulva"];
+    function longestWornMs(groups) {
+        const timers = loadRestraintTimers();
+        let oldest = null;
+        for (const g of groups) {
+            const start = timers[g];
+            if (start === undefined)
+                continue;
+            if (oldest === null || start < oldest)
+                oldest = start;
+        }
+        return oldest === null ? 0 : Date.now() - oldest;
+    }
+    /** How long something has been in your mouth, continuously. */
+    function getGaggedMs() {
+        return longestWornMs(GAG_GROUPS);
+    }
+    /** How long you have been in chastity, continuously. */
+    function getChastityMs() {
+        return longestWornMs(CHASTITY_GROUPS);
+    }
     // How long a specific restraint group has been worn (survives offline).
     function getRestraintItemDuration(group) {
         const start = loadRestraintTimers()[group];
@@ -6136,6 +6165,41 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return lock.includes("owner") || lock.includes("lover") || lock.includes("family")
             || (lock.includes("exclusive") && isDogsActive());
     }
+    /**
+     * Names the locks that were actually skipped.
+     *
+     * The old note appended "(DOGS padlocks are protected)" whenever DOGS happened
+     * to be loaded, no matter what was really skipped - so owner and lover locks
+     * were reported as DOGS ones. DOGS only ever protects exclusive padlocks, and
+     * the rest stand on their own, so the message now reads the items in hand.
+     */
+    function describeProtected(items) {
+        var _a, _b;
+        const kinds = new Set();
+        let whitelisted = 0;
+        for (const item of items) {
+            const lock = ((_b = (_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy) !== null && _b !== void 0 ? _b : "").toLowerCase();
+            if (lock.includes("owner"))
+                kinds.add("owner");
+            else if (lock.includes("lover"))
+                kinds.add("lover");
+            else if (lock.includes("family"))
+                kinds.add("family");
+            else if (lock.includes("exclusive"))
+                kinds.add(isDogsActive() ? "DOGS exclusive" : "exclusive");
+            else if (lock)
+                kinds.add(lock);
+            else
+                whitelisted++;
+        }
+        const list = [...kinds];
+        if (list.length === 0)
+            return whitelisted > 0 ? " (protected slots)" : "";
+        const names = list.length === 1
+            ? list[0]
+            : list.slice(0, -1).join(", ") + " and " + list[list.length - 1];
+        return ` (${names} lock${list.length === 1 && !names.includes(" ") ? "" : "s"})`;
+    }
     // Returns true if this item's slot is in the user's outfit whitelist.
     function isWhitelisted(item) {
         try {
@@ -6175,9 +6239,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const toRemove = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && !isProtectedLock(item));
         const skipped = Player.Appearance.filter(item => RESTRAINT_GROUPS.has(item.Asset.Group.Name) && isProtectedLock(item));
         if (toRemove.length === 0) {
-            const dogsNote = isDogsActive() ? " (DOGS padlocks cannot be removed this way)" : "";
+            const note = describeProtected(skipped);
             localNotice(skipped.length > 0
-                ? `All restraints are locked or protected — none removed.${dogsNote}`
+                ? `All restraints are locked or protected - none removed.${note}`
                 : "No restraints found to remove.", UI.textMuted);
             return;
         }
@@ -6186,8 +6250,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const removeGroups = new Set(toRemove.map(item => item.Asset.Group.Name));
         Player.Appearance = Player.Appearance.filter(item => !removeGroups.has(item.Asset.Group.Name));
         if (skipped.length > 0) {
-            const dogsNote = isDogsActive() ? " (DOGS padlocks are protected)" : "";
-            localNotice(`Skipped ${skipped.length} protected item(s).${dogsNote}`, UI.textMuted);
+            localNotice(`Skipped ${skipped.length} protected item(s).${describeProtected(skipped)}`, UI.textMuted);
         }
         callBC(() => CharacterRefresh(Player, false));
         callBC(() => ChatRoomCharacterUpdate(Player));
@@ -6257,12 +6320,13 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function unlockItems() {
         var _a;
         let unlocked = 0;
-        let skipped = 0;
+        // Collected, not just counted, so the message can say which locks stopped it.
+        const skippedItems = [];
         for (const item of Player.Appearance) {
             if (!((_a = item.Property) === null || _a === void 0 ? void 0 : _a.LockedBy))
                 continue;
             if (isUntouchable(item)) {
-                skipped++;
+                skippedItems.push(item);
                 continue;
             }
             if (item.Property) {
@@ -6278,15 +6342,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             unlocked++;
         }
         if (unlocked === 0) {
-            const dogsNote = isDogsActive() ? " (DOGS padlocks cannot be removed this way)" : "";
-            localNotice(skipped > 0
-                ? `All locks are protected — none removed.${dogsNote}`
+            const note = describeProtected(skippedItems);
+            localNotice(skippedItems.length > 0
+                ? `All locks are protected - none removed.${note}`
                 : "No locks found to remove.", UI.textMuted);
             return;
         }
-        if (skipped > 0) {
-            const dogsNote = isDogsActive() ? " (DOGS padlocks are protected)" : "";
-            localNotice(`Skipped ${skipped} protected lock(s).${dogsNote}`, UI.textMuted);
+        if (skippedItems.length > 0) {
+            localNotice(`Skipped ${skippedItems.length} protected lock(s).${describeProtected(skippedItems)}`, UI.textMuted);
         }
         callBC(() => CharacterRefresh(Player, false));
         callBC(() => ChatRoomCharacterUpdate(Player));
@@ -7961,11 +8024,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // hugs), plus rare Emery-targeted ones. Progress lives in EBC settings (synced,
     // tiny); tier-ups pop a toast. Fed from main.ts's ChatRoomMessage hook.
     const EMERY = 130267;
-    /** Raw crew membership - ignores the opt-out (used to gate the opt-out toggle
-     *  itself, so someone who opted out can find their way back). */
-    function isAchievementCrewMember(memberNumber) {
-        return typeof memberNumber === "number" && ACHIEVEMENT_MEMBERS.includes(memberNumber);
-    }
     function isAchievementsOptedOut() {
         try {
             return getSettings().achievementsOff === true;
@@ -8005,9 +8063,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    /** Crew member who hasn't opted out - gates tracking, the trophy, and the popup. */
+    /**
+     * Anyone who has not opted out - gates tracking, the trophy and the popup.
+     *
+     * This was limited to the crew list while achievements were being built. They
+     * are finished, so the gate is just the opt-out now. isAchievementCrewMember is
+     * still used for the crew-only rare ones, which is a different question from
+     * whether you get achievements at all.
+     */
     function isAchievementUser(memberNumber) {
-        return isAchievementCrewMember(memberNumber) && !isAchievementsOptedOut();
+        return typeof memberNumber === "number" && !isAchievementsOptedOut();
     }
     /** Fills {n} in a description, honouring the def's formatter. */
     function achievementDesc(a, n) {
@@ -8038,6 +8103,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { id: "tied", icon: "⛓", name: "Tied Down", desc: "Have restraints put on you {n} times", counter: "tied_recv", tiers: [5, 25, 100], cls: "bondage" },
         { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight", counter: "bound_h", tiers: [24, 100, 500], cls: "bondage" },
         { id: "rigger", icon: "🪢", name: "Rigger", desc: "Put restraints on others {n} times", counter: "tie_give", tiers: [10, 50, 250], cls: "bondage" },
+        // Suggested by Sally. Measured from the per-item timers, so they carry across
+        // rooms and offline time the same way the bound streak does. A collar does
+        // not count toward "bound" - neck groups are excluded by default, and the
+        // exclusion list is editable if you want it to.
+        { id: "gagged", icon: "🤐", name: "Quiet Kitty", desc: "Stay gagged {n} hours straight", counter: "gag_h", tiers: [6, 24, 100], cls: "bondage" },
+        { id: "chaste", icon: "🔐", name: "Locked Away", desc: "Stay in chastity {n} hours straight", counter: "chaste_h", tiers: [24, 168, 720], cls: "bondage" },
         // ⭐ Emery - rare single golden unlocks
         { id: "pat_the_dev", icon: "⭐", name: "Pat the Kitty", desc: "Headpat Emery {n} times", counter: "pet_emery", tiers: [5], cls: "emery", rare: true },
         { id: "boop_the_dev", icon: "⭐", name: "Boop the Kitty", desc: "Boop Emery {n} times", counter: "boop_emery", tiers: [10], cls: "emery", rare: true },
@@ -8691,7 +8762,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // No-op for non-achievement users; cheap enough to just run.
     const TICK_MS = 5 * 60 * 1000;
     setInterval(() => {
-        var _a;
         try {
             if (!isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber))
                 return;
@@ -8699,13 +8769,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // Longest continuous bound streak (any room). Read from the per-item
             // restraint timers, which persist across rooms and offline, so this is
             // the one time-based achievement that does not depend on room tracking.
-            const hours = Math.floor(getRestraintMs() / 3600000);
-            if (hours > ((_a = st.c["bound_h"]) !== null && _a !== void 0 ? _a : 0))
-                st.c["bound_h"] = hours;
+            const best = (key, ms) => {
+                var _a;
+                const hours = Math.floor(ms / 3600000);
+                if (hours > ((_a = st.c[key]) !== null && _a !== void 0 ? _a : 0))
+                    st.c[key] = hours;
+            };
+            best("bound_h", getRestraintMs());
+            best("gag_h", getGaggedMs());
+            best("chaste_h", getChastityMs());
             checkUnlocks();
             save();
         }
-        catch ( /* ignore */_b) { /* ignore */ }
+        catch ( /* ignore */_a) { /* ignore */ }
     }, TICK_MS);
 
     function parseChange(raw) {
@@ -9220,12 +9296,15 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function activityDenial(target, groupName, activityName) {
         const w = bc();
         try {
-            // 1. Can you act at all? False while bound, blindfolded into helplessness,
-            //    and so on - the same thing that greys out BC's own activity list.
-            // Cast because the local Character type does not declare it; BC's does.
-            const canInteract = Player === null || Player === void 0 ? void 0 : Player.CanInteract;
-            if (typeof canInteract === "function" && !canInteract.call(Player))
-                return "bound";
+            // There is deliberately NO blanket CanInteract() check here.
+            //
+            // It was the obvious thing to add and it was wrong: CanInteract() is
+            // false whenever your arms are bound, but BC judges activities one at a
+            // time, not all at once. Its prerequisite list has UseArms, UseHands,
+            // MoveHead - and CantUseArms, for activities that only exist WHILE you
+            // are tied. Cuddling someone with your arms bound is allowed in BC, and
+            // the blanket check refused it. ActivityCheckPrerequisites below already
+            // encodes the real rule for each activity, so this only has to ask it.
             const isSelf = (target === null || target === void 0 ? void 0 : target.MemberNumber) === (Player === null || Player === void 0 ? void 0 : Player.MemberNumber);
             // 2. Does the target allow you to act on them? This is the one the report
             //    was about: a one-way friend with item permissions off.
@@ -9275,7 +9354,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         if (skipped <= 0)
             return null;
         return `[EBC] ${skipped} ${skipped === 1 ? "person was" : "people were"} not ${verb} - `
-            + "either they have not given you permission, or you cannot act right now.";
+            + "they have not given you permission for that.";
+    }
+    /**
+     * What to put on the button after a batch.
+     *
+     * Everyone being skipped is not the same as nobody being there, and reporting it
+     * as "no friends here" told people the room was empty when it was not. Kept
+     * separate from the count so the two cases cannot collapse into each other
+     * again.
+     */
+    function batchButtonText(done, skipped, noneHere, didN) {
+        if (done > 0)
+            return didN(done);
+        if (skipped > 0)
+            return skipped === 1 ? "Not allowed" : `${skipped} not allowed`;
+        return noneHere;
     }
 
     // Creator-only DOM tools — visible exclusively to member #130267.
@@ -15351,7 +15445,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // The header is built before login completes, so Player.MemberNumber may
             // not exist yet - re-check visibility until it does (or give up quietly).
             const refreshTrophyVis = () => {
-                trophyBtn.style.display = isAchievementCrewMember(Player === null || Player === void 0 ? void 0 : Player.MemberNumber) ? "" : "none";
+                // isAchievementUser, not crew membership. This was the reason
+                // achievements still looked crew-only after they were opened up:
+                // tracking ran for everyone but the button that opens the panel was
+                // gated on a different, narrower check.
+                trophyBtn.style.display = isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber) ? "" : "none";
             };
             refreshTrophyVis();
             this._refreshTrophyVis = refreshTrophyVis;
@@ -26684,6 +26782,21 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         refreshFriendList() {
             if (!EBCDrawer.isSocialTab(this.currentTab) || !this.friendsSectionEl)
                 return;
+            // A section that is no longer in the page can still be written to - the
+            // writes just go nowhere visible. Being voided tears the panel out from
+            // under us without this reference being cleared, so every later refresh
+            // quietly painted a detached element and the list on screen stayed
+            // frozen on whatever it last showed. Dropping the stale reference lets
+            // the next rebuild hand us a live one.
+            if (!this.friendsSectionEl.isConnected) {
+                this.friendsSectionEl = null;
+                this.friendRefreshDeferrals = 0;
+                try {
+                    this.rerender();
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                return;
+            }
             if (this.friendRefreshDebounce !== null)
                 window.clearTimeout(this.friendRefreshDebounce);
             const target = this.friendsSectionEl;
@@ -26692,6 +26805,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 this.friendRefreshDebounce = null;
                 if (!EBCDrawer.isSocialTab(this.currentTab) || this.friendsSectionEl !== target)
                     return;
+                // Checked again on the way out of the debounce - 80 ms is plenty of
+                // time for a void to land between scheduling this and running it.
+                if (!target.isConnected) {
+                    this.friendsSectionEl = null;
+                    this.friendRefreshDeferrals = 0;
+                    try {
+                        this.rerender();
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
+                    return;
+                }
                 // Stepping aside while a field is focused stops a rebuild landing on
                 // top of something half-typed. But it has to be able to give up: an
                 // unbounded version left the list frozen on stale content for good
@@ -32632,7 +32756,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             boopBtn.textContent = t("kitty.boopAll");
             boopBtn.addEventListener("click", () => {
                 const { done, skipped } = this.boopFriendsInRoom();
-                boopBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.boopedN", { n: done });
+                boopBtn.textContent = batchButtonText(done, skipped, t("buttons.noFriendsHere"), n => t("buttons.boopedN", { n }));
                 // Said once for the batch rather than per person - the refusals are
                 // usually the same reason, and one line per friend would be noise.
                 const note = describeSkipped(skipped, "booped");
@@ -32646,7 +32770,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             cuddleBtn.textContent = t("kitty.cuddleAll");
             cuddleBtn.addEventListener("click", () => {
                 const { done, skipped } = this.cuddleFriendsInRoom();
-                cuddleBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.cuddledN", { n: done });
+                cuddleBtn.textContent = batchButtonText(done, skipped, t("buttons.noFriendsHere"), n => t("buttons.cuddledN", { n }));
                 // Said once for the batch rather than per person - the refusals are
                 // usually the same reason, and one line per friend would be noise.
                 const note = describeSkipped(skipped, "cuddled");
@@ -32660,7 +32784,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             petBtn.textContent = t("kitty.petAll");
             petBtn.addEventListener("click", () => {
                 const { done, skipped } = this.petFriendsInRoom();
-                petBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.pettedN", { n: done });
+                petBtn.textContent = batchButtonText(done, skipped, t("buttons.noFriendsHere"), n => t("buttons.pettedN", { n }));
                 // Said once for the batch rather than per person - the refusals are
                 // usually the same reason, and one line per friend would be noise.
                 const note = describeSkipped(skipped, "petted");
@@ -41382,8 +41506,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "9.0.0";
-    const SAL_VERSION = 274; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "9.0.1";
+    const SAL_VERSION = 275; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41397,6 +41521,19 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "9.0.1",
+            changes: [
+                "IMPORTANT fix (reported by Julia): cuddling works again while your arms are tied. The permission check added last release was too blunt - it asked whether you could act at all, when the game asks per activity. Its own rules include ones that only apply while you ARE tied, and cuddling with bound arms is allowed. That blanket check is gone; the per-activity check it already did is the correct one and stays.",
+                "Fix (reported by Julia): the boop, cuddle and pet buttons no longer say 'No friends here' when friends were there but all of them were skipped. Zero booped was being read as an empty room. It now says how many were not allowed.",
+                "Fix (reported by Julia): being voided no longer freezes the friends list. The list kept drawing into the panel it was handed at the start, and a void replaces that panel - so every refresh after one painted something no longer on screen while the visible list sat frozen. It now notices the panel is gone and rebuilds.",
+                "Fix (reported by Snowy): outfits can be deleted again when account storage is full. The guard was meant to block only changes that make things worse, but it also blocked any change that left account storage exactly the same size - which includes deleting an outfit kept on this device, something that cannot affect account storage at all.",
+                "Fix (reported by Julia): the release message names the locks it actually skipped. It said 'DOGS padlocks are protected' whenever DOGS was loaded, even when what it skipped was an owner or lover lock. DOGS only ever protects exclusive padlocks; the message now reads the items in front of it.",
+                "Fix (reported by Julia): '/ebc ameter' hides the meter instead of switching arousal off. It was setting the game's arousal system to Inactive, which also stopped you doing activities on yourself while leaving everyone else's activities on you working - not what a command about the meter should do. It now uses the game's own 'no meter' setting, so arousal and activities carry on and only the bar goes away. Turning it back on also rescues anyone left on Inactive by the old behaviour.",
+                "Achievements are now for everyone, not just the credited crew. Tracking already ran for everyone - it was the trophy button that was gated, on a narrower check than everything else, so they stayed invisible. The crew-only rare ones are unchanged.",
+                "New (suggested by Sally): two more bondage achievements - Quiet Kitty for staying gagged 6 / 24 / 100 hours, and Locked Away for staying in chastity 1 / 7 / 30 days. Both read the per-item timers, so they carry across rooms and offline time. On her other point: a collar already does not count toward the bound streak - neck slots are excluded by default, and that list is yours to edit.",
+            ],
+        },
         {
             version: "9.0.0",
             changes: [
@@ -47516,9 +47653,18 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         const hidden = latest.changes.length - shown.length;
         appendChangelogBlock(`EBC v${latest.version} - what's new`, shown, hidden > 0 ? `+ ${hidden} more - the full list is in SETTINGS -> Credits.` : undefined);
     }
-    // Last non-Inactive arousal level, so toggling off → on restores it.
-    // Defaults to "Manual" if the setting was already Inactive at load time.
+    // Last metered arousal level, so toggling the meter back on restores it.
+    // Defaults to "Manual" if the meter was already hidden at load time.
+    //
+    // "OFF" here means BC's "NoMeter", not "Inactive". Both hide the meter, but
+    // Inactive switches the whole arousal system off - which also stops you doing
+    // activities on yourself, while leaving everyone else's activities on you
+    // working. A command called "toggle the arousal meter" turning off half the
+    // activity system was not what anyone expected, and NoMeter is the setting that
+    // does what the name says.
     let lastArousalActive = "Manual";
+    /** BC values that mean "the meter is not shown". */
+    const AROUSAL_HIDDEN = ["NoMeter", "Inactive"];
     function getArousalSettings() {
         return Player.ArousalSettings;
     }
@@ -47548,12 +47694,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 return;
             }
             const current = arousal.Active;
-            if (current && current !== "Inactive")
+            const hidden = !!current && AROUSAL_HIDDEN.includes(current);
+            if (current && !hidden)
                 lastArousalActive = current;
-            const next = (current === "Inactive") ? lastArousalActive : "Inactive";
+            // Anyone already on Inactive from an older EBC build comes back on to a
+            // working mode rather than being left with activities disabled.
+            const next = hidden ? lastArousalActive : "NoMeter";
             arousal.Active = next;
             syncArousalSettings(arousal);
-            const label = next === "Inactive" ? "OFF" : `ON (${next})`;
+            const label = next === "NoMeter"
+                ? "hidden (arousal and activities still work)"
+                : `shown (${next})`;
             appendLocalLogLine(`[EBC] Arousal meter: ${label}`, UI.gold);
         }
         catch (err) {
@@ -47568,10 +47719,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger);
                 return;
             }
-            // Make sure the meter is active — restore last known active mode if currently Inactive
-            if (arousal.Active === "Inactive") {
+            // Setting a level implies wanting to see it, so restore a metered mode.
+            const cur = arousal.Active;
+            if (cur && AROUSAL_HIDDEN.includes(cur))
                 arousal.Active = lastArousalActive;
-            }
             arousal.Progress = pct;
             syncArousalSettings(arousal);
             appendLocalLogLine(`[EBC] Arousal set to ${pct}%`, UI.gold);
@@ -48041,7 +48192,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         { tag: "changelog", desc: "Show recent changelog entries" },
         { tag: "release", desc: "Release all restraints from yourself" },
         { tag: "unlock", desc: "Remove all locks from yourself" },
-        { tag: "ameter", desc: "Toggle arousal meter on / off",
+        { tag: "ameter", desc: "Show or hide your arousal meter (activities keep working)",
             examples: [{ suffix: "50", desc: "Set arousal to a specific % (0-100)" }],
             args: [{ id: "percent", name: "0-100", description: "Leave empty to toggle on / off",
                     suggestions: ["0", "25", "50", "75", "100"] }] },

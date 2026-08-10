@@ -13,7 +13,7 @@
 // remaining checks still stand.
 
 /** Why an activity was refused, or null when it is allowed. */
-export type ActivityDenial = "bound" | "permission" | "prerequisite" | null;
+export type ActivityDenial = "permission" | "prerequisite" | null;
 
 interface BCActivityGlobals {
     ActivityRun?: (actor: Character, acted: Character, group: unknown, itemActivity: unknown, sendMessage?: boolean) => void;
@@ -37,12 +37,15 @@ function bc(): BCActivityGlobals {
 export function activityDenial(target: Character, groupName: string, activityName: string): ActivityDenial {
     const w = bc();
     try {
-        // 1. Can you act at all? False while bound, blindfolded into helplessness,
-        //    and so on - the same thing that greys out BC's own activity list.
-        // Cast because the local Character type does not declare it; BC's does.
-        const canInteract = (Player as unknown as { CanInteract?: () => boolean })?.CanInteract;
-        if (typeof canInteract === "function" && !canInteract.call(Player)) return "bound";
-
+        // There is deliberately NO blanket CanInteract() check here.
+        //
+        // It was the obvious thing to add and it was wrong: CanInteract() is
+        // false whenever your arms are bound, but BC judges activities one at a
+        // time, not all at once. Its prerequisite list has UseArms, UseHands,
+        // MoveHead - and CantUseArms, for activities that only exist WHILE you
+        // are tied. Cuddling someone with your arms bound is allowed in BC, and
+        // the blanket check refused it. ActivityCheckPrerequisites below already
+        // encodes the real rule for each activity, so this only has to ask it.
         const isSelf = target?.MemberNumber === Player?.MemberNumber;
 
         // 2. Does the target allow you to act on them? This is the one the report
@@ -87,5 +90,24 @@ export function runActivityOn(target: Character, groupName: string, activityName
 export function describeSkipped(skipped: number, verb: string): string | null {
     if (skipped <= 0) return null;
     return `[EBC] ${skipped} ${skipped === 1 ? "person was" : "people were"} not ${verb} - `
-        + "either they have not given you permission, or you cannot act right now.";
+        + "they have not given you permission for that.";
+}
+
+/**
+ * What to put on the button after a batch.
+ *
+ * Everyone being skipped is not the same as nobody being there, and reporting it
+ * as "no friends here" told people the room was empty when it was not. Kept
+ * separate from the count so the two cases cannot collapse into each other
+ * again.
+ */
+export function batchButtonText(
+    done: number,
+    skipped: number,
+    noneHere: string,
+    didN: (n: number) => string,
+): string {
+    if (done > 0) return didN(done);
+    if (skipped > 0) return skipped === 1 ? "Not allowed" : `${skipped} not allowed`;
+    return noneHere;
 }

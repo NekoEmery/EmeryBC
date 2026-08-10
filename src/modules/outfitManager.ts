@@ -169,13 +169,15 @@ function saveOutfits(list: ConfiguredOutfit[]): boolean {
     const localList  = sanitized.filter(o => o.local === true);
     try {
         const size = JSON.stringify(account).length;
-        // Refuse only a save that does not IMPROVE things. Refusing every save
-        // while over budget also refused deleting one and moving one to this
-        // device - the exact two actions the message tells you to take - so
-        // anyone who got over the line was stuck there with no way back.
+        // Refuse only a save that makes the account portion BIGGER. Refusing
+        // every save while over budget also refused deleting one and moving one
+        // to this device - the exact two actions the message tells you to take.
+        // The first attempt at this used >=, which still refused any save that
+        // left the account portion the same size: deleting a device-stored
+        // outfit, or renaming one, neither of which touches the account at all.
         const storedAccount = getSettings().outfits;
         const prevSize = Array.isArray(storedAccount) ? JSON.stringify(storedAccount).length : 0;
-        if (size > OUTFITS_BUDGET && size >= prevSize) {
+        if (size > OUTFITS_BUDGET && size > prevSize) {
             localNotice(
                 `Account outfit storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
                 "Not saved - delete some outfits, or switch outfits to 💾 This device storage (no account limit).",
@@ -895,13 +897,15 @@ function saveRestraints(list: ConfiguredOutfit[]): boolean {
     const localList  = sanitized.filter(o => o.local === true);
     try {
         const size = JSON.stringify(account).length;
-        // Refuse only a save that does not IMPROVE things. Refusing every save
-        // while over budget also refused deleting one and moving one to this
-        // device - the exact two actions the message tells you to take - so
-        // anyone who got over the line was stuck there with no way back.
+        // Refuse only a save that makes the account portion BIGGER. Refusing
+        // every save while over budget also refused deleting one and moving one
+        // to this device - the exact two actions the message tells you to take.
+        // The first attempt at this used >=, which still refused any save that
+        // left the account portion the same size: deleting a device-stored
+        // outfit, or renaming one, neither of which touches the account at all.
         const storedAccount = getSettings().restraints;
         const prevSize = Array.isArray(storedAccount) ? JSON.stringify(storedAccount).length : 0;
-        if (size > OUTFITS_BUDGET && size >= prevSize) {
+        if (size > OUTFITS_BUDGET && size > prevSize) {
             localNotice(
                 `Account restraint-set storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
                 "Not saved - delete some sets, or switch sets to 💾 This device storage (no account limit).",

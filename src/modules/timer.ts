@@ -163,6 +163,33 @@ export function getRestraintMs(): number {
     return restraintStartTime !== null ? Date.now() - restraintStartTime : 0;
 }
 
+// Groups that make each state true. Read from the persisted per-item timers, so
+// these survive reloads, room changes and being offline - the same reason the
+// overall bound streak reads from them rather than from session state.
+const GAG_GROUPS     = ["ItemMouth", "ItemMouth2", "ItemMouth3"];
+const CHASTITY_GROUPS = ["ItemPelvis", "ItemVulva"];
+
+function longestWornMs(groups: string[]): number {
+    const timers = loadRestraintTimers();
+    let oldest: number | null = null;
+    for (const g of groups) {
+        const start = timers[g];
+        if (start === undefined) continue;
+        if (oldest === null || start < oldest) oldest = start;
+    }
+    return oldest === null ? 0 : Date.now() - oldest;
+}
+
+/** How long something has been in your mouth, continuously. */
+export function getGaggedMs(): number {
+    return longestWornMs(GAG_GROUPS);
+}
+
+/** How long you have been in chastity, continuously. */
+export function getChastityMs(): number {
+    return longestWornMs(CHASTITY_GROUPS);
+}
+
 // How long a specific restraint group has been worn (survives offline).
 export function getRestraintItemDuration(group: string): string | null {
     const start = loadRestraintTimers()[group];

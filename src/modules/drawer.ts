@@ -115,7 +115,7 @@ import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, Fri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, isAchievementCrewMember, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
+import { isAchievementUser, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -186,7 +186,7 @@ import {
 } from "./whisperLog";
 import { t, getLanguage, setLanguage, onLangChange, LANG_CODES, LANG_NAMES, LANG_LABELS } from "./i18n";
 import { appendLocalLogLine } from "./notify";
-import { runActivityOn, activityDenial, describeSkipped } from "./activityGate";
+import { runActivityOn, activityDenial, describeSkipped, batchButtonText } from "./activityGate";
 import { UI } from "./ui";
 
 // -- Shared UI helpers ---------------------------------------------------------
@@ -4759,7 +4759,11 @@ export class EBCDrawer {
         // The header is built before login completes, so Player.MemberNumber may
         // not exist yet - re-check visibility until it does (or give up quietly).
         const refreshTrophyVis = (): void => {
-            trophyBtn.style.display = isAchievementCrewMember((Player as { MemberNumber?: number })?.MemberNumber) ? "" : "none";
+            // isAchievementUser, not crew membership. This was the reason
+            // achievements still looked crew-only after they were opened up:
+            // tracking ran for everyone but the button that opens the panel was
+            // gated on a different, narrower check.
+            trophyBtn.style.display = isAchievementUser((Player as { MemberNumber?: number })?.MemberNumber) ? "" : "none";
         };
         refreshTrophyVis();
         this._refreshTrophyVis = refreshTrophyVis;
@@ -16358,11 +16362,33 @@ This cannot be undone.`,
 
     public refreshFriendList(): void {
         if (!EBCDrawer.isSocialTab(this.currentTab) || !this.friendsSectionEl) return;
+
+        // A section that is no longer in the page can still be written to - the
+        // writes just go nowhere visible. Being voided tears the panel out from
+        // under us without this reference being cleared, so every later refresh
+        // quietly painted a detached element and the list on screen stayed
+        // frozen on whatever it last showed. Dropping the stale reference lets
+        // the next rebuild hand us a live one.
+        if (!this.friendsSectionEl.isConnected) {
+            this.friendsSectionEl = null;
+            this.friendRefreshDeferrals = 0;
+            try { this.rerender(); } catch { /* ignore */ }
+            return;
+        }
+
         if (this.friendRefreshDebounce !== null) window.clearTimeout(this.friendRefreshDebounce);
         const target = this.friendsSectionEl;
         this.friendRefreshDebounce = window.setTimeout(() => {
             this.friendRefreshDebounce = null;
             if (!EBCDrawer.isSocialTab(this.currentTab) || this.friendsSectionEl !== target) return;
+            // Checked again on the way out of the debounce - 80 ms is plenty of
+            // time for a void to land between scheduling this and running it.
+            if (!target.isConnected) {
+                this.friendsSectionEl = null;
+                this.friendRefreshDeferrals = 0;
+                try { this.rerender(); } catch { /* ignore */ }
+                return;
+            }
 
             // Stepping aside while a field is focused stops a rebuild landing on
             // top of something half-typed. But it has to be able to give up: an
@@ -22173,7 +22199,8 @@ This cannot be undone.`,
         boopBtn.textContent = t("kitty.boopAll");
         boopBtn.addEventListener("click", () => {
             const { done, skipped } = this.boopFriendsInRoom();
-            boopBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.boopedN", { n: done });
+            boopBtn.textContent = batchButtonText(done, skipped,
+                t("buttons.noFriendsHere"), n => t("buttons.boopedN", { n }));
             // Said once for the batch rather than per person - the refusals are
             // usually the same reason, and one line per friend would be noise.
             const note = describeSkipped(skipped, "booped");
@@ -22187,7 +22214,8 @@ This cannot be undone.`,
         cuddleBtn.textContent = t("kitty.cuddleAll");
         cuddleBtn.addEventListener("click", () => {
             const { done, skipped } = this.cuddleFriendsInRoom();
-            cuddleBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.cuddledN", { n: done });
+            cuddleBtn.textContent = batchButtonText(done, skipped,
+                t("buttons.noFriendsHere"), n => t("buttons.cuddledN", { n }));
             // Said once for the batch rather than per person - the refusals are
             // usually the same reason, and one line per friend would be noise.
             const note = describeSkipped(skipped, "cuddled");
@@ -22201,7 +22229,8 @@ This cannot be undone.`,
         petBtn.textContent = t("kitty.petAll");
         petBtn.addEventListener("click", () => {
             const { done, skipped } = this.petFriendsInRoom();
-            petBtn.textContent = done === 0 ? t("buttons.noFriendsHere") : t("buttons.pettedN", { n: done });
+            petBtn.textContent = batchButtonText(done, skipped,
+                t("buttons.noFriendsHere"), n => t("buttons.pettedN", { n }));
             // Said once for the batch rather than per person - the refusals are
             // usually the same reason, and one line per friend would be noise.
             const note = describeSkipped(skipped, "petted");

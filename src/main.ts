@@ -29,8 +29,8 @@ import bcModSdk from "bondage-club-mod-sdk";
 import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.0.0";
-const SAL_VERSION  = 274;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.0.1";
+const SAL_VERSION  = 275;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -47,6 +47,19 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "9.0.1",
+        changes: [
+            "IMPORTANT fix (reported by Julia): cuddling works again while your arms are tied. The permission check added last release was too blunt - it asked whether you could act at all, when the game asks per activity. Its own rules include ones that only apply while you ARE tied, and cuddling with bound arms is allowed. That blanket check is gone; the per-activity check it already did is the correct one and stays.",
+            "Fix (reported by Julia): the boop, cuddle and pet buttons no longer say 'No friends here' when friends were there but all of them were skipped. Zero booped was being read as an empty room. It now says how many were not allowed.",
+            "Fix (reported by Julia): being voided no longer freezes the friends list. The list kept drawing into the panel it was handed at the start, and a void replaces that panel - so every refresh after one painted something no longer on screen while the visible list sat frozen. It now notices the panel is gone and rebuilds.",
+            "Fix (reported by Snowy): outfits can be deleted again when account storage is full. The guard was meant to block only changes that make things worse, but it also blocked any change that left account storage exactly the same size - which includes deleting an outfit kept on this device, something that cannot affect account storage at all.",
+            "Fix (reported by Julia): the release message names the locks it actually skipped. It said 'DOGS padlocks are protected' whenever DOGS was loaded, even when what it skipped was an owner or lover lock. DOGS only ever protects exclusive padlocks; the message now reads the items in front of it.",
+            "Fix (reported by Julia): '/ebc ameter' hides the meter instead of switching arousal off. It was setting the game's arousal system to Inactive, which also stopped you doing activities on yourself while leaving everyone else's activities on you working - not what a command about the meter should do. It now uses the game's own 'no meter' setting, so arousal and activities carry on and only the bar goes away. Turning it back on also rescues anyone left on Inactive by the old behaviour.",
+            "Achievements are now for everyone, not just the credited crew. Tracking already ran for everyone - it was the trophy button that was gated, on a narrower check than everything else, so they stayed invisible. The crew-only rare ones are unchanged.",
+            "New (suggested by Sally): two more bondage achievements - Quiet Kitty for staying gagged 6 / 24 / 100 hours, and Locked Away for staying in chastity 1 / 7 / 30 days. Both read the per-item timers, so they carry across rooms and offline time. On her other point: a collar already does not count toward the bound streak - neck slots are excluded by default, and that list is yours to edit.",
+        ],
+    },
     {
         version: "9.0.0",
         changes: [
@@ -6171,9 +6184,19 @@ function showChangelog(): void {
     );
 }
 
-// Last non-Inactive arousal level, so toggling off → on restores it.
-// Defaults to "Manual" if the setting was already Inactive at load time.
+// Last metered arousal level, so toggling the meter back on restores it.
+// Defaults to "Manual" if the meter was already hidden at load time.
+//
+// "OFF" here means BC's "NoMeter", not "Inactive". Both hide the meter, but
+// Inactive switches the whole arousal system off - which also stops you doing
+// activities on yourself, while leaving everyone else's activities on you
+// working. A command called "toggle the arousal meter" turning off half the
+// activity system was not what anyone expected, and NoMeter is the setting that
+// does what the name says.
 let lastArousalActive = "Manual";
+
+/** BC values that mean "the meter is not shown". */
+const AROUSAL_HIDDEN = ["NoMeter", "Inactive"];
 
 function getArousalSettings(): Record<string, unknown> | undefined {
     return (Player as unknown as Record<string, unknown>).ArousalSettings as
@@ -6206,11 +6229,16 @@ function toggleArometerCommand(): void {
         const arousal = getArousalSettings();
         if (!arousal) { appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger); return; }
         const current = arousal.Active as string | undefined;
-        if (current && current !== "Inactive") lastArousalActive = current;
-        const next = (current === "Inactive") ? lastArousalActive : "Inactive";
+        const hidden = !!current && AROUSAL_HIDDEN.includes(current);
+        if (current && !hidden) lastArousalActive = current;
+        // Anyone already on Inactive from an older EBC build comes back on to a
+        // working mode rather than being left with activities disabled.
+        const next = hidden ? lastArousalActive : "NoMeter";
         arousal.Active = next;
         syncArousalSettings(arousal);
-        const label = next === "Inactive" ? "OFF" : `ON (${next})`;
+        const label = next === "NoMeter"
+            ? "hidden (arousal and activities still work)"
+            : `shown (${next})`;
         appendLocalLogLine(`[EBC] Arousal meter: ${label}`, UI.gold);
     } catch (err) {
         appendLocalLogLine("[EBC] Failed to toggle arousal meter.", UI.danger);
@@ -6222,10 +6250,9 @@ function setArometerProgress(pct: number): void {
     try {
         const arousal = getArousalSettings();
         if (!arousal) { appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger); return; }
-        // Make sure the meter is active — restore last known active mode if currently Inactive
-        if ((arousal.Active as string | undefined) === "Inactive") {
-            arousal.Active = lastArousalActive;
-        }
+        // Setting a level implies wanting to see it, so restore a metered mode.
+        const cur = arousal.Active as string | undefined;
+        if (cur && AROUSAL_HIDDEN.includes(cur)) arousal.Active = lastArousalActive;
         arousal.Progress = pct;
         syncArousalSettings(arousal);
         appendLocalLogLine(`[EBC] Arousal set to ${pct}%`, UI.gold);
@@ -6702,7 +6729,7 @@ const EBC_SUBCOMMANDS: EBCSubcommand[] = [
     { tag: "changelog", desc: "Show recent changelog entries" },
     { tag: "release",   desc: "Release all restraints from yourself" },
     { tag: "unlock",    desc: "Remove all locks from yourself" },
-    { tag: "ameter",    desc: "Toggle arousal meter on / off",
+    { tag: "ameter",    desc: "Show or hide your arousal meter (activities keep working)",
       examples: [{ suffix: "50", desc: "Set arousal to a specific % (0-100)" }],
       args: [{ id: "percent", name: "0-100", description: "Leave empty to toggle on / off",
                suggestions: ["0", "25", "50", "75", "100"] }] },
