@@ -117,7 +117,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     // rooms and offline time the same way the bound streak does. A collar does
     // not count toward "bound" - neck groups are excluded by default, and the
     // exclusion list is editable if you want it to.
-    { id: "gagged", icon: "🤐", name: "Quiet Kitty",  desc: "Stay gagged {n} hours straight",        counter: "gag_h",    tiers: [6, 24, 100], cls: "bondage" },
+    { id: "gagged", icon: "🤐", name: "Quiet Sub",    desc: "Stay gagged {n} hours straight",        counter: "gag_h",    tiers: [6, 24, 100], cls: "bondage" },
     { id: "chaste", icon: "🔐", name: "Locked Away",  desc: "Stay in chastity {n} hours straight",   counter: "chaste_h", tiers: [24, 168, 720], cls: "bondage" },
     // ⭐ Emery - rare single golden unlocks
     { id: "pat_the_dev",   icon: "⭐", name: "Pat the Kitty",   desc: "Headpat Emery {n} times",      counter: "pet_emery",   tiers: [5],  cls: "emery", rare: true },

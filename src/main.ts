@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.1";
-const SAL_VERSION  = 275;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 276;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -57,7 +57,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix (reported by Julia): the release message names the locks it actually skipped. It said 'DOGS padlocks are protected' whenever DOGS was loaded, even when what it skipped was an owner or lover lock. DOGS only ever protects exclusive padlocks; the message now reads the items in front of it.",
             "Fix (reported by Julia): '/ebc ameter' hides the meter instead of switching arousal off. It was setting the game's arousal system to Inactive, which also stopped you doing activities on yourself while leaving everyone else's activities on you working - not what a command about the meter should do. It now uses the game's own 'no meter' setting, so arousal and activities carry on and only the bar goes away. Turning it back on also rescues anyone left on Inactive by the old behaviour.",
             "Achievements are now for everyone, not just the credited crew. Tracking already ran for everyone - it was the trophy button that was gated, on a narrower check than everything else, so they stayed invisible. The crew-only rare ones are unchanged.",
-            "New (suggested by Sally): two more bondage achievements - Quiet Kitty for staying gagged 6 / 24 / 100 hours, and Locked Away for staying in chastity 1 / 7 / 30 days. Both read the per-item timers, so they carry across rooms and offline time. On her other point: a collar already does not count toward the bound streak - neck slots are excluded by default, and that list is yours to edit.",
+            "New (suggested by Sally): two more bondage achievements - Quiet Sub for staying gagged 6 / 24 / 100 hours, and Locked Away for staying in chastity 1 / 7 / 30 days. Both read the per-item timers, so they carry across rooms and offline time. On her other point: a collar already does not count toward the bound streak - neck slots are excluded by default, and that list is yours to edit.",
         ],
     },
     {
