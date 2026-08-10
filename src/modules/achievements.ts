@@ -127,9 +127,15 @@ export function hasCompletedEverything(): boolean {
 export function achievementDesc(a: AchievementDef, n: number): string {
     const text = a.desc.replace("{n}", a.fmtN ? a.fmtN(n) : String(n));
     if ((Player?.MemberNumber ?? 0) !== EMERY || !text.includes("Emery")) return text;
-    return text
-        .replace(/^Emery/, "A crew member")
-        .replace(/Emery/g, "a crew member");
+    // Plain splitting rather than a regex with word boundaries. The escapes in
+    // the previous version were mangled into control characters on their way
+    // into the file, so it silently matched nothing - this cannot happen to a
+    // string with no escapes in it. "Emery" only ever appears as a whole word
+    // in these descriptions, so nothing is lost by not asserting that.
+    const swapped = text.split("Emery").join("a crew member");
+    return swapped.startsWith("a crew member")
+        ? "A crew member" + swapped.slice("a crew member".length)
+        : swapped;
 }
 
 export const ACHIEVEMENT_CLASSES: Array<{ id: string; label: string; icon: string }> = [
@@ -184,7 +190,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     // are credited yourself you count toward your own total - you already know
     // who you are - so everyone needs the same number.
     { id: "met_emery", icon: "⭐", name: "Met the Kitty", desc: "Share a room with Emery",                        counter: "met_emery", tiers: [1], cls: "emery", rare: true },
-    { id: "crew_met",  icon: "⭐", name: "Met the Crew",  desc: "Share a room with all {n} credited EBC people", counter: "crew_met",  tiers: [CREDITED.length], cls: "emery", rare: true },
+    { id: "crew_met",  icon: "⭐", name: "Met the Crew",  desc: "Share a room with each of the {n} credited EBC people, in any order", counter: "crew_met",  tiers: [CREDITED.length], cls: "emery", rare: true },
 
     // Completionist is not tracked like the others - its progress is derived
     // from everything else, in completionProgress() below. It is listed last so
@@ -289,7 +295,25 @@ export function restoreAchievements(): boolean {
 
 // Debounced settings sync - counters can bump rapidly during play.
 let _saveTimer: ReturnType<typeof setTimeout> | null = null;
+/**
+ * Told whenever a counter moves, so an open Achievements panel can redraw.
+ *
+ * The panel used to build itself once and never look again, so anything earned
+ * while it was open simply did not appear - and the panel is exactly what you
+ * have open when you are trying to earn something.
+ *
+ * Fired on every bump rather than only on unlocks, because the progress bars
+ * move long before a tier does.
+ */
+let _onChanged: (() => void) | null = null;
+
+export function setAchievementsChangedCallback(fn: (() => void) | null): void {
+    _onChanged = fn;
+}
+
 function save(): void {
+    // Notified immediately; only the server write is debounced.
+    try { _onChanged?.(); } catch { /* ignore */ }
     if (_saveTimer !== null) return;
     _saveTimer = setTimeout(() => {
         _saveTimer = null;

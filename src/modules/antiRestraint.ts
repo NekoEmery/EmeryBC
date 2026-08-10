@@ -121,11 +121,47 @@ function wornNow(): Map<string, Item> {
     return out;
 }
 
+/**
+ * What was on you when auto-escape was switched on, by slot.
+ *
+ * Held as the actual items so they can be put back. Escaping a swapped-in
+ * restraint is not enough on its own: the swap has already taken the original
+ * off, so removing the replacement just leaves the slot bare and the swap has
+ * effectively stripped you - which is the opposite of protecting it.
+ */
+const protectedBySlot = new Map<string, Item>();
+
 export function snapshotPlayerRestraints(): void {
     try {
-        knownRestraints = new Set(wornNow().keys());
+        const worn = wornNow();
+        knownRestraints = new Set(worn.keys());
         failAttempts.clear();
+        protectedBySlot.clear();
+        for (const item of worn.values()) protectedBySlot.set(item.Asset.Group.Name, item);
     } catch { /* ignore */ }
+}
+
+/**
+ * Puts a protected restraint back after something was swapped in over it.
+ *
+ * Only fires when the slot ended up empty, so it cannot fight a legitimate
+ * change - and only for slots that had something at snapshot time.
+ */
+function restoreProtected(groups: Set<string>): boolean {
+    let restored = false;
+    for (const group of groups) {
+        const original = protectedBySlot.get(group);
+        if (!original) continue;
+        const occupied = Player.Appearance.some((i: Item) => i.Asset.Group.Name === group);
+        if (occupied) continue;
+        try {
+            Player.Appearance.push(original);
+            // Re-protect it under its own key so the next pass leaves it alone.
+            knownRestraints.add(wornKey(original));
+            restored = true;
+        } catch { /* ignore */ }
+    }
+    return restored;
 }
 
 /**
@@ -148,6 +184,13 @@ function forgetRemoved(worn: Map<string, Item>): void {
     }
     for (const key of [...failAttempts.keys()]) {
         if (!worn.has(key)) failAttempts.delete(key);
+    }
+    // A protected slot that is now genuinely EMPTY was emptied by you, not
+    // swapped - stop guarding it, or a restraint you took off yourself would
+    // reappear the next time anyone touched that slot.
+    for (const [group] of [...protectedBySlot]) {
+        const stillThere = Player.Appearance.some((i: Item) => i.Asset.Group.Name === group);
+        if (!stillThere) protectedBySlot.delete(group);
     }
 }
 
@@ -193,10 +236,10 @@ export function antiRestraintOnPlayerRefresh(): void {
         escaping = true;
 
         const firstItem = newItems[0];
-        const itemName: string =
-            (firstItem.Asset as unknown as Record<string, unknown>).Description as string
-            || firstItem.Asset.Name
-            || "restraint";
+        // getItemDisplayName, so a crafted item is called what its owner named
+        // it. The room's own message says "Mika's cuffs" and the escape replying
+        // "Leather Deluxe Leg Cuffs" reads as though it removed something else.
+        const itemName: string = getItemDisplayName(firstItem) || "restraint";
 
         // The name is deliberately NOT read here.
         //
@@ -225,17 +268,27 @@ function doEscape(newItems: Item[], itemName: string): void {
     //
     // This is the same technique /ebc release already uses, for the same reason.
     const removeGroups = new Set(newItems.map(i => i.Asset.Group.Name));
+    // Worked out before the removal, while the swapped-in item is still there.
+    const swappedSlots = new Set(
+        [...removeGroups].filter(g => protectedBySlot.has(g)),
+    );
     try {
         Player.Appearance = Player.Appearance.filter(
             (item: Item) => !removeGroups.has(item.Asset.Group.Name),
         );
     } catch { /* ignore */ }
 
+    // Put back anything that was swapped out from under a protected slot.
+    restoreProtected(swappedSlots);
+
     const stillPresent = new Set(
         Player.Appearance
             .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
             .map((i: Item) => i.Asset.Group.Name)
     );
+    // A restored slot is occupied again, so it must not count as a failure -
+    // the removal did work, the original simply took its place.
+    for (const g of swappedSlots) stillPresent.delete(g);
 
     let anySucceeded = false;
     for (const item of newItems) {

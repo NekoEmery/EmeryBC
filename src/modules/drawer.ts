@@ -115,7 +115,7 @@ import { getFriendList, getFriendStatus, isEBCComplete, getFriendTagList, setFri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, hasCompletedEverything, completionProgress, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
+import { isAchievementUser, hasCompletedEverything, completionProgress, setAchievementsChangedCallback, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -4159,6 +4159,66 @@ for (const _p of CREDITED) {
 }
 
 /**
+ * Makes a floating window draggable.
+ *
+ * The move listeners are attached on mousedown and removed on mouseup, so
+ * nothing persists between drags - there is no cleanup for callers to remember
+ * and no way for repeated opens to pile listeners up.
+ *
+ * Anything that is itself interactive is ignored as a drag handle, so dragging
+ * cannot start on a button, a text box or a link and steal the click from it.
+ */
+function makeDraggable(el: HTMLElement): void {
+    el.addEventListener("mousedown", (e: MouseEvent) => {
+        const tgt = e.target as HTMLElement | null;
+        if (tgt?.closest("input,textarea,select,button,a,label")) return;
+
+        // A scrollbar is part of its element, not a child, so it cannot be
+        // excluded by selector - and this handler ran first and called
+        // preventDefault, which cancelled the browser's own scrollbar drag. The
+        // window moved instead of the list scrolling.
+        //
+        // offsetX/offsetY are measured against the padding box, which stops at
+        // the scrollbar: a press beyond clientWidth or clientHeight is on the
+        // bar itself. Checked on the element pressed rather than the window, so
+        // it works for any scrollable area inside any of these panels.
+        if (tgt && (e.offsetX > tgt.clientWidth || e.offsetY > tgt.clientHeight)) return;
+
+        const r = el.getBoundingClientRect();
+        const startX = e.clientX, startY = e.clientY;
+        const originX = r.left, originY = r.top;
+
+        // Pin it where it currently appears before switching to explicit
+        // coordinates, so a centred window does not jump on the first pixel of
+        // movement. Any centring transform has to go for the same reason.
+        el.style.position  = "fixed";
+        el.style.margin    = "0";
+        el.style.transform = "none";
+        el.style.left      = originX + "px";
+        el.style.top       = originY + "px";
+        el.style.cursor    = "grabbing";
+
+        const onMove = (ev: MouseEvent): void => {
+            // Kept within the viewport - a window dragged off the edge cannot
+            // be brought back without reloading.
+            const w = el.getBoundingClientRect().width;
+            const maxX = Math.max(0, window.innerWidth - Math.min(w, window.innerWidth));
+            const maxY = Math.max(0, window.innerHeight - 40);
+            el.style.left = Math.min(Math.max(0, originX + ev.clientX - startX), maxX) + "px";
+            el.style.top  = Math.min(Math.max(0, originY + ev.clientY - startY), maxY) + "px";
+        };
+        const onUp = (): void => {
+            el.style.cursor = "";
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+        e.preventDefault();
+    });
+}
+
+/**
  * Everything that decorates a name in a people list, in one place.
  *
  * Three things can apply and they have to compose rather than fight:
@@ -6661,6 +6721,7 @@ export class EBCDrawer {
         side.style.transform = "translate(-50%, -50%)";
 
         document.body.appendChild(side);
+        makeDraggable(side);
         this.guideEl             = side;
         this.guideMode           = null;
         this.guideStep           = 0;
@@ -18564,11 +18625,17 @@ This cannot be undone.`,
         t1.textContent = "Completionist";
         const t2 = document.createElement("div");
         t2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b79aa8;margin-top:2px;line-height:1.45;";
-        t2.textContent = earned
-            ? "Every achievement at its highest level."
-            : "Every achievement at its highest level. Yes, including the rare ones.";
+        t2.textContent = "Every achievement at its highest level, rare ones included.";
+        // The exception gets its own line rather than being tacked on the end.
+        // A rule with a hidden carve-out is worse than no rule: someone chasing
+        // this needs to know Met the Crew is not standing in their way.
+        const t3 = document.createElement("div");
+        t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a3859a;margin-top:3px;line-height:1.45;";
+        t3.textContent = "Met the Crew does not count - it waits on five particular people being around, "
+            + "however long that takes. Met the Kitty is the meeting one that counts.";
         titles.appendChild(t1);
         titles.appendChild(t2);
+        titles.appendChild(t3);
         const count = document.createElement("span");
         count.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:10px;flex-shrink:0;"
             + "border:1px solid " + (earned ? "#c9ab72" : "#4c2537") + ";color:" + (earned ? "#e8cf9a" : "#c0a8b4")
@@ -18917,9 +18984,15 @@ This cannot be undone.`,
         const overlay = document.createElement("div");
         overlay.id = "ebc-ach-overlay";
         overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999999;display:flex;align-items:center;justify-content:center;";
-        overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+        // Unsubscribed on close, so a shut panel is not still rebuilding itself.
+        const closeOverlay = (): void => {
+            setAchievementsChangedCallback(null);
+            overlay.remove();
+        };
+        overlay.addEventListener("click", (e) => { if (e.target === overlay) closeOverlay(); });
         const panel = document.createElement("div");
         panel.style.cssText = "background:radial-gradient(130% 90% at 50% 0%, #221022, #0f060c 70%);border:2px solid #cf6f98;border-radius:12px;padding:14px 16px;width:min(430px, 92vw);max-height:78vh;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.05);";
+        makeDraggable(panel);
         const head = document.createElement("div");
         head.style.cssText = "display:flex;align-items:center;justify-content:space-between;";
         const title = document.createElement("span");
@@ -18928,7 +19001,7 @@ This cannot be undone.`,
         const closeBtn = document.createElement("button");
         closeBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:2px 9px;border-radius:6px;border:1px solid #4c2537;background:transparent;color:#cf6f98;cursor:pointer;";
         closeBtn.textContent = "X";
-        closeBtn.addEventListener("click", () => overlay.remove());
+        closeBtn.addEventListener("click", closeOverlay);
         head.appendChild(title);
         head.appendChild(closeBtn);
         panel.appendChild(head);
@@ -18953,6 +19026,27 @@ This cannot be undone.`,
             scroll.style.cssText = "overflow-y:auto;min-height:0;padding-right:4px;";
             scroll.appendChild(this.buildAchievementCards());
             panel.appendChild(scroll);
+
+            // Redraw while the panel is open. It used to build once and never
+            // look again, so anything earned while watching it never appeared -
+            // and this is the panel you have open when you are chasing one.
+            let redrawPending = false;
+            setAchievementsChangedCallback(() => {
+                if (redrawPending || !document.body.contains(overlay)) return;
+                redrawPending = true;
+                // Coalesced to the next frame: one action can bump several
+                // counters, and rebuilding per bump would flicker.
+                window.requestAnimationFrame(() => {
+                    redrawPending = false;
+                    if (!document.body.contains(overlay)) return;
+                    // Scroll position kept, or the list jumps to the top under
+                    // you every time a counter ticks.
+                    const keepScroll = scroll.scrollTop;
+                    while (scroll.firstChild) scroll.removeChild(scroll.firstChild);
+                    scroll.appendChild(this.buildAchievementCards());
+                    scroll.scrollTop = keepScroll;
+                });
+            });
             // Opt-out lives here, in the achievements popup itself.
             const plaqueBtn = document.createElement("button");
             const paintPlaque = (): void => {
@@ -27742,11 +27836,15 @@ This cannot be undone.`,
         const FONT = "font-family:'Trebuchet MS','Segoe UI',system-ui,sans-serif;";
         const mk = (tag: string, css?: string): HTMLElement => { const el = document.createElement(tag); if (css) el.style.cssText = css; return el; };
 
-        const overlay = mk("div", "position:fixed;inset:0;background:rgba(8,4,14,0.78);backdrop-filter:blur(3px);z-index:999999;display:flex;align-items:center;justify-content:center;");
+        // Dimmed but NOT blurred, like the achievements window. You are usually
+        // writing about something that just happened on screen, and blurring the
+        // one thing you are trying to describe means writing from memory.
+                const overlay = mk("div", "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999999;display:flex;align-items:center;justify-content:center;");
         overlay.id = "ebc-feedback-overlay";
 
         const card = mk("div", `${FONT}width:min(430px,92vw);max-height:88vh;overflow-y:auto;background:#18131f;border:1px solid #3f3149;border-radius:14px;padding:22px 24px;box-shadow:0 16px 50px rgba(0,0,0,0.6);`);
         overlay.appendChild(card);
+        makeDraggable(card);
 
         // Thin accent bar at the top for a bit of polish
         card.appendChild(mk("div", "height:3px;border-radius:3px;background:#cf6f98;margin:-6px 0 16px;"));
@@ -27781,6 +27879,10 @@ This cannot be undone.`,
             { label: t("feedback.other"), value: "Other" },
         ];
         let selectedType = TYPES[0].value;
+        const thanksFor = (kind: string): string =>
+            kind === "Bug report" ? t("feedback.toastBug")
+            : kind === "Feature request" ? t("feedback.toastIdea")
+            : t("feedback.toast");
         const typeChips: HTMLElement[] = [];
         const paintChips = (): void => {
             typeChips.forEach((chip, i) => {
@@ -27872,8 +27974,10 @@ This cannot be undone.`,
 
             // no-cors: fire-and-forget; we can't read the response but the submit goes through
             fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
-                .then(() => { close(); this._showToyToast(t("feedback.toast")); })
-                .catch(() => { close(); this._showToyToast(t("feedback.toast")); });
+                // Says what you actually sent. Reporting a bug and being thanked
+                // for your suggestion reads as though it was not understood.
+                .then(() => { close(); this._showToyToast(thanksFor(selectedType)); })
+                .catch(() => { close(); this._showToyToast(thanksFor(selectedType)); });
             try { achievementOnFeedbackSent(); } catch { /* ignore */ }
         });
 
