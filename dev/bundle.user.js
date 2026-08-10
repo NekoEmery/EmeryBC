@@ -4765,6 +4765,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         const craftName = (_a = craft === null || craft === void 0 ? void 0 : craft.Name) === null || _a === void 0 ? void 0 : _a.trim();
         return craftName ? `${item.Asset.Name}|${craftName}` : item.Asset.Name;
     }
+    // Human-readable label for a restraint item (shown in whitelist chips).
+    function getItemDisplayName(item) {
+        var _a;
+        const craft = item.Craft;
+        const craftName = (_a = craft === null || craft === void 0 ? void 0 : craft.Name) === null || _a === void 0 ? void 0 : _a.trim();
+        const baseName = item.Asset.Description || item.Asset.Name;
+        return craftName ? `${craftName} (${baseName})` : baseName;
+    }
     let lastRestrainerName = null;
     function getLastRestrainerName() { return lastRestrainerName; }
     function recordRestrainer(sourceMemberNumber) {
@@ -4813,12 +4821,50 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
         return out;
     }
+    /**
+     * What was on you when auto-escape was switched on, by slot.
+     *
+     * Held as the actual items so they can be put back. Escaping a swapped-in
+     * restraint is not enough on its own: the swap has already taken the original
+     * off, so removing the replacement just leaves the slot bare and the swap has
+     * effectively stripped you - which is the opposite of protecting it.
+     */
+    const protectedBySlot = new Map();
     function snapshotPlayerRestraints() {
         try {
-            knownRestraints = new Set(wornNow().keys());
+            const worn = wornNow();
+            knownRestraints = new Set(worn.keys());
             failAttempts.clear();
+            protectedBySlot.clear();
+            for (const item of worn.values())
+                protectedBySlot.set(item.Asset.Group.Name, item);
         }
         catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /**
+     * Puts a protected restraint back after something was swapped in over it.
+     *
+     * Only fires when the slot ended up empty, so it cannot fight a legitimate
+     * change - and only for slots that had something at snapshot time.
+     */
+    function restoreProtected(groups) {
+        let restored = false;
+        for (const group of groups) {
+            const original = protectedBySlot.get(group);
+            if (!original)
+                continue;
+            const occupied = Player.Appearance.some((i) => i.Asset.Group.Name === group);
+            if (occupied)
+                continue;
+            try {
+                Player.Appearance.push(original);
+                // Re-protect it under its own key so the next pass leaves it alone.
+                knownRestraints.add(wornKey(original));
+                restored = true;
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }
+        return restored;
     }
     /**
      * Drops anything from the known set that is no longer being worn.
@@ -4842,6 +4888,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         for (const key of [...failAttempts.keys()]) {
             if (!worn.has(key))
                 failAttempts.delete(key);
+        }
+        // A protected slot that is now genuinely EMPTY was emptied by you, not
+        // swapped - stop guarding it, or a restraint you took off yourself would
+        // reappear the next time anyone touched that slot.
+        for (const [group] of [...protectedBySlot]) {
+            const stillThere = Player.Appearance.some((i) => i.Asset.Group.Name === group);
+            if (!stillThere)
+                protectedBySlot.delete(group);
         }
     }
     // Merge currently worn restraints into knownRestraints, but skip ones that
@@ -4881,9 +4935,10 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return;
             escaping = true;
             const firstItem = newItems[0];
-            const itemName = firstItem.Asset.Description
-                || firstItem.Asset.Name
-                || "restraint";
+            // getItemDisplayName, so a crafted item is called what its owner named
+            // it. The room's own message says "Mika's cuffs" and the escape replying
+            // "Leather Deluxe Leg Cuffs" reads as though it removed something else.
+            const itemName = getItemDisplayName(firstItem) || "restraint";
             // The name is deliberately NOT read here.
             //
             // Who did it is only known from the chat line BC sends about it, and
@@ -4911,13 +4966,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         //
         // This is the same technique /ebc release already uses, for the same reason.
         const removeGroups = new Set(newItems.map(i => i.Asset.Group.Name));
+        // Worked out before the removal, while the swapped-in item is still there.
+        const swappedSlots = new Set([...removeGroups].filter(g => protectedBySlot.has(g)));
         try {
             Player.Appearance = Player.Appearance.filter((item) => !removeGroups.has(item.Asset.Group.Name));
         }
         catch ( /* ignore */_b) { /* ignore */ }
+        // Put back anything that was swapped out from under a protected slot.
+        restoreProtected(swappedSlots);
         const stillPresent = new Set(Player.Appearance
             .filter((i) => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
             .map((i) => i.Asset.Group.Name));
+        // A restored slot is occupied again, so it must not count as a failure -
+        // the removal did work, the original simply took its place.
+        for (const g of swappedSlots)
+            stillPresent.delete(g);
         let anySucceeded = false;
         for (const item of newItems) {
             const key = wornKey(item);
@@ -42079,7 +42142,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.6";
-    const SAL_VERSION = 298; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 299; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42096,6 +42159,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.6",
             changes: [
+                "IMPORTANT fix: a restraint that was on you before you switched auto-escape on can no longer be swapped off you. Escaping the item someone swapped IN was not enough on its own - the swap had already taken the original off, so removing the replacement just left the slot bare and the swap had stripped you anyway. The original is now put straight back. It only fires when the slot would otherwise be left empty, so it cannot fight a change you made yourself, and taking something off yourself stops it being guarded.",
+                "Fix (spotted by Julia): the escape emote uses an item's crafted name. It named the underlying item instead, so the room saw 'Angel swaps Julia's Cuffs...' followed by EBC saying the Leather Deluxe Leg Cuffs fell away - which reads as though it removed something else entirely.",
                 "The Achievements window and the Tutorial can be dragged too, so all three floating windows behave the same way. Grab any empty part of one and move it; they stay inside the screen and start centred each time. Buttons, text boxes and links are not drag handles, so nothing you click gets stolen by a drag.",
                 "The Suggestions & Bugs window can be dragged, and no longer blurs the game behind it. It dims like the achievements window instead. You are usually writing about something that just happened on screen, and blurring the exact thing you are describing meant writing it from memory. Drag it by any empty part of the window; it cannot be dragged off the edge, and it starts centred each time.",
                 "Fix: the thank-you after sending says what you actually sent. Reporting a bug and being thanked for your suggestion reads as though it was not understood. Bug reports, suggestions and anything else now each get their own wording, in all seven languages.",
