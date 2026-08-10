@@ -5239,12 +5239,49 @@
         }
         return oldest === null ? 0 : Date.now() - oldest;
     }
-    /** How long something has been in your mouth, continuously. */
+    /**
+     * The three achievement clocks, each gated on BC actually agreeing you are in
+     * that state.
+     *
+     * Wearing something in a restraint slot is not the same as being restrained by
+     * it. The slot list includes ears, nose, piercings and handhelds, so a pair of
+     * earrings counted towards "stay bound" just as much as a hogtie - which made
+     * the achievement close to free. Excluding collars, which is what the timer
+     * settings already did, only trimmed the most obvious case of a much wider one.
+     *
+     * BC answers the real question directly: IsRestrained, IsGagged and IsChaste
+     * come from item effects, so only something that actually restricts you counts.
+     * Duration still comes from the persisted per-item timers, so offline time is
+     * included - the predicate decides whether the clock counts, the timers say for
+     * how long.
+     *
+     * The visible bound timer is deliberately left alone. It has its own exclusion
+     * list that people have set up, and this stricter rule is about the achievement.
+     */
+    function bcSays(fn) {
+        try {
+            const f = Player[fn];
+            return typeof f === "function" ? !!f.call(Player) : null;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    /** Bound time that counts only while BC agrees you are restrained. */
+    function getRestrainedMs() {
+        // null means the predicate is unavailable - fall back rather than award zero.
+        return bcSays("IsRestrained") === false ? 0 : getRestraintMs();
+    }
+    /** How long you have been gagged, continuously. */
     function getGaggedMs() {
+        if (bcSays("IsGagged") === false)
+            return 0;
         return longestWornMs(GAG_GROUPS);
     }
     /** How long you have been in chastity, continuously. */
     function getChastityMs() {
+        if (bcSays("IsChaste") === false)
+            return 0;
         return longestWornMs(CHASTITY_GROUPS);
     }
     // How long a specific restraint group has been worn (survives offline).
@@ -8276,7 +8313,7 @@
         { id: "tickler", icon: "🪶", name: "Tickle Monster", desc: "Tickle others {n} times", counter: "tickle_give", tiers: [10, 50, 250], cls: "given" },
         // ⛓ Bondage
         { id: "tied", icon: "⛓", name: "Tied Down", desc: "Have restraints put on you {n} times", counter: "tied_recv", tiers: [5, 25, 100], cls: "bondage" },
-        { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight", counter: "bound_h", tiers: [24, 100, 500], cls: "bondage" },
+        { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay properly restrained {n} hours straight", counter: "bound_h", tiers: [24, 100, 500], cls: "bondage" },
         { id: "rigger", icon: "🪢", name: "Rigger", desc: "Put restraints on others {n} times", counter: "tie_give", tiers: [10, 50, 250], cls: "bondage" },
         // Suggested by Sally. Measured from the per-item timers, so they carry across
         // rooms and offline time the same way the bound streak does. A collar does
@@ -8950,7 +8987,7 @@
                 if (hours > ((_a = st.c[key]) !== null && _a !== void 0 ? _a : 0))
                     st.c[key] = hours;
             };
-            best("bound_h", getRestraintMs());
+            best("bound_h", getRestrainedMs());
             best("gag_h", getGaggedMs());
             best("chaste_h", getChastityMs());
             checkUnlocks();
@@ -41552,7 +41589,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.1";
-    const SAL_VERSION = 278; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 279; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41569,6 +41606,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.1",
             changes: [
+                "Fix (suggested by Sally): the time-based bondage achievements now need you to actually be restrained. They counted anything worn in a restraint slot - and that list includes ears, nose, piercings and handhelds, so a pair of earrings counted the same as a hogtie. Excluding collars, which the timer settings already did, only covered the most obvious case of a much wider one. All three now ask the game whether you are restrained, gagged or chaste, which it answers from item effects, so only something that genuinely restricts you counts. Time still comes from the per-item timers, so offline hours are included. Your visible bound timer is unchanged - it keeps its own exclusion list.",
                 "Storage is explained properly now. There are three separate ways storage can be full - your BC account, this browser, and EBC total - with three different fixes, and the messages looked alike enough that people read a browser problem as an account one. The Storage page now says in plain words what Account and This device mean and what to do when a bar fills, each message says which storage it is talking about, and all of them say the thing that was least obvious: deleting and moving still work while it is full, because they make it smaller.",
                 "IMPORTANT fix: EBC now tells you when it has stopped saving to your account. Going over the total the game allows meant saving silently stopped, with nothing but a line in the browser console that nobody has open - so changes looked like they worked and then vanished on reload. It says so on screen instead, once, with what to do about it.",
                 "IMPORTANT fix (reported by Julia): cuddling works again while your arms are tied. The permission check added last release was too blunt - it asked whether you could act at all, when the game asks per activity. Its own rules include ones that only apply while you ARE tied, and cuddling with bound arms is allowed. That blanket check is gone; the per-activity check it already did is the correct one and stays.",

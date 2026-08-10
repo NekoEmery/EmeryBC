@@ -180,13 +180,47 @@ function longestWornMs(groups: string[]): number {
     return oldest === null ? 0 : Date.now() - oldest;
 }
 
-/** How long something has been in your mouth, continuously. */
+/**
+ * The three achievement clocks, each gated on BC actually agreeing you are in
+ * that state.
+ *
+ * Wearing something in a restraint slot is not the same as being restrained by
+ * it. The slot list includes ears, nose, piercings and handhelds, so a pair of
+ * earrings counted towards "stay bound" just as much as a hogtie - which made
+ * the achievement close to free. Excluding collars, which is what the timer
+ * settings already did, only trimmed the most obvious case of a much wider one.
+ *
+ * BC answers the real question directly: IsRestrained, IsGagged and IsChaste
+ * come from item effects, so only something that actually restricts you counts.
+ * Duration still comes from the persisted per-item timers, so offline time is
+ * included - the predicate decides whether the clock counts, the timers say for
+ * how long.
+ *
+ * The visible bound timer is deliberately left alone. It has its own exclusion
+ * list that people have set up, and this stricter rule is about the achievement.
+ */
+function bcSays(fn: "IsRestrained" | "IsGagged" | "IsChaste"): boolean | null {
+    try {
+        const f = (Player as unknown as Record<string, unknown>)[fn];
+        return typeof f === "function" ? !!(f as () => boolean).call(Player) : null;
+    } catch { return null; }
+}
+
+/** Bound time that counts only while BC agrees you are restrained. */
+export function getRestrainedMs(): number {
+    // null means the predicate is unavailable - fall back rather than award zero.
+    return bcSays("IsRestrained") === false ? 0 : getRestraintMs();
+}
+
+/** How long you have been gagged, continuously. */
 export function getGaggedMs(): number {
+    if (bcSays("IsGagged") === false) return 0;
     return longestWornMs(GAG_GROUPS);
 }
 
 /** How long you have been in chastity, continuously. */
 export function getChastityMs(): number {
+    if (bcSays("IsChaste") === false) return 0;
     return longestWornMs(CHASTITY_GROUPS);
 }
 

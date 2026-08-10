@@ -6,7 +6,7 @@
 // tiny); tier-ups pop a toast. Fed from main.ts's ChatRoomMessage hook.
 
 import { getSettings, syncSettings } from "./bcUtils";
-import { getRestraintMs, getGaggedMs, getChastityMs } from "./timer";
+import { getRestrainedMs, getGaggedMs, getChastityMs } from "./timer";
 import { CREDITED, ACHIEVEMENT_MEMBERS, isCredited, hasCreatorAccess } from "./crew";
 
 // Crew whitelist - only these members track or see achievements.
@@ -111,7 +111,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "tickler",   icon: "🪶", name: "Tickle Monster", desc: "Tickle others {n} times",   counter: "tickle_give", tiers: [10, 50, 250], cls: "given" },
     // ⛓ Bondage
     { id: "tied",   icon: "⛓",  name: "Tied Down",      desc: "Have restraints put on you {n} times", counter: "tied_recv", tiers: [5, 25, 100],  cls: "bondage" },
-    { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight",        counter: "bound_h",   tiers: [24, 100, 500], cls: "bondage" },
+    { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay properly restrained {n} hours straight",        counter: "bound_h",   tiers: [24, 100, 500], cls: "bondage" },
     { id: "rigger", icon: "🪢", name: "Rigger",         desc: "Put restraints on others {n} times",   counter: "tie_give",  tiers: [10, 50, 250], cls: "bondage" },
     // Suggested by Sally. Measured from the per-item timers, so they carry across
     // rooms and offline time the same way the bound streak does. A collar does
@@ -744,7 +744,7 @@ setInterval(() => {
             const hours = Math.floor(ms / 3_600_000);
             if (hours > (st.c[key] ?? 0)) st.c[key] = hours;
         };
-        best("bound_h",  getRestraintMs());
+        best("bound_h",  getRestrainedMs());
         best("gag_h",    getGaggedMs());
         best("chaste_h", getChastityMs());
 
