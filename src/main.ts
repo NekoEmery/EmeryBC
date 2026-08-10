@@ -30,7 +30,7 @@ import { isAchievementUser, achievementScanRoom, achievementOnActivity, achievem
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.1";
-const SAL_VERSION  = 276;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 277;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.0.1",
         changes: [
+            "Storage is explained properly now. There are three separate ways storage can be full - your BC account, this browser, and EBC total - with three different fixes, and the messages looked alike enough that people read a browser problem as an account one. The Storage page now says in plain words what Account and This device mean and what to do when a bar fills, each message says which storage it is talking about, and all of them say the thing that was least obvious: deleting and moving still work while it is full, because they make it smaller.",
+            "IMPORTANT fix: EBC now tells you when it has stopped saving to your account. Going over the total the game allows meant saving silently stopped, with nothing but a line in the browser console that nobody has open - so changes looked like they worked and then vanished on reload. It says so on screen instead, once, with what to do about it.",
             "IMPORTANT fix (reported by Julia): cuddling works again while your arms are tied. The permission check added last release was too blunt - it asked whether you could act at all, when the game asks per activity. Its own rules include ones that only apply while you ARE tied, and cuddling with bound arms is allowed. That blanket check is gone; the per-activity check it already did is the correct one and stays.",
             "Fix (reported by Julia): the boop, cuddle and pet buttons no longer say 'No friends here' when friends were there but all of them were skipped. Zero booped was being read as an empty room. It now says how many were not allowed.",
             "Fix (reported by Julia): being voided no longer freezes the friends list. The list kept drawing into the panel it was handed at the start, and a void replaces that panel - so every refresh after one painted something no longer on screen while the visible list sat frozen. It now notices the panel is gone and rebuilds.",

@@ -8100,10 +8100,39 @@ export class EBCDrawer {
         devRow.textContent = `This device: ${kb(usage.deviceBytes)} KB (no account limit)`;
         content.appendChild(devRow);
 
-        const hint = document.createElement("div");
-        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a88898;margin-top:4px;line-height:1.45;";
-        hint.textContent = "Full bars? Switch items to Local (this device) storage or delete unused ones. Crafted items take the most space.";
-        content.appendChild(hint);
+        // Plain-English explainer.
+        //
+        // There are three separate "full" states with three different fixes, and
+        // the messages for them look alike enough that people read a browser
+        // problem as an account problem and vice versa. Saying up front which is
+        // which - and that deleting always works - saves the confusion rather
+        // than explaining it after the fact.
+        const explain = document.createElement("div");
+        explain.style.cssText = "margin-top:6px;padding:7px 9px;border:1px solid #3a1c2c;border-radius:7px;"
+            + "background:rgba(20,8,16,0.5);font-family:'Trebuchet MS',serif;font-size:10.5px;line-height:1.55;color:#a88898;";
+
+        const addLine = (label: string, text: string, colour: string): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "margin-bottom:4px;";
+            const b = document.createElement("span");
+            b.textContent = label + " ";
+            b.style.cssText = `color:${colour};font-weight:bold;`;
+            row.appendChild(b);
+            row.appendChild(document.createTextNode(text));
+            explain.appendChild(row);
+        };
+
+        addLine("Account", "goes everywhere you log in. The game only gives EBC a small amount, shared with your other addons.", "#8ab0d0");
+        addLine("This device", "stays in this browser only. Effectively no limit, but your phone and tablet will not see it.", "#98d0a8");
+        addLine("If a bar is full:", "move things to This device, or delete some. Crafted items are by far the biggest.", "#c9ab72");
+
+        const reassure = document.createElement("div");
+        reassure.style.cssText = "margin-top:5px;padding-top:5px;border-top:1px solid #3a1c2c;color:#c8a0b4;";
+        reassure.textContent = "Deleting and moving always work, even when it says full - they make it smaller. "
+            + "If a message says BROWSER storage, that is this device and not your account; nothing on your account is affected.";
+        explain.appendChild(reassure);
+
+        content.appendChild(explain);
 
         // ── Manage saved items - biggest first, move between stores or delete ─
         // Open state persists so moving/deleting (which re-renders the tab)
