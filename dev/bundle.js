@@ -124,6 +124,198 @@
         swatchBorder: "#f8dce8",
     };
 
+    function parseChange(raw) {
+        let text = raw.trim().replace(/^[••]\s*/, "");
+        let tag = null;
+        let tone = UI.accent;
+        let credit = null;
+        const lead = /^(IMPORTANT fix|Fix|New|Added|Removed|Changed)\s*(?:\(reported by ([^)]+)\))?\s*:\s*/i.exec(text);
+        if (lead) {
+            const label = lead[1].toLowerCase();
+            if (label === "important fix") {
+                tag = "IMPORTANT";
+                tone = UI.gold;
+            }
+            else if (label === "fix") {
+                tag = "FIX";
+                tone = UI.success;
+            }
+            else if (label === "new" || label === "added") {
+                tag = "NEW";
+                tone = UI.accent;
+            }
+            else {
+                tag = label.toUpperCase();
+                tone = UI.textSoft;
+            }
+            if (lead[2])
+                credit = lead[2].trim();
+            text = text.slice(lead[0].length);
+        }
+        // Some entries credit at the end instead ("Requested by Julia."). Same
+        // information, so it is shown the same way rather than left mid-sentence.
+        const trail = /\s*(?:Requested|Reported|Suggested|Found)\s+by\s+([A-Za-z0-9 #]+?)\.?\s*$/i.exec(text);
+        if (trail) {
+            credit = credit !== null && credit !== void 0 ? credit : trail[1].trim();
+            text = text.slice(0, trail.index);
+        }
+        text = text.trim();
+        // Split after the first sentence so there is something short to scan and the
+        // reasoning sits behind it, instead of one undifferentiated paragraph.
+        const stop = /\.\s+(?=[A-Z"'(])/.exec(text);
+        const headline = stop ? text.slice(0, stop.index + 1) : text;
+        const detail = stop ? text.slice(stop.index + 1).trim() : "";
+        return { tag, tone, headline, detail, credit };
+    }
+    /**
+     * The changelog, rendered to be skimmed.
+     *
+     * Every line used to be the same italic pink at the same weight, which for
+     * entries this long meant reading all of it to find out whether any of it
+     * applied to you. Category becomes a tag, the first sentence carries the change,
+     * the reasoning sits underneath in a quieter colour, and who reported it moves
+     * out of the sentence.
+     */
+    function appendChangelogBlock(title, changes, footer) {
+        const doAppend = () => {
+            const log = document.getElementById("TextAreaChatLog");
+            if (!log)
+                return false;
+            const box = document.createElement("div");
+            box.style.cssText = `background:${UI.cardMuted};border-left:3px solid ${UI.accent};`
+                + "border-radius:4px;padding:6px 9px 8px;margin:3px 0;font-size:12px;position:relative;";
+            const head = document.createElement("div");
+            head.style.cssText = `color:${UI.gold};font-weight:bold;padding-right:18px;`
+                + `border-bottom:1px solid ${UI.accentSoft};padding-bottom:4px;margin-bottom:2px;`;
+            head.textContent = title;
+            box.appendChild(head);
+            const close = document.createElement("span");
+            close.textContent = "×";
+            close.title = "Dismiss";
+            close.style.cssText = `position:absolute;top:3px;right:6px;cursor:pointer;color:${UI.textSoft};`
+                + "font-size:16px;line-height:1;padding:0 3px;";
+            close.addEventListener("mouseenter", () => { close.style.color = UI.accent; });
+            close.addEventListener("mouseleave", () => { close.style.color = UI.textSoft; });
+            close.addEventListener("click", () => box.remove());
+            box.appendChild(close);
+            const body = document.createElement("div");
+            body.style.cssText = "max-height:230px;overflow-y:auto;margin-top:4px;";
+            changes.forEach((raw, i) => {
+                const c = parseChange(raw);
+                const row = document.createElement("div");
+                row.style.cssText = "display:grid;grid-template-columns:auto 1fr;gap:7px;align-items:start;"
+                    + `padding:5px 0;${i > 0 ? `border-top:1px solid ${UI.accentSoft};` : ""}`;
+                const chip = document.createElement("span");
+                if (c.tag) {
+                    chip.textContent = c.tag;
+                    chip.style.cssText = `color:${c.tone};border:1px solid ${c.tone};border-radius:8px;`
+                        + "font-size:9px;font-weight:bold;letter-spacing:0.05em;padding:1px 6px;"
+                        + "line-height:13px;white-space:nowrap;display:inline-block;margin-top:1px;";
+                }
+                else {
+                    // No category - keep the column so the text still lines up.
+                    chip.textContent = "•";
+                    chip.style.cssText = `color:${UI.accentDeep};font-size:11px;padding:0 4px;line-height:15px;`;
+                }
+                row.appendChild(chip);
+                const textCol = document.createElement("div");
+                textCol.style.cssText = "min-width:0;";
+                const h = document.createElement("div");
+                h.style.cssText = `color:${UI.text};line-height:1.45;`;
+                h.textContent = c.headline;
+                textCol.appendChild(h);
+                if (c.detail) {
+                    const d = document.createElement("div");
+                    d.style.cssText = `color:${UI.textSoft};line-height:1.4;margin-top:2px;font-size:11px;`;
+                    d.textContent = c.detail;
+                    textCol.appendChild(d);
+                }
+                if (c.credit) {
+                    const cr = document.createElement("div");
+                    cr.style.cssText = `color:${UI.accentDeep};font-size:10px;margin-top:2px;`;
+                    cr.textContent = `reported by ${c.credit}`;
+                    textCol.appendChild(cr);
+                }
+                row.appendChild(textCol);
+                body.appendChild(row);
+            });
+            box.appendChild(body);
+            if (footer) {
+                const f = document.createElement("div");
+                f.style.cssText = `color:${UI.textSoft};font-size:10.5px;margin-top:5px;`
+                    + `border-top:1px solid ${UI.accentSoft};padding-top:4px;`;
+                f.textContent = footer;
+                box.appendChild(f);
+            }
+            log.appendChild(box);
+            log.scrollTop = log.scrollHeight;
+            return true;
+        };
+        if (!doAppend())
+            window.setTimeout(() => doAppend(), 300);
+    }
+    function appendLocalLogBlock(title, lines, color = UI.accent) {
+        const doAppend = () => {
+            const log = document.getElementById("TextAreaChatLog");
+            if (!log)
+                return false;
+            const box = document.createElement("div");
+            box.style.cssText = `background:${UI.cardMuted};border-left:3px solid ${UI.accent};`
+                + "border-radius:4px;padding:5px 8px 7px;margin:3px 0;font-size:12px;position:relative;";
+            const head = document.createElement("div");
+            head.style.cssText = `color:${UI.gold};font-weight:bold;padding-right:18px;`;
+            head.textContent = title;
+            box.appendChild(head);
+            const close = document.createElement("span");
+            close.textContent = "×";
+            close.title = "Dismiss";
+            close.style.cssText = `position:absolute;top:2px;right:6px;cursor:pointer;color:${UI.textMuted};`
+                + "font-size:15px;line-height:1;padding:0 3px;";
+            close.addEventListener("mouseenter", () => { close.style.color = UI.accent; });
+            close.addEventListener("mouseleave", () => { close.style.color = UI.textMuted; });
+            close.addEventListener("click", () => box.remove());
+            box.appendChild(close);
+            const body = document.createElement("div");
+            body.style.cssText = "max-height:190px;overflow-y:auto;margin-top:3px;";
+            for (const line of lines) {
+                const row = document.createElement("div");
+                row.style.cssText = `color:${color};font-style:italic;line-height:1.45;padding:1px 0;`;
+                row.textContent = line;
+                body.appendChild(row);
+            }
+            box.appendChild(body);
+            log.appendChild(box);
+            log.scrollTop = log.scrollHeight;
+            return true;
+        };
+        if (!doAppend())
+            window.setTimeout(() => doAppend(), 300);
+    }
+    function appendLocalLogLine(text, color = UI.accent) {
+        const doAppend = () => {
+            const log = document.getElementById("TextAreaChatLog");
+            if (!log)
+                return false;
+            const msg = document.createElement("div");
+            msg.style.cssText = `
+            background: ${UI.cardMuted};
+            color: ${color};
+            border-left: 3px solid ${UI.accent};
+            padding: 4px 8px;
+            margin: 2px 0;
+            font-style: italic;
+            font-size: 12px;
+        `;
+            msg.textContent = text;
+            log.appendChild(msg);
+            log.scrollTop = log.scrollHeight;
+            return true;
+        };
+        if (!doAppend()) {
+            window.setTimeout(() => doAppend(), 300);
+        }
+    }
+
     // ---------------------------------------------------------------------------
     // In-memory settings store.  All EBC modules read/write through getSettings().
     // Data is stored as plain key/value pairs in Player.ExtensionSettings.EmeryBC.
@@ -408,6 +600,8 @@
     // connection dropped by the server, and since the data is re-flushed after every
     // relog the client ends up in an infinite reconnect loop. Never let that happen.
     const SETTINGS_FLUSH_CAP = 150000;
+    /** Warn about the cap once a session - it is hit on every sync, not once. */
+    let _flushCapWarned = false;
     /** Serialized size (in characters ~ bytes) of EBC's whole settings blob. */
     function getSettingsBlobSize() {
         try {
@@ -431,8 +625,19 @@
             try {
                 const size = JSON.stringify(_mem).length;
                 if (size > SETTINGS_FLUSH_CAP) {
-                    console.error(`[EBC] Settings NOT synced - data too large (${Math.round(size / 1000)} KB > ${SETTINGS_FLUSH_CAP / 1000} KB cap). ` +
-                        "Delete some saved outfits to shrink it. Keeping the previous server copy to avoid a disconnect loop.");
+                    console.error(`[EBC] Settings NOT synced - data too large (${Math.round(size / 1000)} KB > ${SETTINGS_FLUSH_CAP / 1000} KB cap).`);
+                    // Said out loud, once. This is the worst of the three "full"
+                    // states because nothing else shows it: saving simply stops
+                    // working and the only sign was a console line nobody opens.
+                    if (!_flushCapWarned) {
+                        _flushCapWarned = true;
+                        appendLocalLogBlock("EBC has stopped saving to your account", [
+                            `Everything EBC stores adds up to ${Math.round(size / 1000)} KB, over the ${SETTINGS_FLUSH_CAP / 1000} KB the game allows.`,
+                            "Nothing is lost - it is all still here for this session. It just cannot be sent to your account, so a reload would lose the newest bits.",
+                            "To fix it: open SETTINGS, then Storage. Move outfits to This device, or clear something you do not need.",
+                            "Crafted items take by far the most room.",
+                        ], "#ff8a8a");
+                    }
                     return false;
                 }
             }
@@ -1087,7 +1292,11 @@
             return true;
         }
         catch (_a) {
-            localNotice$2("This device's outfit storage is full (browser quota) - not saved.", "#ff8a8a");
+            // Named clearly as the BROWSER, because the account message looks similar
+            // and the fix is completely different - nothing here is on your account.
+            localNotice$2("Not saved. This BROWSER's storage is full - this is not your BC account, " +
+                "and nothing on your account has changed. Delete some 💾 This device outfits, " +
+                "or clear old site data for this browser.", "#ff8a8a");
             return false;
         }
     }
@@ -1149,8 +1358,9 @@
             const storedAccount = getSettings().outfits;
             const prevSize = Array.isArray(storedAccount) ? JSON.stringify(storedAccount).length : 0;
             if (size > OUTFITS_BUDGET && size > prevSize) {
-                localNotice$2(`Account outfit storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
-                    "Not saved - delete some outfits, or switch outfits to 💾 This device storage (no account limit).", "#ff8a8a");
+                localNotice$2(`Not saved. Your BC ACCOUNT outfit space is full - ${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB. ` +
+                    "This is your account, not this device. " +
+                    "Deleting an outfit and moving one to 💾 This device both still work while it is full - they make it smaller.", "#ff8a8a");
                 return false;
             }
         }
@@ -8748,161 +8958,6 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }, TICK_MS);
-
-    function parseChange(raw) {
-        let text = raw.trim().replace(/^[••]\s*/, "");
-        let tag = null;
-        let tone = UI.accent;
-        let credit = null;
-        const lead = /^(IMPORTANT fix|Fix|New|Added|Removed|Changed)\s*(?:\(reported by ([^)]+)\))?\s*:\s*/i.exec(text);
-        if (lead) {
-            const label = lead[1].toLowerCase();
-            if (label === "important fix") {
-                tag = "IMPORTANT";
-                tone = UI.gold;
-            }
-            else if (label === "fix") {
-                tag = "FIX";
-                tone = UI.success;
-            }
-            else if (label === "new" || label === "added") {
-                tag = "NEW";
-                tone = UI.accent;
-            }
-            else {
-                tag = label.toUpperCase();
-                tone = UI.textSoft;
-            }
-            if (lead[2])
-                credit = lead[2].trim();
-            text = text.slice(lead[0].length);
-        }
-        // Some entries credit at the end instead ("Requested by Julia."). Same
-        // information, so it is shown the same way rather than left mid-sentence.
-        const trail = /\s*(?:Requested|Reported|Suggested|Found)\s+by\s+([A-Za-z0-9 #]+?)\.?\s*$/i.exec(text);
-        if (trail) {
-            credit = credit !== null && credit !== void 0 ? credit : trail[1].trim();
-            text = text.slice(0, trail.index);
-        }
-        text = text.trim();
-        // Split after the first sentence so there is something short to scan and the
-        // reasoning sits behind it, instead of one undifferentiated paragraph.
-        const stop = /\.\s+(?=[A-Z"'(])/.exec(text);
-        const headline = stop ? text.slice(0, stop.index + 1) : text;
-        const detail = stop ? text.slice(stop.index + 1).trim() : "";
-        return { tag, tone, headline, detail, credit };
-    }
-    /**
-     * The changelog, rendered to be skimmed.
-     *
-     * Every line used to be the same italic pink at the same weight, which for
-     * entries this long meant reading all of it to find out whether any of it
-     * applied to you. Category becomes a tag, the first sentence carries the change,
-     * the reasoning sits underneath in a quieter colour, and who reported it moves
-     * out of the sentence.
-     */
-    function appendChangelogBlock(title, changes, footer) {
-        const doAppend = () => {
-            const log = document.getElementById("TextAreaChatLog");
-            if (!log)
-                return false;
-            const box = document.createElement("div");
-            box.style.cssText = `background:${UI.cardMuted};border-left:3px solid ${UI.accent};`
-                + "border-radius:4px;padding:6px 9px 8px;margin:3px 0;font-size:12px;position:relative;";
-            const head = document.createElement("div");
-            head.style.cssText = `color:${UI.gold};font-weight:bold;padding-right:18px;`
-                + `border-bottom:1px solid ${UI.accentSoft};padding-bottom:4px;margin-bottom:2px;`;
-            head.textContent = title;
-            box.appendChild(head);
-            const close = document.createElement("span");
-            close.textContent = "×";
-            close.title = "Dismiss";
-            close.style.cssText = `position:absolute;top:3px;right:6px;cursor:pointer;color:${UI.textSoft};`
-                + "font-size:16px;line-height:1;padding:0 3px;";
-            close.addEventListener("mouseenter", () => { close.style.color = UI.accent; });
-            close.addEventListener("mouseleave", () => { close.style.color = UI.textSoft; });
-            close.addEventListener("click", () => box.remove());
-            box.appendChild(close);
-            const body = document.createElement("div");
-            body.style.cssText = "max-height:230px;overflow-y:auto;margin-top:4px;";
-            changes.forEach((raw, i) => {
-                const c = parseChange(raw);
-                const row = document.createElement("div");
-                row.style.cssText = "display:grid;grid-template-columns:auto 1fr;gap:7px;align-items:start;"
-                    + `padding:5px 0;${i > 0 ? `border-top:1px solid ${UI.accentSoft};` : ""}`;
-                const chip = document.createElement("span");
-                if (c.tag) {
-                    chip.textContent = c.tag;
-                    chip.style.cssText = `color:${c.tone};border:1px solid ${c.tone};border-radius:8px;`
-                        + "font-size:9px;font-weight:bold;letter-spacing:0.05em;padding:1px 6px;"
-                        + "line-height:13px;white-space:nowrap;display:inline-block;margin-top:1px;";
-                }
-                else {
-                    // No category - keep the column so the text still lines up.
-                    chip.textContent = "•";
-                    chip.style.cssText = `color:${UI.accentDeep};font-size:11px;padding:0 4px;line-height:15px;`;
-                }
-                row.appendChild(chip);
-                const textCol = document.createElement("div");
-                textCol.style.cssText = "min-width:0;";
-                const h = document.createElement("div");
-                h.style.cssText = `color:${UI.text};line-height:1.45;`;
-                h.textContent = c.headline;
-                textCol.appendChild(h);
-                if (c.detail) {
-                    const d = document.createElement("div");
-                    d.style.cssText = `color:${UI.textSoft};line-height:1.4;margin-top:2px;font-size:11px;`;
-                    d.textContent = c.detail;
-                    textCol.appendChild(d);
-                }
-                if (c.credit) {
-                    const cr = document.createElement("div");
-                    cr.style.cssText = `color:${UI.accentDeep};font-size:10px;margin-top:2px;`;
-                    cr.textContent = `reported by ${c.credit}`;
-                    textCol.appendChild(cr);
-                }
-                row.appendChild(textCol);
-                body.appendChild(row);
-            });
-            box.appendChild(body);
-            if (footer) {
-                const f = document.createElement("div");
-                f.style.cssText = `color:${UI.textSoft};font-size:10.5px;margin-top:5px;`
-                    + `border-top:1px solid ${UI.accentSoft};padding-top:4px;`;
-                f.textContent = footer;
-                box.appendChild(f);
-            }
-            log.appendChild(box);
-            log.scrollTop = log.scrollHeight;
-            return true;
-        };
-        if (!doAppend())
-            window.setTimeout(() => doAppend(), 300);
-    }
-    function appendLocalLogLine(text, color = UI.accent) {
-        const doAppend = () => {
-            const log = document.getElementById("TextAreaChatLog");
-            if (!log)
-                return false;
-            const msg = document.createElement("div");
-            msg.style.cssText = `
-            background: ${UI.cardMuted};
-            color: ${color};
-            border-left: 3px solid ${UI.accent};
-            padding: 4px 8px;
-            margin: 2px 0;
-            font-style: italic;
-            font-size: 12px;
-        `;
-            msg.textContent = text;
-            log.appendChild(msg);
-            log.scrollTop = log.scrollHeight;
-            return true;
-        };
-        if (!doAppend()) {
-            window.setTimeout(() => doAppend(), 300);
-        }
-    }
 
     // Safeword system — two-word safety protocol.
     // Yellow: releases binding restraints + starts grace period (no new restraints for N ms).
@@ -18705,10 +18760,35 @@
             devRow.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11.5px;color:#d0aec0;margin-top:7px;";
             devRow.textContent = `This device: ${kb(usage.deviceBytes)} KB (no account limit)`;
             content.appendChild(devRow);
-            const hint = document.createElement("div");
-            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a88898;margin-top:4px;line-height:1.45;";
-            hint.textContent = "Full bars? Switch items to Local (this device) storage or delete unused ones. Crafted items take the most space.";
-            content.appendChild(hint);
+            // Plain-English explainer.
+            //
+            // There are three separate "full" states with three different fixes, and
+            // the messages for them look alike enough that people read a browser
+            // problem as an account problem and vice versa. Saying up front which is
+            // which - and that deleting always works - saves the confusion rather
+            // than explaining it after the fact.
+            const explain = document.createElement("div");
+            explain.style.cssText = "margin-top:6px;padding:7px 9px;border:1px solid #3a1c2c;border-radius:7px;"
+                + "background:rgba(20,8,16,0.5);font-family:'Trebuchet MS',serif;font-size:10.5px;line-height:1.55;color:#a88898;";
+            const addLine = (label, text, colour) => {
+                const row = document.createElement("div");
+                row.style.cssText = "margin-bottom:4px;";
+                const b = document.createElement("span");
+                b.textContent = label + " ";
+                b.style.cssText = `color:${colour};font-weight:bold;`;
+                row.appendChild(b);
+                row.appendChild(document.createTextNode(text));
+                explain.appendChild(row);
+            };
+            addLine("Account", "goes everywhere you log in. The game only gives EBC a small amount, shared with your other addons.", "#8ab0d0");
+            addLine("This device", "stays in this browser only. Effectively no limit, but your phone and tablet will not see it.", "#98d0a8");
+            addLine("If a bar is full:", "move things to This device, or delete some. Crafted items are by far the biggest.", "#c9ab72");
+            const reassure = document.createElement("div");
+            reassure.style.cssText = "margin-top:5px;padding-top:5px;border-top:1px solid #3a1c2c;color:#c8a0b4;";
+            reassure.textContent = "Deleting and moving always work, even when it says full - they make it smaller. "
+                + "If a message says BROWSER storage, that is this device and not your account; nothing on your account is affected.";
+            explain.appendChild(reassure);
+            content.appendChild(explain);
             // ── Manage saved items - biggest first, move between stores or delete ─
             // Open state persists so moving/deleting (which re-renders the tab)
             // doesn't snap the list shut.
@@ -41472,7 +41552,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.1";
-    const SAL_VERSION = 276; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 277; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41489,6 +41569,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.1",
             changes: [
+                "Storage is explained properly now. There are three separate ways storage can be full - your BC account, this browser, and EBC total - with three different fixes, and the messages looked alike enough that people read a browser problem as an account one. The Storage page now says in plain words what Account and This device mean and what to do when a bar fills, each message says which storage it is talking about, and all of them say the thing that was least obvious: deleting and moving still work while it is full, because they make it smaller.",
+                "IMPORTANT fix: EBC now tells you when it has stopped saving to your account. Going over the total the game allows meant saving silently stopped, with nothing but a line in the browser console that nobody has open - so changes looked like they worked and then vanished on reload. It says so on screen instead, once, with what to do about it.",
                 "IMPORTANT fix (reported by Julia): cuddling works again while your arms are tied. The permission check added last release was too blunt - it asked whether you could act at all, when the game asks per activity. Its own rules include ones that only apply while you ARE tied, and cuddling with bound arms is allowed. That blanket check is gone; the per-activity check it already did is the correct one and stays.",
                 "Fix (reported by Julia): the boop, cuddle and pet buttons no longer say 'No friends here' when friends were there but all of them were skipped. Zero booped was being read as an empty room. It now says how many were not allowed.",
                 "Fix (reported by Julia): being voided no longer freezes the friends list. The list kept drawing into the panel it was handed at the start, and a void replaces that panel - so every refresh after one painted something no longer on screen while the visible list sat frozen. It now notices the panel is gone and rebuilds.",
