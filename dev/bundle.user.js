@@ -15239,6 +15239,52 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     for (const _p of CREDITED) {
         VIP_MEMBERS[_p.num] = { label: (_a = _p.vipLabel) !== null && _a !== void 0 ? _a : _p.name, color: _p.color, gradient: _p.gradient };
     }
+    /**
+     * Makes a floating window draggable.
+     *
+     * The move listeners are attached on mousedown and removed on mouseup, so
+     * nothing persists between drags - there is no cleanup for callers to remember
+     * and no way for repeated opens to pile listeners up.
+     *
+     * Anything that is itself interactive is ignored as a drag handle, so dragging
+     * cannot start on a button, a text box or a link and steal the click from it.
+     */
+    function makeDraggable(el) {
+        el.addEventListener("mousedown", (e) => {
+            const tgt = e.target;
+            if (tgt === null || tgt === void 0 ? void 0 : tgt.closest("input,textarea,select,button,a,label"))
+                return;
+            const r = el.getBoundingClientRect();
+            const startX = e.clientX, startY = e.clientY;
+            const originX = r.left, originY = r.top;
+            // Pin it where it currently appears before switching to explicit
+            // coordinates, so a centred window does not jump on the first pixel of
+            // movement. Any centring transform has to go for the same reason.
+            el.style.position = "fixed";
+            el.style.margin = "0";
+            el.style.transform = "none";
+            el.style.left = originX + "px";
+            el.style.top = originY + "px";
+            el.style.cursor = "grabbing";
+            const onMove = (ev) => {
+                // Kept within the viewport - a window dragged off the edge cannot
+                // be brought back without reloading.
+                const w = el.getBoundingClientRect().width;
+                const maxX = Math.max(0, window.innerWidth - Math.min(w, window.innerWidth));
+                const maxY = Math.max(0, window.innerHeight - 40);
+                el.style.left = Math.min(Math.max(0, originX + ev.clientX - startX), maxX) + "px";
+                el.style.top = Math.min(Math.max(0, originY + ev.clientY - startY), maxY) + "px";
+            };
+            const onUp = () => {
+                el.style.cursor = "";
+                window.removeEventListener("mousemove", onMove);
+                window.removeEventListener("mouseup", onUp);
+            };
+            window.addEventListener("mousemove", onMove);
+            window.addEventListener("mouseup", onUp);
+            e.preventDefault();
+        });
+    }
     function decorateName(el, num, forcePreview = false) {
         const before = [];
         const after = [];
@@ -17562,6 +17608,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             side.style.top = "50%";
             side.style.transform = "translate(-50%, -50%)";
             document.body.appendChild(side);
+            makeDraggable(side);
             this.guideEl = side;
             this.guideMode = null;
             this.guideStep = 0;
@@ -29751,6 +29798,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 overlay.remove(); });
             const panel = document.createElement("div");
             panel.style.cssText = "background:radial-gradient(130% 90% at 50% 0%, #221022, #0f060c 70%);border:2px solid #cf6f98;border-radius:12px;padding:14px 16px;width:min(430px, 92vw);max-height:78vh;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 40px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.05);";
+            makeDraggable(panel);
             const head = document.createElement("div");
             head.style.cssText = "display:flex;align-items:center;justify-content:space-between;";
             const title = document.createElement("span");
@@ -39602,53 +39650,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             // Dimmed but NOT blurred, like the achievements window. You are usually
             // writing about something that just happened on screen, and blurring the
             // one thing you are trying to describe means writing from memory.
-            // Drag by anywhere on the window that is not a control, so it can be
-            // moved off whatever you are describing. Position is not remembered -
-            // each report starts centred, because where you dragged it last has
-            // nothing to do with what you are looking at now.
-            const makeDraggable = (handleOn, moves) => {
-                let dx = 0, dy = 0, ox = 0, oy = 0, dragging = false;
-                handleOn.style.cursor = "move";
-                handleOn.addEventListener("mousedown", (e) => {
-                    const tgt = e.target;
-                    if (tgt.closest("input,textarea,select,button,a"))
-                        return;
-                    dragging = true;
-                    const r = moves.getBoundingClientRect();
-                    ox = r.left;
-                    oy = r.top;
-                    dx = e.clientX;
-                    dy = e.clientY;
-                    moves.style.position = "fixed";
-                    moves.style.margin = "0";
-                    moves.style.left = ox + "px";
-                    moves.style.top = oy + "px";
-                    e.preventDefault();
-                });
-                const onMove = (e) => {
-                    if (!dragging)
-                        return;
-                    // Kept on screen - a window dragged off the edge cannot be got back.
-                    const r = moves.getBoundingClientRect();
-                    const nx = Math.min(Math.max(0, ox + e.clientX - dx), window.innerWidth - Math.min(r.width, window.innerWidth));
-                    const ny = Math.min(Math.max(0, oy + e.clientY - dy), window.innerHeight - 40);
-                    moves.style.left = nx + "px";
-                    moves.style.top = ny + "px";
-                };
-                const onUp = () => { dragging = false; };
-                window.addEventListener("mousemove", onMove);
-                window.addEventListener("mouseup", onUp);
-                // Torn down with the overlay so a closed window leaves nothing behind.
-                overlay.addEventListener("ebc-cleanup", () => {
-                    window.removeEventListener("mousemove", onMove);
-                    window.removeEventListener("mouseup", onUp);
-                });
-            };
             const overlay = mk("div", "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999999;display:flex;align-items:center;justify-content:center;");
             overlay.id = "ebc-feedback-overlay";
             const card = mk("div", `${FONT}width:min(430px,92vw);max-height:88vh;overflow-y:auto;background:#18131f;border:1px solid #3f3149;border-radius:14px;padding:22px 24px;box-shadow:0 16px 50px rgba(0,0,0,0.6);`);
             overlay.appendChild(card);
-            makeDraggable(card, card);
+            makeDraggable(card);
             // Thin accent bar at the top for a bit of polish
             card.appendChild(mk("div", "height:3px;border-radius:3px;background:#cf6f98;margin:-6px 0 16px;"));
             const titleEl = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#f3eef6;letter-spacing:0.2px;margin-bottom:6px;`);
@@ -39753,16 +39759,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             btnRow.appendChild(cancelBtn);
             btnRow.appendChild(sendBtn);
             card.appendChild(btnRow);
-            const close = () => {
-                // Drop the drag helper's window listeners before the overlay goes,
-                // otherwise every report leaves a pair of them behind.
-                try {
-                    overlay.dispatchEvent(new Event("ebc-cleanup"));
-                }
-                catch ( /* ignore */_a) { /* ignore */ }
-                if (document.body.contains(overlay))
-                    document.body.removeChild(overlay);
-            };
+            const close = () => { if (document.body.contains(overlay))
+                document.body.removeChild(overlay); };
             cancelBtn.addEventListener("click", close);
             overlay.addEventListener("click", (e) => { if (e.target === overlay)
                 close(); });
@@ -42081,7 +42079,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.6";
-    const SAL_VERSION = 297; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 298; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42098,6 +42096,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.6",
             changes: [
+                "The Achievements window and the Tutorial can be dragged too, so all three floating windows behave the same way. Grab any empty part of one and move it; they stay inside the screen and start centred each time. Buttons, text boxes and links are not drag handles, so nothing you click gets stolen by a drag.",
                 "The Suggestions & Bugs window can be dragged, and no longer blurs the game behind it. It dims like the achievements window instead. You are usually writing about something that just happened on screen, and blurring the exact thing you are describing meant writing it from memory. Drag it by any empty part of the window; it cannot be dragged off the edge, and it starts centred each time.",
                 "Fix: the thank-you after sending says what you actually sent. Reporting a bug and being thanked for your suggestion reads as though it was not understood. Bug reports, suggestions and anything else now each get their own wording, in all seven languages.",
                 "Fix (again): Emery's achievement cards really do say \"a crew member\" now. The previous attempt shipped doing nothing at all - the pattern it used was mangled into invisible control characters on its way into the file, so it never matched anything.",
