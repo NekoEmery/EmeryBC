@@ -27185,7 +27185,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         /** Renders the friends list. When roomsTarget is given, the Rooms section is
          *  rendered there instead (its own pill in the tabbed Users layout). */
         renderFriendRows(body, roomsTarget) {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             if (roomsTarget)
@@ -27283,22 +27283,36 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     try {
                         this.friendRoomsCollapsed = localStorage.getItem("EBC_friendRoomsCollapsed") === "1";
                     }
-                    catch ( /* ignore */_d) { /* ignore */ }
+                    catch ( /* ignore */_e) { /* ignore */ }
                     const roomsContainer = document.createElement("div");
                     // Everyone in the current room (friends or not) - rendered as the
                     // full-featured rows inside your room's card below.
                     const w2 = window;
                     const roomCharsAll = w2.ChatRoomCharacter;
+                    // You are included, and put first.
+                    //
+                    // This used to filter you out, which is why your own room card
+                    // listed one fewer person than the count beside it said - the
+                    // count came from the real roster and the rows did not. It also
+                    // meant you could never see how your own row looks to everyone
+                    // else, which is the thing you would most want to check.
+                    const meNumRow = (_c = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _c !== void 0 ? _c : 0;
                     const roomList = Array.isArray(roomCharsAll)
-                        ? roomCharsAll.filter(c => c.MemberNumber !== Player.MemberNumber)
+                        ? [...roomCharsAll].sort((a, b) => (b.MemberNumber === meNumRow ? 0 : 1) -
+                            (a.MemberNumber === meNumRow ? 0 : 1))
                         : [];
                     const buildRoomRow = (char, container) => {
                         var _a, _b, _c;
                         const num = char.MemberNumber;
+                        const isMe = num === meNumRow;
                         const nameRaw = char.Nickname || char.Name || "Unknown";
                         const name = resolveName(num) || nameRaw;
                         const wrap = document.createElement("div");
                         wrap.className = "ebc-friend-wrap";
+                        if (isMe) {
+                            wrap.style.background = "rgba(207,111,152,0.07)";
+                            wrap.style.borderColor = "#5b2439";
+                        }
                         if (isSpecialFriend(num))
                             wrap.classList.add("ebc-friend-starred");
                         const row = document.createElement("div");
@@ -27361,6 +27375,15 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         const nameRow = document.createElement("div");
                         nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                         // nameEl uses .ebc-friend-name flex:0 1 auto - no override needed
+                        if (isMe) {
+                            const youTag = document.createElement("span");
+                            youTag.textContent = "YOU";
+                            youTag.title = "This is how you appear to everyone else";
+                            youTag.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:8.5px;"
+                                + "letter-spacing:0.08em;border:1px solid #8a4866;color:#cf6f98;"
+                                + "border-radius:8px;padding:0 6px;flex-shrink:0;";
+                            nameRow.appendChild(youTag);
+                        }
                         for (const d of decorRoom.before)
                             nameRow.appendChild(d);
                         nameRow.appendChild(nameEl);
@@ -27596,7 +27619,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                                     occ = { count: d.Character.length, limit: d.Limit };
                                 }
                             }
-                            catch ( /* ignore */_e) { /* ignore */ }
+                            catch ( /* ignore */_f) { /* ignore */ }
                             if (!occ)
                                 occ = getRoomCount(myRoomName);
                         }
@@ -27701,9 +27724,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 lblF.appendChild(lblFCount);
                 // ── Sort dropdown ──────────────────────────────────────────────────
                 try {
-                    this.friendSort = (_c = localStorage.getItem("EBC_friendSort")) !== null && _c !== void 0 ? _c : "status";
+                    this.friendSort = (_d = localStorage.getItem("EBC_friendSort")) !== null && _d !== void 0 ? _d : "status";
                 }
-                catch ( /* ignore */_f) { /* ignore */ }
+                catch ( /* ignore */_g) { /* ignore */ }
                 const sortSel = document.createElement("select");
                 sortSel.title = "Sort friends";
                 sortSel.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:1px 3px;border-radius:4px;border:1px solid #3a1928;background:#140a10;color:#b08090;cursor:pointer;flex-shrink:0;outline:none;";
@@ -28662,7 +28685,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     try {
                         cacheName(num, fallbackName);
                     }
-                    catch ( /* ignore */_g) { /* ignore */ }
+                    catch ( /* ignore */_h) { /* ignore */ }
                     if (!friendList.includes(num)) {
                         buildFriendRow(num, body);
                     }
@@ -28680,7 +28703,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         try {
                             this.offlineFriendsCollapsed = localStorage.getItem("EBC_offlineFriendsCollapsed") !== "0";
                         }
-                        catch ( /* ignore */_h) { /* ignore */ }
+                        catch ( /* ignore */_j) { /* ignore */ }
                     const offlineToggle = document.createElement("div");
                     const updateOfflineToggle = () => {
                         const col = this.offlineFriendsCollapsed;
@@ -41915,7 +41938,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.5";
-    const SAL_VERSION = 289; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 290; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41932,6 +41955,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.5",
             changes: [
+                "Fix: you are in your own room list now, at the top, marked YOU. Your own card listed one fewer person than the count beside it claimed, because the count came from the real room roster while the rows were built from a copy with you removed. It also meant you could never see your own row - your name, your colours, your paw - which is the one thing you would most want to look at.",
                 "Fix: Completionist needs EVERY achievement, the crew and Emery ones included. Yesterday's version let you off those, which was my misreading rather than a decision - they are the hardest ones precisely because they need other people, and a reward for finishing the whole list should mean the whole list.",
                 "Fix: the Completionist card is readable. The name preview was drawn at half opacity, which on a dark panel made the gold almost invisible - and it is the one thing on the card you are meant to be looking at. The explaining text underneath was too dim as well. The preview now shows at full strength with a gold border once earned, and the small print is a good deal lighter.",
             ],

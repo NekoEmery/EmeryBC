@@ -16604,17 +16604,32 @@ This cannot be undone.`,
                 // full-featured rows inside your room's card below.
                 const w2 = window as unknown as Record<string, unknown>;
                 const roomCharsAll = w2.ChatRoomCharacter as Array<Record<string, unknown>> | undefined;
+                // You are included, and put first.
+                //
+                // This used to filter you out, which is why your own room card
+                // listed one fewer person than the count beside it said - the
+                // count came from the real roster and the rows did not. It also
+                // meant you could never see how your own row looks to everyone
+                // else, which is the thing you would most want to check.
+                const meNumRow = (Player as { MemberNumber?: number })?.MemberNumber ?? 0;
                 const roomList = Array.isArray(roomCharsAll)
-                    ? roomCharsAll.filter(c => (c.MemberNumber as number) !== Player.MemberNumber)
+                    ? [...roomCharsAll].sort((a, b) =>
+                        ((b.MemberNumber as number) === meNumRow ? 0 : 1) -
+                        ((a.MemberNumber as number) === meNumRow ? 0 : 1))
                     : [];
 
                 const buildRoomRow = (char: Record<string, unknown>, container: HTMLElement): void => {
                     const num = char.MemberNumber as number;
+                    const isMe = num === meNumRow;
                     const nameRaw = (char.Nickname as string | undefined) || (char.Name as string) || "Unknown";
                     const name = resolveName(num) || nameRaw;
 
                     const wrap = document.createElement("div");
                     wrap.className = "ebc-friend-wrap";
+                    if (isMe) {
+                        wrap.style.background = "rgba(207,111,152,0.07)";
+                        wrap.style.borderColor = "#5b2439";
+                    }
                     if (isSpecialFriend(num)) wrap.classList.add("ebc-friend-starred");
 
                     const row = document.createElement("div");
@@ -16675,6 +16690,15 @@ This cannot be undone.`,
                     const nameRow = document.createElement("div");
                     nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                     // nameEl uses .ebc-friend-name flex:0 1 auto - no override needed
+                    if (isMe) {
+                        const youTag = document.createElement("span");
+                        youTag.textContent = "YOU";
+                        youTag.title = "This is how you appear to everyone else";
+                        youTag.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:8.5px;"
+                            + "letter-spacing:0.08em;border:1px solid #8a4866;color:#cf6f98;"
+                            + "border-radius:8px;padding:0 6px;flex-shrink:0;";
+                        nameRow.appendChild(youTag);
+                    }
                     for (const d of decorRoom.before) nameRow.appendChild(d);
                     nameRow.appendChild(nameEl);
                     for (const d of decorRoom.after) nameRow.appendChild(d);
