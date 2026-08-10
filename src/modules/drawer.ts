@@ -18614,11 +18614,17 @@ This cannot be undone.`,
         t1.textContent = "Completionist";
         const t2 = document.createElement("div");
         t2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b79aa8;margin-top:2px;line-height:1.45;";
-        t2.textContent = earned
-            ? "Every achievement at its highest level."
-            : "Every achievement at its highest level. Yes, including the rare ones.";
+        t2.textContent = "Every achievement at its highest level, rare ones included.";
+        // The exception gets its own line rather than being tacked on the end.
+        // A rule with a hidden carve-out is worse than no rule: someone chasing
+        // this needs to know Met the Crew is not standing in their way.
+        const t3 = document.createElement("div");
+        t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a3859a;margin-top:3px;line-height:1.45;";
+        t3.textContent = "Met the Crew does not count - it needs five people in one room at once, "
+            + "which is not something you can go and do. Met the Kitty is the meeting one that counts.";
         titles.appendChild(t1);
         titles.appendChild(t2);
+        titles.appendChild(t3);
         const count = document.createElement("span");
         count.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:10px;flex-shrink:0;"
             + "border:1px solid " + (earned ? "#c9ab72" : "#4c2537") + ";color:" + (earned ? "#e8cf9a" : "#c0a8b4")

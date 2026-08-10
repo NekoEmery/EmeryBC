@@ -29496,11 +29496,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             t1.textContent = "Completionist";
             const t2 = document.createElement("div");
             t2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b79aa8;margin-top:2px;line-height:1.45;";
-            t2.textContent = earned
-                ? "Every achievement at its highest level."
-                : "Every achievement at its highest level. Yes, including the rare ones.";
+            t2.textContent = "Every achievement at its highest level, rare ones included.";
+            // The exception gets its own line rather than being tacked on the end.
+            // A rule with a hidden carve-out is worse than no rule: someone chasing
+            // this needs to know Met the Crew is not standing in their way.
+            const t3 = document.createElement("div");
+            t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a3859a;margin-top:3px;line-height:1.45;";
+            t3.textContent = "Met the Crew does not count - it needs five people in one room at once, "
+                + "which is not something you can go and do. Met the Kitty is the meeting one that counts.";
             titles.appendChild(t1);
             titles.appendChild(t2);
+            titles.appendChild(t3);
             const count = document.createElement("span");
             count.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:10px;flex-shrink:0;"
                 + "border:1px solid " + (earned ? "#c9ab72" : "#4c2537") + ";color:" + (earned ? "#e8cf9a" : "#c0a8b4")
@@ -42154,7 +42160,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.6";
-    const SAL_VERSION = 300; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 301; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42171,6 +42177,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.6",
             changes: [
+                "The Completionist card now says which achievement does not count. It stated the rule - every achievement at its highest level - without mentioning the one carve-out, and a rule with a hidden exception is worse than no rule: anyone chasing it needs to know Met the Crew is not standing in their way. It is on its own line, along with why.",
                 "Fix: the Achievements window updates while it is open. It built itself once and never looked again, so anything you earned while watching it did not appear until you closed and reopened - and that window is exactly what you have open when you are chasing one. Your scroll position is kept, so the list no longer jumps to the top under you when a counter ticks.",
                 "IMPORTANT fix: a restraint that was on you before you switched auto-escape on can no longer be swapped off you. Escaping the item someone swapped IN was not enough on its own - the swap had already taken the original off, so removing the replacement just left the slot bare and the swap had stripped you anyway. The original is now put straight back. It only fires when the slot would otherwise be left empty, so it cannot fight a change you made yourself, and taking something off yourself stops it being guarded.",
                 "Fix (spotted by Julia): the escape emote uses an item's crafted name. It named the underlying item instead, so the room saw 'Angel swaps Julia's Cuffs...' followed by EBC saying the Leather Deluxe Leg Cuffs fell away - which reads as though it removed something else entirely.",

@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, achievementScanRoom, achieve
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.6";
-const SAL_VERSION  = 300;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 301;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.0.6",
         changes: [
+            "The Completionist card now says which achievement does not count. It stated the rule - every achievement at its highest level - without mentioning the one carve-out, and a rule with a hidden exception is worse than no rule: anyone chasing it needs to know Met the Crew is not standing in their way. It is on its own line, along with why.",
             "Fix: the Achievements window updates while it is open. It built itself once and never looked again, so anything you earned while watching it did not appear until you closed and reopened - and that window is exactly what you have open when you are chasing one. Your scroll position is kept, so the list no longer jumps to the top under you when a counter ticks.",
             "IMPORTANT fix: a restraint that was on you before you switched auto-escape on can no longer be swapped off you. Escaping the item someone swapped IN was not enough on its own - the swap had already taken the original off, so removing the replacement just left the slot bare and the swap had stripped you anyway. The original is now put straight back. It only fires when the slot would otherwise be left empty, so it cannot fight a change you made yourself, and taking something off yourself stops it being guarded.",
             "Fix (spotted by Julia): the escape emote uses an item's crafted name. It named the underlying item instead, so the room saw 'Angel swaps Julia's Cuffs...' followed by EBC saying the Leather Deluxe Leg Cuffs fell away - which reads as though it removed something else entirely.",
