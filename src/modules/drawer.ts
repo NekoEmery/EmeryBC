@@ -4185,10 +4185,24 @@ function decorateName(el: HTMLElement, num: number, forcePreview = false): NameD
     // roster, so every copy of EBC knows which row is hers and nobody else can
     // wear it by claiming to.
     if (num === EMERY_MEMBER) {
-        const paw = document.createElement("span");
-        paw.textContent = "🐾";
+        // The real gold paw EBC uses everywhere else - the overhead mark and the
+        // credits card - not an emoji standing in for it. Falls back to the
+        // emoji only if the image has not loaded yet.
+        let paw: HTMLElement;
+        if (EBCDrawer.pawDataUri) {
+            const img = document.createElement("img");
+            img.src = EBCDrawer.pawDataUri;
+            img.alt = "";
+            img.style.cssText = "width:14px;height:14px;flex-shrink:0;vertical-align:-2px;"
+                + "animation:ebc-paw-glow 2.6s ease-in-out infinite;";
+            paw = img;
+        } else {
+            const span = document.createElement("span");
+            span.textContent = "🐾";
+            span.style.cssText = "font-size:12px;flex-shrink:0;animation:ebc-paw-glow 2.6s ease-in-out infinite;";
+            paw = span;
+        }
         paw.title = "EBC creator";
-        paw.style.cssText = "font-size:12px;flex-shrink:0;animation:ebc-paw-glow 2.6s ease-in-out infinite;";
         before.push(paw);
     }
 

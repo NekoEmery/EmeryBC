@@ -29,8 +29,8 @@ import bcModSdk from "bondage-club-mod-sdk";
 import { isAchievementUser, hasCompletedEverything, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.0.5";
-const SAL_VERSION  = 290;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.0.6";
+const SAL_VERSION  = 294;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -47,6 +47,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "9.0.6",
+        changes: [
+            "New: Met the Kitty - share a room with Emery. This is the meeting achievement Completionist needs now.",
+            "Changed: Met the Crew is no longer required for Completionist. It asks for five particular people online and in the same room at once, which is not something you can go and do - it is luck and other people's diaries. It stays as an achievement to chase, it just no longer stands between you and the reward. Met the Kitty takes its place: still meeting someone, but one person instead of five.",
+            "Fix: for Emery, the Emery achievements now SAY what they actually count. They retarget to the credited crew when she is the player, since she cannot do things to herself, but the cards still read 'Spank Emery 5 times' - which was simply untrue on her screen. They now read 'a crew member'.",
+            "Fix: the creator paw beside Emery's name is the real gold paw EBC uses everywhere else, not an emoji standing in for it. It now matches the overhead mark and the credits card.",
+        ],
+    },
     {
         version: "9.0.5",
         changes: [
