@@ -1,3 +1,4 @@
+import { appendLocalLogBlock } from "./notify";
 // ---------------------------------------------------------------------------
 // In-memory settings store.  All EBC modules read/write through getSettings().
 // Data is stored as plain key/value pairs in Player.ExtensionSettings.EmeryBC.
@@ -265,6 +266,9 @@ function migrateOutfitKeysOffDeviceStorage(): void {
 // relog the client ends up in an infinite reconnect loop. Never let that happen.
 export const SETTINGS_FLUSH_CAP = 150_000;
 
+/** Warn about the cap once a session - it is hit on every sync, not once. */
+let _flushCapWarned = false;
+
 /** Serialized size (in characters ~ bytes) of EBC's whole settings blob. */
 export function getSettingsBlobSize(): number {
     try {
@@ -282,8 +286,19 @@ export function flushToExtensionSettings(): boolean {
         try {
             const size = JSON.stringify(_mem).length;
             if (size > SETTINGS_FLUSH_CAP) {
-                console.error(`[EBC] Settings NOT synced - data too large (${Math.round(size / 1000)} KB > ${SETTINGS_FLUSH_CAP / 1000} KB cap). ` +
-                    "Delete some saved outfits to shrink it. Keeping the previous server copy to avoid a disconnect loop.");
+                console.error(`[EBC] Settings NOT synced - data too large (${Math.round(size / 1000)} KB > ${SETTINGS_FLUSH_CAP / 1000} KB cap).`);
+                // Said out loud, once. This is the worst of the three "full"
+                // states because nothing else shows it: saving simply stops
+                // working and the only sign was a console line nobody opens.
+                if (!_flushCapWarned) {
+                    _flushCapWarned = true;
+                    appendLocalLogBlock("EBC has stopped saving to your account", [
+                        `Everything EBC stores adds up to ${Math.round(size / 1000)} KB, over the ${SETTINGS_FLUSH_CAP / 1000} KB the game allows.`,
+                        "Nothing is lost - it is all still here for this session. It just cannot be sent to your account, so a reload would lose the newest bits.",
+                        "To fix it: open SETTINGS, then Storage. Move outfits to This device, or clear something you do not need.",
+                        "Crafted items take by far the most room.",
+                    ], "#ff8a8a");
+                }
                 return false;
             }
         } catch { /* size check best-effort */ }

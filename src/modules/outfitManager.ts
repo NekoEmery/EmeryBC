@@ -107,7 +107,14 @@ function writeLocalList(key: string, list: ConfiguredOutfit[]): boolean {
         localStorage.setItem(key, JSON.stringify(list.map(sanitizeOutfit)));
         return true;
     } catch {
-        localNotice("This device's outfit storage is full (browser quota) - not saved.", "#ff8a8a");
+        // Named clearly as the BROWSER, because the account message looks similar
+        // and the fix is completely different - nothing here is on your account.
+        localNotice(
+            "Not saved. This BROWSER's storage is full - this is not your BC account, " +
+            "and nothing on your account has changed. Delete some 💾 This device outfits, " +
+            "or clear old site data for this browser.",
+            "#ff8a8a",
+        );
         return false;
     }
 }
@@ -169,16 +176,19 @@ function saveOutfits(list: ConfiguredOutfit[]): boolean {
     const localList  = sanitized.filter(o => o.local === true);
     try {
         const size = JSON.stringify(account).length;
-        // Refuse only a save that does not IMPROVE things. Refusing every save
-        // while over budget also refused deleting one and moving one to this
-        // device - the exact two actions the message tells you to take - so
-        // anyone who got over the line was stuck there with no way back.
+        // Refuse only a save that makes the account portion BIGGER. Refusing
+        // every save while over budget also refused deleting one and moving one
+        // to this device - the exact two actions the message tells you to take.
+        // The first attempt at this used >=, which still refused any save that
+        // left the account portion the same size: deleting a device-stored
+        // outfit, or renaming one, neither of which touches the account at all.
         const storedAccount = getSettings().outfits;
         const prevSize = Array.isArray(storedAccount) ? JSON.stringify(storedAccount).length : 0;
-        if (size > OUTFITS_BUDGET && size >= prevSize) {
+        if (size > OUTFITS_BUDGET && size > prevSize) {
             localNotice(
-                `Account outfit storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
-                "Not saved - delete some outfits, or switch outfits to 💾 This device storage (no account limit).",
+                `Not saved. Your BC ACCOUNT outfit space is full - ${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB. ` +
+                "This is your account, not this device. " +
+                "Deleting an outfit and moving one to 💾 This device both still work while it is full - they make it smaller.",
                 "#ff8a8a",
             );
             return false;
@@ -895,13 +905,15 @@ function saveRestraints(list: ConfiguredOutfit[]): boolean {
     const localList  = sanitized.filter(o => o.local === true);
     try {
         const size = JSON.stringify(account).length;
-        // Refuse only a save that does not IMPROVE things. Refusing every save
-        // while over budget also refused deleting one and moving one to this
-        // device - the exact two actions the message tells you to take - so
-        // anyone who got over the line was stuck there with no way back.
+        // Refuse only a save that makes the account portion BIGGER. Refusing
+        // every save while over budget also refused deleting one and moving one
+        // to this device - the exact two actions the message tells you to take.
+        // The first attempt at this used >=, which still refused any save that
+        // left the account portion the same size: deleting a device-stored
+        // outfit, or renaming one, neither of which touches the account at all.
         const storedAccount = getSettings().restraints;
         const prevSize = Array.isArray(storedAccount) ? JSON.stringify(storedAccount).length : 0;
-        if (size > OUTFITS_BUDGET && size >= prevSize) {
+        if (size > OUTFITS_BUDGET && size > prevSize) {
             localNotice(
                 `Account restraint-set storage is full (${Math.round(size / 1000)} KB of ${OUTFITS_BUDGET / 1000} KB). ` +
                 "Not saved - delete some sets, or switch sets to 💾 This device storage (no account limit).",

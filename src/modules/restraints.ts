@@ -27,6 +27,34 @@ function isProtectedLock(item: Item): boolean {
         || (lock.includes("exclusive") && isDogsActive());
 }
 
+/**
+ * Names the locks that were actually skipped.
+ *
+ * The old note appended "(DOGS padlocks are protected)" whenever DOGS happened
+ * to be loaded, no matter what was really skipped - so owner and lover locks
+ * were reported as DOGS ones. DOGS only ever protects exclusive padlocks, and
+ * the rest stand on their own, so the message now reads the items in hand.
+ */
+function describeProtected(items: Item[]): string {
+    const kinds = new Set<string>();
+    let whitelisted = 0;
+    for (const item of items) {
+        const lock = (item.Property?.LockedBy as string | undefined ?? "").toLowerCase();
+        if (lock.includes("owner"))      kinds.add("owner");
+        else if (lock.includes("lover")) kinds.add("lover");
+        else if (lock.includes("family")) kinds.add("family");
+        else if (lock.includes("exclusive")) kinds.add(isDogsActive() ? "DOGS exclusive" : "exclusive");
+        else if (lock) kinds.add(lock);
+        else whitelisted++;
+    }
+    const list = [...kinds];
+    if (list.length === 0) return whitelisted > 0 ? " (protected slots)" : "";
+    const names = list.length === 1
+        ? list[0]
+        : list.slice(0, -1).join(", ") + " and " + list[list.length - 1];
+    return ` (${names} lock${list.length === 1 && !names.includes(" ") ? "" : "s"})`;
+}
+
 // Returns true if this item's slot is in the user's outfit whitelist.
 function isWhitelisted(item: Item): boolean {
     try { return getOutfitWhitelist().includes(item.Asset.Group.Name); } catch { return false; }
@@ -68,10 +96,10 @@ export function releaseRestraints(): void {
     );
 
     if (toRemove.length === 0) {
-        const dogsNote = isDogsActive() ? " (DOGS padlocks cannot be removed this way)" : "";
+        const note = describeProtected(skipped);
         localNotice(
             skipped.length > 0
-                ? `All restraints are locked or protected — none removed.${dogsNote}`
+                ? `All restraints are locked or protected - none removed.${note}`
                 : "No restraints found to remove.",
             UI.textMuted
         );
@@ -86,8 +114,7 @@ export function releaseRestraints(): void {
     );
 
     if (skipped.length > 0) {
-        const dogsNote = isDogsActive() ? " (DOGS padlocks are protected)" : "";
-        localNotice(`Skipped ${skipped.length} protected item(s).${dogsNote}`, UI.textMuted);
+        localNotice(`Skipped ${skipped.length} protected item(s).${describeProtected(skipped)}`, UI.textMuted);
     }
 
     callBC(() => CharacterRefresh(Player, false));
@@ -154,11 +181,12 @@ export function unlockPlayerSpecificItems(groups: string[]): number {
 // /ebc unlock - strips lock data from items, skips protected locks and whitelisted slots
 export function unlockItems(): void {
     let unlocked = 0;
-    let skipped = 0;
+    // Collected, not just counted, so the message can say which locks stopped it.
+    const skippedItems: Item[] = [];
 
     for (const item of Player.Appearance) {
         if (!(item.Property?.LockedBy)) continue;
-        if (isUntouchable(item)) { skipped++; continue; }
+        if (isUntouchable(item)) { skippedItems.push(item); continue; }
 
         if (item.Property) {
             delete item.Property["LockedBy"];
@@ -174,19 +202,18 @@ export function unlockItems(): void {
     }
 
     if (unlocked === 0) {
-        const dogsNote = isDogsActive() ? " (DOGS padlocks cannot be removed this way)" : "";
+        const note = describeProtected(skippedItems);
         localNotice(
-            skipped > 0
-                ? `All locks are protected — none removed.${dogsNote}`
+            skippedItems.length > 0
+                ? `All locks are protected - none removed.${note}`
                 : "No locks found to remove.",
             UI.textMuted
         );
         return;
     }
 
-    if (skipped > 0) {
-        const dogsNote = isDogsActive() ? " (DOGS padlocks are protected)" : "";
-        localNotice(`Skipped ${skipped} protected lock(s).${dogsNote}`, UI.textMuted);
+    if (skippedItems.length > 0) {
+        localNotice(`Skipped ${skippedItems.length} protected lock(s).${describeProtected(skippedItems)}`, UI.textMuted);
     }
 
     callBC(() => CharacterRefresh(Player, false));

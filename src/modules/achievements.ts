@@ -6,7 +6,7 @@
 // tiny); tier-ups pop a toast. Fed from main.ts's ChatRoomMessage hook.
 
 import { getSettings, syncSettings } from "./bcUtils";
-import { getRestraintMs } from "./timer";
+import { getRestraintMs, getGaggedMs, getChastityMs } from "./timer";
 import { CREDITED, ACHIEVEMENT_MEMBERS, isCredited, hasCreatorAccess } from "./crew";
 
 // Crew whitelist - only these members track or see achievements.
@@ -54,9 +54,16 @@ export function setShowSharedPlaques(show: boolean): void {
     } catch { /* ignore */ }
 }
 
-/** Crew member who hasn't opted out - gates tracking, the trophy, and the popup. */
+/**
+ * Anyone who has not opted out - gates tracking, the trophy and the popup.
+ *
+ * This was limited to the crew list while achievements were being built. They
+ * are finished, so the gate is just the opt-out now. isAchievementCrewMember is
+ * still used for the crew-only rare ones, which is a different question from
+ * whether you get achievements at all.
+ */
 export function isAchievementUser(memberNumber: number | null | undefined): boolean {
-    return isAchievementCrewMember(memberNumber) && !isAchievementsOptedOut();
+    return typeof memberNumber === "number" && !isAchievementsOptedOut();
 }
 
 export interface AchievementDef {
@@ -106,6 +113,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "tied",   icon: "⛓",  name: "Tied Down",      desc: "Have restraints put on you {n} times", counter: "tied_recv", tiers: [5, 25, 100],  cls: "bondage" },
     { id: "streak", icon: "⏳", name: "Living in Rope", desc: "Stay bound {n} hours straight",        counter: "bound_h",   tiers: [24, 100, 500], cls: "bondage" },
     { id: "rigger", icon: "🪢", name: "Rigger",         desc: "Put restraints on others {n} times",   counter: "tie_give",  tiers: [10, 50, 250], cls: "bondage" },
+    // Suggested by Sally. Measured from the per-item timers, so they carry across
+    // rooms and offline time the same way the bound streak does. A collar does
+    // not count toward "bound" - neck groups are excluded by default, and the
+    // exclusion list is editable if you want it to.
+    { id: "gagged", icon: "🤐", name: "Quiet Sub",    desc: "Stay gagged {n} hours straight",        counter: "gag_h",    tiers: [6, 24, 100], cls: "bondage" },
+    { id: "chaste", icon: "🔐", name: "Locked Away",  desc: "Stay in chastity {n} hours straight",   counter: "chaste_h", tiers: [24, 168, 720], cls: "bondage" },
     // ⭐ Emery - rare single golden unlocks
     { id: "pat_the_dev",   icon: "⭐", name: "Pat the Kitty",   desc: "Headpat Emery {n} times",      counter: "pet_emery",   tiers: [5],  cls: "emery", rare: true },
     { id: "boop_the_dev",  icon: "⭐", name: "Boop the Kitty",  desc: "Boop Emery {n} times",         counter: "boop_emery",  tiers: [10], cls: "emery", rare: true },
@@ -727,8 +740,13 @@ setInterval(() => {
         // Longest continuous bound streak (any room). Read from the per-item
         // restraint timers, which persist across rooms and offline, so this is
         // the one time-based achievement that does not depend on room tracking.
-        const hours = Math.floor(getRestraintMs() / 3_600_000);
-        if (hours > (st.c["bound_h"] ?? 0)) st.c["bound_h"] = hours;
+        const best = (key: string, ms: number): void => {
+            const hours = Math.floor(ms / 3_600_000);
+            if (hours > (st.c[key] ?? 0)) st.c[key] = hours;
+        };
+        best("bound_h",  getRestraintMs());
+        best("gag_h",    getGaggedMs());
+        best("chaste_h", getChastityMs());
 
         checkUnlocks();
         save();
