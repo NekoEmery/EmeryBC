@@ -18620,8 +18620,8 @@ This cannot be undone.`,
         // this needs to know Met the Crew is not standing in their way.
         const t3 = document.createElement("div");
         t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a3859a;margin-top:3px;line-height:1.45;";
-        t3.textContent = "Met the Crew does not count - it needs five people in one room at once, "
-            + "which is not something you can go and do. Met the Kitty is the meeting one that counts.";
+        t3.textContent = "Met the Crew does not count - it waits on five particular people being around, "
+            + "however long that takes. Met the Kitty is the meeting one that counts.";
         titles.appendChild(t1);
         titles.appendChild(t2);
         titles.appendChild(t3);

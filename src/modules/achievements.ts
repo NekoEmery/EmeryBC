@@ -190,7 +190,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     // are credited yourself you count toward your own total - you already know
     // who you are - so everyone needs the same number.
     { id: "met_emery", icon: "⭐", name: "Met the Kitty", desc: "Share a room with Emery",                        counter: "met_emery", tiers: [1], cls: "emery", rare: true },
-    { id: "crew_met",  icon: "⭐", name: "Met the Crew",  desc: "Share a room with all {n} credited EBC people", counter: "crew_met",  tiers: [CREDITED.length], cls: "emery", rare: true },
+    { id: "crew_met",  icon: "⭐", name: "Met the Crew",  desc: "Share a room with each of the {n} credited EBC people, in any order", counter: "crew_met",  tiers: [CREDITED.length], cls: "emery", rare: true },
 
     // Completionist is not tracked like the others - its progress is derived
     // from everything else, in completionProgress() below. It is listed last so

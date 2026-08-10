@@ -8548,7 +8548,7 @@
         // are credited yourself you count toward your own total - you already know
         // who you are - so everyone needs the same number.
         { id: "met_emery", icon: "⭐", name: "Met the Kitty", desc: "Share a room with Emery", counter: "met_emery", tiers: [1], cls: "emery", rare: true },
-        { id: "crew_met", icon: "⭐", name: "Met the Crew", desc: "Share a room with all {n} credited EBC people", counter: "crew_met", tiers: [CREDITED.length], cls: "emery", rare: true },
+        { id: "crew_met", icon: "⭐", name: "Met the Crew", desc: "Share a room with each of the {n} credited EBC people, in any order", counter: "crew_met", tiers: [CREDITED.length], cls: "emery", rare: true },
         // Completionist is not tracked like the others - its progress is derived
         // from everything else, in completionProgress() below. It is listed last so
         // it reads as the summary of the list rather than another entry in it.
@@ -29502,8 +29502,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             // this needs to know Met the Crew is not standing in their way.
             const t3 = document.createElement("div");
             t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a3859a;margin-top:3px;line-height:1.45;";
-            t3.textContent = "Met the Crew does not count - it needs five people in one room at once, "
-                + "which is not something you can go and do. Met the Kitty is the meeting one that counts.";
+            t3.textContent = "Met the Crew does not count - it waits on five particular people being around, "
+                + "however long that takes. Met the Kitty is the meeting one that counts.";
             titles.appendChild(t1);
             titles.appendChild(t2);
             titles.appendChild(t3);
@@ -42160,7 +42160,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.6";
-    const SAL_VERSION = 301; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 302; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42177,6 +42177,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.6",
             changes: [
+                "Fix: Met the Crew is described correctly. Both it and the Completionist card implied you needed all six credited people in a room at the same moment. You do not - it is a list that fills up over time, one person here, another somewhere else weeks later, and it is remembered. The wording said something harder than the achievement actually asks for.",
                 "The Completionist card now says which achievement does not count. It stated the rule - every achievement at its highest level - without mentioning the one carve-out, and a rule with a hidden exception is worse than no rule: anyone chasing it needs to know Met the Crew is not standing in their way. It is on its own line, along with why.",
                 "Fix: the Achievements window updates while it is open. It built itself once and never looked again, so anything you earned while watching it did not appear until you closed and reopened - and that window is exactly what you have open when you are chasing one. Your scroll position is kept, so the list no longer jumps to the top under you when a counter ticks.",
                 "IMPORTANT fix: a restraint that was on you before you switched auto-escape on can no longer be swapped off you. Escaping the item someone swapped IN was not enough on its own - the swap had already taken the original off, so removing the replacement just left the slot bare and the swap had stripped you anyway. The original is now put straight back. It only fires when the slot would otherwise be left empty, so it cannot fight a change you made yourself, and taking something off yourself stops it being guarded.",
