@@ -111,11 +111,11 @@ import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadg
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, getPendingMessagesCleaned, cancelPendingMessage, isBeepBlocked, deleteBeepEntry, setQueueDeliveredCallback, type EBCGroup, type GroupBeepEntry } from "./friends";
+import { getFriendList, getFriendStatus, isEBCComplete, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, getPendingMessagesCleaned, cancelPendingMessage, isBeepBlocked, deleteBeepEntry, setQueueDeliveredCallback, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
+import { isAchievementUser, hasCompletedEverything, completionProgress, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -573,6 +573,16 @@ const CSS = `
 @keyframes ebc-dot-pulse {
     0%, 100% { box-shadow: 0 0 4px #cf6f98; transform: scale(1); }
     50%       { box-shadow: 0 0 10px #e890b8, 0 0 18px #cf6f9855; transform: scale(1.25); }
+}
+
+@keyframes ebc-paw-glow {
+    0%, 100% { filter: drop-shadow(0 0 1px #c9954a); }
+    50%       { filter: drop-shadow(0 0 5px #ffd77a); }
+}
+
+@keyframes ebc-twinkle {
+    0%, 100% { opacity: 0.22; transform: scale(0.8); }
+    50%       { opacity: 1;    transform: scale(1.2); }
 }
 
 @keyframes ebc-gradient-flow {
@@ -4146,6 +4156,58 @@ function getRoomCount(name: string): { count: number; limit: number } | null {
 const VIP_MEMBERS: Record<number, { label: string; color: string; gradient: [string, string] }> = {};
 for (const _p of CREDITED) {
     VIP_MEMBERS[_p.num] = { label: _p.vipLabel ?? _p.name, color: _p.color, gradient: _p.gradient };
+}
+
+/**
+ * Everything that decorates a name in a people list, in one place.
+ *
+ * Three things can apply and they have to compose rather than fight:
+ *   - the creator paw, for Emery
+ *   - a credited person's own colours
+ *   - the 100% sparkle
+ *
+ * A custom name is someone's identity, so the sparkle never paints over it - it
+ * only adds the twinkles. A plain name has nothing to lose, so it turns gold.
+ *
+ * Returns the nodes to place around the name, which the caller inserts. It
+ * cannot append them itself: the lists build their rows differently.
+ */
+interface NameDecor { before: HTMLElement[]; after: HTMLElement[] }
+
+function decorateName(el: HTMLElement, num: number, forcePreview = false): NameDecor {
+    const before: HTMLElement[] = [];
+    const after: HTMLElement[] = [];
+
+    const vip = VIP_MEMBERS[num];
+    if (vip) applyGradientText(el, vip.gradient[0], vip.gradient[1]);
+
+    // The paw needs nothing sent - Emery's number is already in the credits
+    // roster, so every copy of EBC knows which row is hers and nobody else can
+    // wear it by claiming to.
+    if (num === EMERY_MEMBER) {
+        const paw = document.createElement("span");
+        paw.textContent = "🐾";
+        paw.title = "EBC creator";
+        paw.style.cssText = "font-size:12px;flex-shrink:0;animation:ebc-paw-glow 2.6s ease-in-out infinite;";
+        before.push(paw);
+    }
+
+    const complete = forcePreview || (num === (Player as { MemberNumber?: number })?.MemberNumber
+        ? (() => { try { return hasCompletedEverything(); } catch { return false; } })()
+        : isEBCComplete(num));
+
+    if (complete) {
+        if (!vip) applyGradientText(el, "#c9ab72", "#fff3c4");
+        for (const [arr, delay] of [[before, "0s"], [after, "0.65s"]] as const) {
+            const st = document.createElement("span");
+            st.textContent = "✦";
+            st.title = "Every achievement unlocked";
+            st.style.cssText = "color:#ffe9a8;font-size:11px;flex-shrink:0;"
+                + `animation:ebc-twinkle 1.9s ease-in-out infinite;animation-delay:${delay};`;
+            arr.push(st);
+        }
+    }
+    return { before, after };
 }
 
 /** Apply an animated flowing gradient as text fill colour to an element. */
@@ -16566,8 +16628,7 @@ This cannot be undone.`,
                     const nameEl = document.createElement("span");
                     nameEl.className = "ebc-friend-name";
                     nameEl.textContent = name;
-                    const vipRoom = VIP_MEMBERS[num];
-                    if (vipRoom) applyGradientText(nameEl, vipRoom.gradient[0], vipRoom.gradient[1]);
+                    const decorRoom = decorateName(nameEl, num);
 
                     // Member number
                     const numEl = document.createElement("span");
@@ -16614,7 +16675,9 @@ This cannot be undone.`,
                     const nameRow = document.createElement("div");
                     nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                     // nameEl uses .ebc-friend-name flex:0 1 auto - no override needed
+                    for (const d of decorRoom.before) nameRow.appendChild(d);
                     nameRow.appendChild(nameEl);
+                    for (const d of decorRoom.after) nameRow.appendChild(d);
 
                     // Show account name in muted text when they use a different nickname
                     const acctNameRoom = char.Name as string | undefined;
@@ -17166,8 +17229,7 @@ This cannot be undone.`,
                 const nameEl = document.createElement("span");
                 nameEl.className = "ebc-friend-name";
                 nameEl.textContent = name;
-                const vipFriend = VIP_MEMBERS[num];
-                if (vipFriend) applyGradientText(nameEl, vipFriend.gradient[0], vipFriend.gradient[1]);
+                const decorFriend = decorateName(nameEl, num);
 
                 const numEl = document.createElement("span");
                 numEl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a9ab8;flex-shrink:0;";
@@ -17320,7 +17382,9 @@ This cannot be undone.`,
                 const nameRow = document.createElement("div");
                 nameRow.style.cssText = "display:flex;align-items:center;gap:4px;";
                 // nameEl uses .ebc-friend-name flex:0 1 auto - no override needed
+                for (const d of decorFriend.before) nameRow.appendChild(d);
                 nameRow.appendChild(nameEl);
+                for (const d of decorFriend.after) nameRow.appendChild(d);
 
                 // If this person has a nickname, show their account name in muted text
                 // so you can tell "Lucy" is actually "Lucas" on their account.
@@ -18432,9 +18496,84 @@ This cannot be undone.`,
 
     /** Class-grouped achievement cards - category filter chips, medal coins,
      *  tier plates and progress bars. */
+    /**
+     * The 100% reward, shown whether or not you have it.
+     *
+     * A reward nobody can see until they already have it is not much of a
+     * reward - you cannot want something you have never been shown. This
+     * renders your own name exactly as it would appear in the people lists,
+     * dimmed while it is still out of reach.
+     */
+    private buildRewardPreview(): HTMLElement {
+        const [done, total] = completionProgress();
+        const earned = done >= total && total > 0;
+        const me = (Player as { MemberNumber?: number })?.MemberNumber ?? 0;
+
+        const card = document.createElement("div");
+        card.style.cssText = "background:#1a0d16;border:1px solid " + (earned ? "#c9ab72" : "#3a1828")
+            + ";border-radius:8px;padding:9px 11px;";
+
+        const head = document.createElement("div");
+        head.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:7px;";
+        const trophy = document.createElement("span");
+        trophy.textContent = "🏆";
+        trophy.style.cssText = "font-size:17px;" + (earned ? "" : "filter:grayscale(1);opacity:0.5;");
+        const titles = document.createElement("div");
+        titles.style.cssText = "flex:1;min-width:0;";
+        const t1 = document.createElement("div");
+        t1.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;color:"
+            + (earned ? "#f0dbe6" : "#a08090") + ";";
+        t1.textContent = "Completionist";
+        const t2 = document.createElement("div");
+        t2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#7a5a6a;margin-top:1px;";
+        t2.textContent = earned
+            ? "Every achievement at its highest level."
+            : "Every achievement at its highest level. Crew and Emery ones are not required.";
+        titles.appendChild(t1);
+        titles.appendChild(t2);
+        const count = document.createElement("span");
+        count.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:10px;flex-shrink:0;"
+            + "border:1px solid " + (earned ? "#c9ab72" : "#4c2537") + ";color:" + (earned ? "#e8cf9a" : "#8a7080")
+            + ";border-radius:9px;padding:1px 7px;";
+        count.textContent = done + " / " + total;
+        head.appendChild(trophy);
+        head.appendChild(titles);
+        head.appendChild(count);
+        card.appendChild(head);
+
+        const lbl = document.createElement("div");
+        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;letter-spacing:0.1em;"
+            + "text-transform:uppercase;color:#6f5766;margin-bottom:4px;";
+        lbl.textContent = earned ? "Your name in the people lists" : "What you would get";
+        card.appendChild(lbl);
+
+        // The preview is built by the same function the real lists use, so it
+        // cannot drift from the thing it is previewing.
+        const strip = document.createElement("div");
+        strip.style.cssText = "display:flex;align-items:center;gap:7px;padding:6px 9px;background:#12070d;"
+            + "border:1px solid #2a1421;border-radius:6px;" + (earned ? "" : "opacity:0.5;");
+        const nameEl = document.createElement("span");
+        nameEl.className = "ebc-friend-name";
+        nameEl.textContent = resolveName(me) || "You";
+        const decor = decorateName(nameEl, me, true);
+        for (const d of decor.before) strip.appendChild(d);
+        strip.appendChild(nameEl);
+        for (const d of decor.after) strip.appendChild(d);
+        card.appendChild(strip);
+
+        const foot = document.createElement("div");
+        foot.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#6a4a5a;margin-top:6px;line-height:1.45;";
+        foot.textContent = earned
+            ? "Everyone else running EBC sees this too."
+            : "Everyone else running EBC would see it too. If you already have your own name colour, you keep it and gain the sparkles.";
+        card.appendChild(foot);
+        return card;
+    }
+
     private buildAchievementCards(): HTMLElement {
         const outer = document.createElement("div");
         outer.style.cssText = "display:flex;flex-direction:column;gap:7px;";
+        outer.appendChild(this.buildRewardPreview());
 
         let filter = "all";
         try { filter = localStorage.getItem("EBC_achFilter") ?? "all"; } catch { /* ignore */ }

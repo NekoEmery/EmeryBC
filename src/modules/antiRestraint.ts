@@ -101,24 +101,63 @@ const ESCAPE_SYNC_INTERVAL_MS = 2000;
 // knownRestraints so they remain detectable for a retry.
 const failAttempts = new Map<string, number>();
 
+/**
+ * Identity of a worn restraint: the slot AND which item is in it.
+ *
+ * This used to be the slot name alone, which meant swapping the rope on your
+ * arms for cuffs read as the same restraint and was never escaped.
+ */
+function wornKey(item: Item): string {
+    return item.Asset.Group.Name + "\u0000" + getItemKey(item);
+}
+
+function wornNow(): Map<string, Item> {
+    const out = new Map<string, Item>();
+    try {
+        for (const i of Player.Appearance) {
+            if (RESTRAINT_GROUPS.has(i.Asset.Group.Name)) out.set(wornKey(i), i);
+        }
+    } catch { /* ignore */ }
+    return out;
+}
+
 export function snapshotPlayerRestraints(): void {
     try {
-        knownRestraints = new Set(
-            Player.Appearance
-                .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
-                .map((i: Item) => i.Asset.Group.Name)
-        );
+        knownRestraints = new Set(wornNow().keys());
         failAttempts.clear();
     } catch { /* ignore */ }
 }
 
-// Merge currently worn restraint groups into knownRestraints, but skip groups
-// that still have pending retry attempts — they need to stay detectable.
+/**
+ * Drops anything from the known set that is no longer being worn.
+ *
+ * Without this the set only ever grew, and that is what broke auto-escape. A
+ * restraint that could not be removed - a locked one, most obviously - was
+ * given up on after two tries and written into the known set to stop it
+ * retrying forever. Nothing ever took it back out, so that slot stayed ignored
+ * for the rest of the session: once someone locked your arms, no arm restraint
+ * was ever escaped again, including new ones applied long after the lock was
+ * gone. Only changing room cleared it, because that re-snapshots from scratch.
+ *
+ * Forgetting an item the moment it comes off means the give-up is temporary -
+ * it lasts as long as the thing that caused it, and no longer.
+ */
+function forgetRemoved(worn: Map<string, Item>): void {
+    for (const key of [...knownRestraints]) {
+        if (!worn.has(key)) knownRestraints.delete(key);
+    }
+    for (const key of [...failAttempts.keys()]) {
+        if (!worn.has(key)) failAttempts.delete(key);
+    }
+}
+
+// Merge currently worn restraints into knownRestraints, but skip ones that
+// still have pending retry attempts - they need to stay detectable.
 function mergeCurrentRestraints(): void {
     try {
-        Player.Appearance
-            .filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name) && !failAttempts.has(i.Asset.Group.Name))
-            .forEach((i: Item) => knownRestraints.add(i.Asset.Group.Name));
+        for (const [key] of wornNow()) {
+            if (!failAttempts.has(key)) knownRestraints.add(key);
+        }
     } catch { /* ignore */ }
 }
 
@@ -128,22 +167,26 @@ export function antiRestraintOnPlayerRefresh(): void {
 
     try {
         const whitelist = getAntiRestraintWhitelist();
-        const current = Player.Appearance.filter((i: Item) => RESTRAINT_GROUPS.has(i.Asset.Group.Name));
-        // Whitelist is now item-key based ("AssetName" or "AssetName|CraftName")
-        const candidates = current.filter((i: Item) =>
-            !knownRestraints.has(i.Asset.Group.Name) &&
-            !whitelist.includes(getItemKey(i))
+        const worn = wornNow();
+        // Anything no longer on you is forgotten, so a slot that was given up on
+        // becomes eligible again as soon as the item causing it comes off.
+        forgetRemoved(worn);
+
+        // Whitelist is item-key based ("AssetName" or "AssetName|CraftName")
+        const candidates = [...worn.entries()].filter(([key, i]) =>
+            !knownRestraints.has(key) && !whitelist.includes(getItemKey(i))
         );
 
-        // Promote items that have hit the retry limit: add to known and drop them.
-        for (const item of candidates.filter(i => (failAttempts.get(i.Asset.Group.Name) ?? 0) >= 2)) {
-            knownRestraints.add(item.Asset.Group.Name);
-            failAttempts.delete(item.Asset.Group.Name);
+        // Give up on ones that have hit the retry limit. Still recorded, but the
+        // record now disappears with the item rather than lasting the session.
+        for (const [key] of candidates.filter(([k]) => (failAttempts.get(k) ?? 0) >= 2)) {
+            knownRestraints.add(key);
+            failAttempts.delete(key);
         }
 
-        const newItems = candidates.filter((i: Item) =>
-            !knownRestraints.has(i.Asset.Group.Name)
-        );
+        const newItems = candidates
+            .filter(([key]) => !knownRestraints.has(key))
+            .map(([, i]) => i);
 
         if (newItems.length === 0) return;
 
@@ -155,20 +198,38 @@ export function antiRestraintOnPlayerRefresh(): void {
             || firstItem.Asset.Name
             || "restraint";
 
-        const restrainer = lastRestrainerName;
-        lastRestrainerName = null;
-
-        doEscape(newItems, restrainer, itemName);
+        // The name is deliberately NOT read here.
+        //
+        // Who did it is only known from the chat line BC sends about it, and
+        // that arrives as its own message - often after the appearance change
+        // that triggers this. Reading it at this point usually found nothing,
+        // and then cleared it, so the later message could not help either. That
+        // is why the emote kept glaring at nobody. It is read when the emote is
+        // actually sent instead, by which point the message has landed.
+        doEscape(newItems, itemName);
 
     } catch {
         escaping = false;
     }
 }
 
-function doEscape(newItems: Item[], restrainer: string | null, itemName: string): void {
-    for (const item of newItems) {
-        try { InventoryRemove(Player, item.Asset.Group.Name, false); } catch { /* ignore */ }
-    }
+function doEscape(newItems: Item[], itemName: string): void {
+    // Direct array filter, not InventoryRemove.
+    //
+    // InventoryRemove runs BC's own lock checks and silently refuses anything it
+    // does not think you may take off - a locked item, most obviously. That is
+    // the wrong behaviour for this feature: auto-escape is a switch you set on
+    // your own body meaning "nothing gets put on me", so a lock is exactly the
+    // case it has to handle rather than the case it gives up on. Refusing
+    // quietly is also why it looked broken - the item stayed on with no error.
+    //
+    // This is the same technique /ebc release already uses, for the same reason.
+    const removeGroups = new Set(newItems.map(i => i.Asset.Group.Name));
+    try {
+        Player.Appearance = Player.Appearance.filter(
+            (item: Item) => !removeGroups.has(item.Asset.Group.Name),
+        );
+    } catch { /* ignore */ }
 
     const stillPresent = new Set(
         Player.Appearance
@@ -178,12 +239,12 @@ function doEscape(newItems: Item[], restrainer: string | null, itemName: string)
 
     let anySucceeded = false;
     for (const item of newItems) {
-        const group = item.Asset.Group.Name;
-        if (stillPresent.has(group)) {
-            failAttempts.set(group, (failAttempts.get(group) ?? 0) + 1);
+        const key = wornKey(item);
+        if (stillPresent.has(item.Asset.Group.Name)) {
+            failAttempts.set(key, (failAttempts.get(key) ?? 0) + 1);
         } else {
             anySucceeded = true;
-            failAttempts.delete(group);
+            failAttempts.delete(key);
         }
     }
 
@@ -199,7 +260,7 @@ function doEscape(newItems: Item[], restrainer: string | null, itemName: string)
     }
     mergeCurrentRestraints();
 
-    window.setTimeout(() => {
+    const announce = (restrainer: string | null): void => {
         try {
             if (anySucceeded && getAntiRestraintAnnounce()) {
                 const customEmote = getEscapeEmoteText();
@@ -227,5 +288,23 @@ function doEscape(newItems: Item[], restrainer: string | null, itemName: string)
             }
         } catch { /* ignore */ }
         escaping = false;
+    };
+
+    // Give the chat line a moment to arrive, then one more short wait if it
+    // still has not - a slow server should not cost you the name. Whatever it
+    // is by then is what gets used, and it is cleared so it cannot leak into
+    // the next escape by someone else.
+    window.setTimeout(() => {
+        if (lastRestrainerName === null) {
+            window.setTimeout(() => {
+                const who = lastRestrainerName;
+                lastRestrainerName = null;
+                announce(who);
+            }, 300);
+            return;
+        }
+        const who = lastRestrainerName;
+        lastRestrainerName = null;
+        announce(who);
     }, 200);
 }
