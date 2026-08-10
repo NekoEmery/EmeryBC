@@ -27742,11 +27742,53 @@ This cannot be undone.`,
         const FONT = "font-family:'Trebuchet MS','Segoe UI',system-ui,sans-serif;";
         const mk = (tag: string, css?: string): HTMLElement => { const el = document.createElement(tag); if (css) el.style.cssText = css; return el; };
 
-        const overlay = mk("div", "position:fixed;inset:0;background:rgba(8,4,14,0.78);backdrop-filter:blur(3px);z-index:999999;display:flex;align-items:center;justify-content:center;");
+        // Dimmed but NOT blurred, like the achievements window. You are usually
+        // writing about something that just happened on screen, and blurring the
+        // one thing you are trying to describe means writing from memory.
+                // Drag by anywhere on the window that is not a control, so it can be
+        // moved off whatever you are describing. Position is not remembered -
+        // each report starts centred, because where you dragged it last has
+        // nothing to do with what you are looking at now.
+        const makeDraggable = (handleOn: HTMLElement, moves: HTMLElement): void => {
+            let dx = 0, dy = 0, ox = 0, oy = 0, dragging = false;
+            handleOn.style.cursor = "move";
+            handleOn.addEventListener("mousedown", (e) => {
+                const tgt = e.target as HTMLElement;
+                if (tgt.closest("input,textarea,select,button,a")) return;
+                dragging = true;
+                const r = moves.getBoundingClientRect();
+                ox = r.left; oy = r.top;
+                dx = e.clientX; dy = e.clientY;
+                moves.style.position = "fixed";
+                moves.style.margin = "0";
+                moves.style.left = ox + "px";
+                moves.style.top = oy + "px";
+                e.preventDefault();
+            });
+            const onMove = (e: MouseEvent): void => {
+                if (!dragging) return;
+                // Kept on screen - a window dragged off the edge cannot be got back.
+                const r = moves.getBoundingClientRect();
+                const nx = Math.min(Math.max(0, ox + e.clientX - dx), window.innerWidth - Math.min(r.width, window.innerWidth));
+                const ny = Math.min(Math.max(0, oy + e.clientY - dy), window.innerHeight - 40);
+                moves.style.left = nx + "px";
+                moves.style.top = ny + "px";
+            };
+            const onUp = (): void => { dragging = false; };
+            window.addEventListener("mousemove", onMove);
+            window.addEventListener("mouseup", onUp);
+            // Torn down with the overlay so a closed window leaves nothing behind.
+            overlay.addEventListener("ebc-cleanup", () => {
+                window.removeEventListener("mousemove", onMove);
+                window.removeEventListener("mouseup", onUp);
+            });
+        };
+        const overlay = mk("div", "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999999;display:flex;align-items:center;justify-content:center;");
         overlay.id = "ebc-feedback-overlay";
 
         const card = mk("div", `${FONT}width:min(430px,92vw);max-height:88vh;overflow-y:auto;background:#18131f;border:1px solid #3f3149;border-radius:14px;padding:22px 24px;box-shadow:0 16px 50px rgba(0,0,0,0.6);`);
         overlay.appendChild(card);
+        makeDraggable(card, card);
 
         // Thin accent bar at the top for a bit of polish
         card.appendChild(mk("div", "height:3px;border-radius:3px;background:#cf6f98;margin:-6px 0 16px;"));
@@ -27781,6 +27823,10 @@ This cannot be undone.`,
             { label: t("feedback.other"), value: "Other" },
         ];
         let selectedType = TYPES[0].value;
+        const thanksFor = (kind: string): string =>
+            kind === "Bug report" ? t("feedback.toastBug")
+            : kind === "Feature request" ? t("feedback.toastIdea")
+            : t("feedback.toast");
         const typeChips: HTMLElement[] = [];
         const paintChips = (): void => {
             typeChips.forEach((chip, i) => {
@@ -27852,7 +27898,12 @@ This cannot be undone.`,
         btnRow.appendChild(cancelBtn); btnRow.appendChild(sendBtn);
         card.appendChild(btnRow);
 
-        const close = (): void => { if (document.body.contains(overlay)) document.body.removeChild(overlay); };
+        const close = (): void => {
+            // Drop the drag helper's window listeners before the overlay goes,
+            // otherwise every report leaves a pair of them behind.
+            try { overlay.dispatchEvent(new Event("ebc-cleanup")); } catch { /* ignore */ }
+            if (document.body.contains(overlay)) document.body.removeChild(overlay);
+        };
         cancelBtn.addEventListener("click", close);
         overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
 
@@ -27872,8 +27923,10 @@ This cannot be undone.`,
 
             // no-cors: fire-and-forget; we can't read the response but the submit goes through
             fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
-                .then(() => { close(); this._showToyToast(t("feedback.toast")); })
-                .catch(() => { close(); this._showToyToast(t("feedback.toast")); });
+                // Says what you actually sent. Reporting a bug and being thanked
+                // for your suggestion reads as though it was not understood.
+                .then(() => { close(); this._showToyToast(thanksFor(selectedType)); })
+                .catch(() => { close(); this._showToyToast(thanksFor(selectedType)); });
             try { achievementOnFeedbackSent(); } catch { /* ignore */ }
         });
 

@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, achievementScanRoom, achieve
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.6";
-const SAL_VERSION  = 296;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 297;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.0.6",
         changes: [
+            "The Suggestions & Bugs window can be dragged, and no longer blurs the game behind it. It dims like the achievements window instead. You are usually writing about something that just happened on screen, and blurring the exact thing you are describing meant writing it from memory. Drag it by any empty part of the window; it cannot be dragged off the edge, and it starts centred each time.",
+            "Fix: the thank-you after sending says what you actually sent. Reporting a bug and being thanked for your suggestion reads as though it was not understood. Bug reports, suggestions and anything else now each get their own wording, in all seven languages.",
+            "Fix (again): Emery's achievement cards really do say \"a crew member\" now. The previous attempt shipped doing nothing at all - the pattern it used was mangled into invisible control characters on its way into the file, so it never matched anything.",
             "New: Met the Kitty - share a room with Emery. This is the meeting achievement Completionist needs now.",
             "Changed: Met the Crew is no longer required for Completionist. It asks for five particular people online and in the same room at once, which is not something you can go and do - it is luck and other people's diaries. It stays as an achievement to chase, it just no longer stands between you and the reward. Met the Kitty takes its place: still meeting someone, but one person instead of five.",
             "Fix: for Emery, the Emery achievements now SAY what they actually count. They retarget to the credited crew when she is the player, since she cannot do things to herself, but the cards still read 'Spank Emery 5 times' - which was simply untrue on her screen. They now read 'a crew member'.",
