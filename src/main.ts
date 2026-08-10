@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, achievementScanRoom, achieve
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.6";
-const SAL_VERSION  = 297;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 298;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.0.6",
         changes: [
+            "The Achievements window and the Tutorial can be dragged too, so all three floating windows behave the same way. Grab any empty part of one and move it; they stay inside the screen and start centred each time. Buttons, text boxes and links are not drag handles, so nothing you click gets stolen by a drag.",
             "The Suggestions & Bugs window can be dragged, and no longer blurs the game behind it. It dims like the achievements window instead. You are usually writing about something that just happened on screen, and blurring the exact thing you are describing meant writing it from memory. Drag it by any empty part of the window; it cannot be dragged off the edge, and it starts centred each time.",
             "Fix: the thank-you after sending says what you actually sent. Reporting a bug and being thanked for your suggestion reads as though it was not understood. Bug reports, suggestions and anything else now each get their own wording, in all seven languages.",
             "Fix (again): Emery's achievement cards really do say \"a crew member\" now. The previous attempt shipped doing nothing at all - the pattern it used was mangled into invisible control characters on its way into the file, so it never matched anything.",
