@@ -83,17 +83,17 @@ export interface AchievementDef {
 }
 
 /**
- * Completionist means everything. The crew and Emery ones count too.
+ * Completionist means everything except two.
  *
- * They are the hardest ones precisely because they need other people, and that
- * is the point - a reward for finishing the whole list should mean the whole
- * list. Emery can reach hers because the Emery achievements retarget to the
- * credited crew when she is the player.
+ * Met the Crew needs five specific people online and in the same room at once,
+ * which is not a thing you can go and do - it is luck and other people's
+ * schedules. Met the Kitty replaces it as the required one: still meeting
+ * someone, but one person rather than five.
  *
- * Only Completionist itself is excluded, since it is derived from the others
- * and would otherwise be waiting on itself.
+ * Completionist itself is excluded because it is derived from the others and
+ * would otherwise be waiting on itself.
  */
-const COMPLETION_EXCLUDES = new Set(["completionist"]);
+const COMPLETION_EXCLUDES = new Set(["completionist", "crew_met"]);
 
 function countsTowardCompletion(a: AchievementDef): boolean {
     return !COMPLETION_EXCLUDES.has(a.id);
@@ -183,7 +183,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     // Thresholds track the roster length so they stay right if it grows. If you
     // are credited yourself you count toward your own total - you already know
     // who you are - so everyone needs the same number.
-    { id: "crew_met", icon: "⭐", name: "Met the Crew",  desc: "Share a room with all {n} credited EBC people", counter: "crew_met", tiers: [CREDITED.length], cls: "emery", rare: true },
+    { id: "met_emery", icon: "⭐", name: "Met the Kitty", desc: "Share a room with Emery",                        counter: "met_emery", tiers: [1], cls: "emery", rare: true },
+    { id: "crew_met",  icon: "⭐", name: "Met the Crew",  desc: "Share a room with all {n} credited EBC people", counter: "crew_met",  tiers: [CREDITED.length], cls: "emery", rare: true },
 
     // Completionist is not tracked like the others - its progress is derived
     // from everything else, in completionProgress() below. It is listed last so
@@ -398,6 +399,19 @@ export function achievementScanRoom(): void {
             Array<{ MemberNumber?: number }> | undefined;
         if (!Array.isArray(room)) return;
         for (const c of room) collectCredited("cm", "crew_met", c.MemberNumber ?? -1);
+
+        // Meeting Emery - or, when you ARE Emery, any of the credited crew,
+        // since she cannot share a room with herself. Recorded once and left
+        // alone; the room is scanned constantly and this is not a counter.
+        const specials = specialNums();
+        if (room.some(c => typeof c.MemberNumber === "number" && specials.includes(c.MemberNumber))) {
+            const st = getState();
+            if ((st.c["met_emery"] ?? 0) < 1) {
+                st.c["met_emery"] = 1;
+                checkUnlocks();
+                save();
+            }
+        }
     } catch { /* ignore */ }
 }
 
