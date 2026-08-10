@@ -8425,9 +8425,15 @@
         const text = a.desc.replace("{n}", a.fmtN ? a.fmtN(n) : String(n));
         if (((_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0) !== EMERY || !text.includes("Emery"))
             return text;
-        return text
-            .replace(/^Emery/, "A crew member")
-            .replace(/Emery/g, "a crew member");
+        // Plain splitting rather than a regex with word boundaries. The escapes in
+        // the previous version were mangled into control characters on their way
+        // into the file, so it silently matched nothing - this cannot happen to a
+        // string with no escapes in it. "Emery" only ever appears as a whole word
+        // in these descriptions, so nothing is lost by not asserting that.
+        const swapped = text.split("Emery").join("a crew member");
+        return swapped.startsWith("a crew member")
+            ? "A crew member" + swapped.slice("a crew member".length)
+            : swapped;
     }
     const ACHIEVEMENT_CLASSES = [
         { id: "received", label: "Received", icon: "💝" },
@@ -11131,7 +11137,9 @@
         "feedback.sending": { en: "Sending...", de: "Senden...", zh: "发送中...", fr: "Envoi...", es: "Enviando...", ru: "Отправка...", ja: "送信中..." },
         "feedback.errEmpty": { en: "Please describe your suggestion first.", de: "Bitte beschreibe zuerst den Fehler oder die Anfrage.", zh: "请先描述错误或请求。", fr: "Veuillez d'abord décrire le bug ou la demande.", es: "Por favor describe primero el error o la solicitud.", ru: "Пожалуйста, сначала опишите ошибку или запрос.", ja: "まずバグやリクエストを説明してください。" },
         "feedback.verNote": { en: "EBC v{v} · {mn} is attached automatically.", de: "EBC v{v} · {mn} wird automatisch angehängt.", zh: "EBC v{v} · {mn} 已自动附加。", fr: "EBC v{v} · {mn} est joint automatiquement.", es: "EBC v{v} · {mn} se adjunta automáticamente.", ru: "EBC v{v} · {mn} прикреплён автоматически.", ja: "EBC v{v} · {mn} が自動的に添付されます。" },
-        "feedback.toast": { en: "Thanks! Your suggestion was sent.", de: "Danke! Dein Feedback wurde gesendet.", zh: "谢谢！你的反馈已发送。", fr: "Merci ! Ton retour a été envoyé.", es: "¡Gracias! Tu comentario ha sido enviado.", ru: "Спасибо! Твой отзыв был отправлен.", ja: "ありがとう！フィードバックが送信されました。" },
+        "feedback.toastBug": { en: "Thanks! Your bug report was sent.", de: "Danke! Dein Fehlerbericht wurde gesendet.", zh: "谢谢！你的错误报告已发送。", fr: "Merci ! Ton rapport de bug a été envoyé.", es: "¡Gracias! Tu informe de error ha sido enviado.", ru: "Спасибо! Твой отчёт об ошибке отправлен.", ja: "ありがとう！バグ報告が送信されました。" },
+        "feedback.toastIdea": { en: "Thanks! Your suggestion was sent.", de: "Danke! Dein Vorschlag wurde gesendet.", zh: "谢谢！你的建议已发送。", fr: "Merci ! Ta suggestion a été envoyée.", es: "¡Gracias! Tu sugerencia ha sido enviada.", ru: "Спасибо! Твоё предложение отправлено.", ja: "ありがとう！提案が送信されました。" },
+        "feedback.toast": { en: "Thanks! Your feedback was sent.", de: "Danke! Dein Feedback wurde gesendet.", zh: "谢谢！你的反馈已发送。", fr: "Merci ! Ton retour a été envoyé.", es: "¡Gracias! Tu comentario ha sido enviado.", ru: "Спасибо! Твой отзыв был отправлен.", ja: "ありがとう！フィードバックが送信されました。" },
         // ─── PISHOCK SETUP MODAL ───────────────────────────────────────────────
         "pishock.setupTitle": { en: "Proxy Setup (Deno Deploy)", de: "Proxy Setup (Deno Deploy)", zh: "代理设置 (Deno Deploy)", fr: "Configuration proxy (Deno Deploy)", es: "Configuracion proxy (Deno Deploy)", ru: "Настройка прокси (Deno Deploy)", ja: "プロキシ設定 (Deno Deploy)" },
         "pishock.setupSub": { en: "One-time setup - takes about 3 minutes. Free forever.", de: "Einmalige Einrichtung - ca. 3 Minuten. Kostenlos.", zh: "一次性设置 - 约3分钟。永久免费。", fr: "Configuration unique - environ 3 minutes. Gratuit pour toujours.", es: "Configuracion unica - unos 3 minutos. Gratis para siempre.", ru: "Одноразовая настройка - около 3 минут. Бесплатно.", ja: "一度限りのセットアップ - 約3分。永久に無料。" },
@@ -39556,10 +39564,56 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             const FONT = "font-family:'Trebuchet MS','Segoe UI',system-ui,sans-serif;";
             const mk = (tag, css) => { const el = document.createElement(tag); if (css)
                 el.style.cssText = css; return el; };
-            const overlay = mk("div", "position:fixed;inset:0;background:rgba(8,4,14,0.78);backdrop-filter:blur(3px);z-index:999999;display:flex;align-items:center;justify-content:center;");
+            // Dimmed but NOT blurred, like the achievements window. You are usually
+            // writing about something that just happened on screen, and blurring the
+            // one thing you are trying to describe means writing from memory.
+            // Drag by anywhere on the window that is not a control, so it can be
+            // moved off whatever you are describing. Position is not remembered -
+            // each report starts centred, because where you dragged it last has
+            // nothing to do with what you are looking at now.
+            const makeDraggable = (handleOn, moves) => {
+                let dx = 0, dy = 0, ox = 0, oy = 0, dragging = false;
+                handleOn.style.cursor = "move";
+                handleOn.addEventListener("mousedown", (e) => {
+                    const tgt = e.target;
+                    if (tgt.closest("input,textarea,select,button,a"))
+                        return;
+                    dragging = true;
+                    const r = moves.getBoundingClientRect();
+                    ox = r.left;
+                    oy = r.top;
+                    dx = e.clientX;
+                    dy = e.clientY;
+                    moves.style.position = "fixed";
+                    moves.style.margin = "0";
+                    moves.style.left = ox + "px";
+                    moves.style.top = oy + "px";
+                    e.preventDefault();
+                });
+                const onMove = (e) => {
+                    if (!dragging)
+                        return;
+                    // Kept on screen - a window dragged off the edge cannot be got back.
+                    const r = moves.getBoundingClientRect();
+                    const nx = Math.min(Math.max(0, ox + e.clientX - dx), window.innerWidth - Math.min(r.width, window.innerWidth));
+                    const ny = Math.min(Math.max(0, oy + e.clientY - dy), window.innerHeight - 40);
+                    moves.style.left = nx + "px";
+                    moves.style.top = ny + "px";
+                };
+                const onUp = () => { dragging = false; };
+                window.addEventListener("mousemove", onMove);
+                window.addEventListener("mouseup", onUp);
+                // Torn down with the overlay so a closed window leaves nothing behind.
+                overlay.addEventListener("ebc-cleanup", () => {
+                    window.removeEventListener("mousemove", onMove);
+                    window.removeEventListener("mouseup", onUp);
+                });
+            };
+            const overlay = mk("div", "position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999999;display:flex;align-items:center;justify-content:center;");
             overlay.id = "ebc-feedback-overlay";
             const card = mk("div", `${FONT}width:min(430px,92vw);max-height:88vh;overflow-y:auto;background:#18131f;border:1px solid #3f3149;border-radius:14px;padding:22px 24px;box-shadow:0 16px 50px rgba(0,0,0,0.6);`);
             overlay.appendChild(card);
+            makeDraggable(card, card);
             // Thin accent bar at the top for a bit of polish
             card.appendChild(mk("div", "height:3px;border-radius:3px;background:#cf6f98;margin:-6px 0 16px;"));
             const titleEl = mk("div", `${FONT}font-size:17px;font-weight:bold;color:#f3eef6;letter-spacing:0.2px;margin-bottom:6px;`);
@@ -39590,6 +39644,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 { label: t("feedback.other"), value: "Other" },
             ];
             let selectedType = TYPES[0].value;
+            const thanksFor = (kind) => kind === "Bug report" ? t("feedback.toastBug")
+                : kind === "Feature request" ? t("feedback.toastIdea")
+                    : t("feedback.toast");
             const typeChips = [];
             const paintChips = () => {
                 typeChips.forEach((chip, i) => {
@@ -39661,8 +39718,16 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             btnRow.appendChild(cancelBtn);
             btnRow.appendChild(sendBtn);
             card.appendChild(btnRow);
-            const close = () => { if (document.body.contains(overlay))
-                document.body.removeChild(overlay); };
+            const close = () => {
+                // Drop the drag helper's window listeners before the overlay goes,
+                // otherwise every report leaves a pair of them behind.
+                try {
+                    overlay.dispatchEvent(new Event("ebc-cleanup"));
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+                if (document.body.contains(overlay))
+                    document.body.removeChild(overlay);
+            };
             cancelBtn.addEventListener("click", close);
             overlay.addEventListener("click", (e) => { if (e.target === overlay)
                 close(); });
@@ -39686,8 +39751,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 params.append(E_VER, verStr);
                 // no-cors: fire-and-forget; we can't read the response but the submit goes through
                 fetch(SUBMIT_URL, { method: "POST", mode: "no-cors", body: params })
-                    .then(() => { close(); this._showToyToast(t("feedback.toast")); })
-                    .catch(() => { close(); this._showToyToast(t("feedback.toast")); });
+                    // Says what you actually sent. Reporting a bug and being thanked
+                    // for your suggestion reads as though it was not understood.
+                    .then(() => { close(); this._showToyToast(thanksFor(selectedType)); })
+                    .catch(() => { close(); this._showToyToast(thanksFor(selectedType)); });
                 try {
                     achievementOnFeedbackSent();
                 }
@@ -41979,7 +42046,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.6";
-    const SAL_VERSION = 295; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 297; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -41996,6 +42063,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.6",
             changes: [
+                "The Suggestions & Bugs window can be dragged, and no longer blurs the game behind it. It dims like the achievements window instead. You are usually writing about something that just happened on screen, and blurring the exact thing you are describing meant writing it from memory. Drag it by any empty part of the window; it cannot be dragged off the edge, and it starts centred each time.",
+                "Fix: the thank-you after sending says what you actually sent. Reporting a bug and being thanked for your suggestion reads as though it was not understood. Bug reports, suggestions and anything else now each get their own wording, in all seven languages.",
+                "Fix (again): Emery's achievement cards really do say \"a crew member\" now. The previous attempt shipped doing nothing at all - the pattern it used was mangled into invisible control characters on its way into the file, so it never matched anything.",
                 "New: Met the Kitty - share a room with Emery. This is the meeting achievement Completionist needs now.",
                 "Changed: Met the Crew is no longer required for Completionist. It asks for five particular people online and in the same room at once, which is not something you can go and do - it is luck and other people's diaries. It stays as an achievement to chase, it just no longer stands between you and the reward. Met the Kitty takes its place: still meeting someone, but one person instead of five.",
                 "Fix: for Emery, the Emery achievements now SAY what they actually count. They retarget to the credited crew when she is the player, since she cannot do things to herself, but the cards still read 'Spank Emery 5 times' - which was simply untrue on her screen. They now read 'a crew member'.",
