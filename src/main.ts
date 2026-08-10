@@ -29,8 +29,8 @@ import bcModSdk from "bondage-club-mod-sdk";
 import { isAchievementUser, hasCompletedEverything, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.0.6";
-const SAL_VERSION  = 302;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.0.7";
+const SAL_VERSION  = 303;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -48,8 +48,9 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "9.0.6",
+        version: "9.0.7",
         changes: [
+            "Fix: dragging the scrollbar in the Achievements window scrolls it, rather than dragging the window. A scrollbar belongs to its element rather than sitting inside it, so it could not be excluded the way buttons and text boxes are - the drag handler ran first and cancelled the browser's own scrollbar drag. It now recognises a press on the bar and leaves it alone. Same for the Suggestions & Bugs window and the Tutorial.",
             "Fix: Met the Crew is described correctly. Both it and the Completionist card implied you needed all six credited people in a room at the same moment. You do not - it is a list that fills up over time, one person here, another somewhere else weeks later, and it is remembered. The wording said something harder than the achievement actually asks for.",
             "The Completionist card now says which achievement does not count. It stated the rule - every achievement at its highest level - without mentioning the one carve-out, and a rule with a hidden exception is worse than no rule: anyone chasing it needs to know Met the Crew is not standing in their way. It is on its own line, along with why.",
             "Fix: the Achievements window updates while it is open. It built itself once and never looked again, so anything you earned while watching it did not appear until you closed and reopened - and that window is exactly what you have open when you are chasing one. Your scroll position is kept, so the list no longer jumps to the top under you when a counter ticks.",

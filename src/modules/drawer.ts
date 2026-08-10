@@ -4173,6 +4173,17 @@ function makeDraggable(el: HTMLElement): void {
         const tgt = e.target as HTMLElement | null;
         if (tgt?.closest("input,textarea,select,button,a,label")) return;
 
+        // A scrollbar is part of its element, not a child, so it cannot be
+        // excluded by selector - and this handler ran first and called
+        // preventDefault, which cancelled the browser's own scrollbar drag. The
+        // window moved instead of the list scrolling.
+        //
+        // offsetX/offsetY are measured against the padding box, which stops at
+        // the scrollbar: a press beyond clientWidth or clientHeight is on the
+        // bar itself. Checked on the element pressed rather than the window, so
+        // it works for any scrollable area inside any of these panels.
+        if (tgt && (e.offsetX > tgt.clientWidth || e.offsetY > tgt.clientHeight)) return;
+
         const r = el.getBoundingClientRect();
         const startX = e.clientX, startY = e.clientY;
         const originX = r.left, originY = r.top;
