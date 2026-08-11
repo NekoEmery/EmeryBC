@@ -68,7 +68,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         ],
     },
     {
-version: "9.0.7",
+        version: "9.0.7",
         changes: [
             "Fix: dragging the scrollbar in the Achievements window scrolls it, rather than dragging the window. A scrollbar belongs to its element rather than sitting inside it, so it could not be excluded the way buttons and text boxes are - the drag handler ran first and cancelled the browser's own scrollbar drag. It now recognises a press on the bar and leaves it alone. Same for the Suggestions & Bugs window and the Tutorial.",
             "Fix: Met the Crew is described correctly. Both it and the Completionist card implied you needed all six credited people in a room at the same moment. You do not - it is a list that fills up over time, one person here, another somewhere else weeks later, and it is remembered. The wording said something harder than the achievement actually asks for.",
@@ -87,7 +87,7 @@ version: "9.0.7",
         ],
     },
     {
-    version: "9.0.5",
+        version: "9.0.5",
         changes: [
             "Fix: you are in your own room list now, at the top, marked YOU. Your own card listed one fewer person than the count beside it claimed, because the count came from the real room roster while the rows were built from a copy with you removed. It also meant you could never see your own row - your name, your colours, your paw - which is the one thing you would most want to look at.",
             "Fix: Completionist needs EVERY achievement, the crew and Emery ones included. Yesterday's version let you off those, which was my misreading rather than a decision - they are the hardest ones precisely because they need other people, and a reward for finishing the whole list should mean the whole list.",
