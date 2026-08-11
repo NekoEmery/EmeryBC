@@ -150,6 +150,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         gag: "data:image/png;base64,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",
         headpat: "data:image/png;base64,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",
         kiss: "data:image/png;base64,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",
+        paw: "data:image/png;base64,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",
         people: "data:image/png;base64,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",
         rope: "data:image/png;base64,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",
         spank: "data:image/png;base64,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",
@@ -175,6 +176,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         bughunter: "bug", crew_met: "people",
         // The reward itself
         completionist: "trophy",
+        // The Emery ones carry the same gold paw as the creator name and the
+        // credits card, so the rare set is recognisable as one group rather
+        // than fourteen identical stars.
+        pat_the_dev: "paw", boop_the_dev: "paw", hug_the_dev: "paw",
+        spank_the_dev: "paw", dev_wrangler: "paw", devs_favorite: "paw",
+        spanked_by_dev: "paw", patted_by_dev: "paw", booped_by_dev: "paw",
+        hugged_by_dev: "paw", tied_by_dev: "paw", tickle_the_dev: "paw",
+        met_emery: "paw",
     };
 
     const UI = {
@@ -9378,7 +9387,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return "cooldown";
         const [done, total] = completionProgress();
         const pct = completionPercent();
-        const content = `shares their achievement progress: 🏆 ${pct}% (${done} of ${total})`;
+        // Nothing to announce. Broadcasting "0%" to a room is not a share, it is a
+        // notification that you have not done anything.
+        const unlocked = getAchievementProgress().filter(p => p.tier > 0).length;
+        if (unlocked === 0)
+            return "nothing";
+        // Reads as a sentence rather than a readout. The old one was
+        // "shares their achievement progress: 0% (0 of 29)", which is three numbers
+        // and no meaning.
+        const content = pct >= 100
+            ? `has unlocked every EBC achievement - all ${total} of them. 🏆`
+            : `is ${pct}% of the way through the EBC achievements (${done} of ${total} done).`;
         try {
             ServerSend("ChatRoomChat", {
                 Content: content,
@@ -9390,14 +9409,97 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             return "noRoom";
         }
         _lastShareTs = Date.now();
+        renderProgressPlaque("you shared with the room", pct, done, total);
         return "ok";
     }
+    /**
+     * The plaque for a progress share.
+     *
+     * Individual achievements already draw one; progress shares were plain emote
+     * text next to them, which is why they looked out of place. Same frame, same
+     * shine, a ring instead of a medal.
+     */
+    function renderProgressPlaque(byline, pct, done, total) {
+        try {
+            const log = document.getElementById("TextAreaChatLog");
+            if (!log)
+                return false;
+            ensureShineStyle();
+            const metal = pct >= 100 ? "#ffd700" : "#cf6f98";
+            const plaque = document.createElement("div");
+            plaque.style.cssText = [
+                "margin:4px 4px", "padding:8px 11px", "border-radius:9px",
+                `border:1px solid ${metal}`,
+                "background:linear-gradient(160deg, rgba(40,19,32,0.92), rgba(16,7,13,0.96))",
+                "display:flex", "align-items:center", "gap:11px",
+                "font-family:'Trebuchet MS', serif", "position:relative", "overflow:hidden",
+            ].join(";");
+            const ring = document.createElement("div");
+            ring.style.cssText = "width:42px;height:42px;border-radius:50%;flex-shrink:0;position:relative;"
+                + `background:conic-gradient(${metal} 0turn ${pct / 100}turn, #2a1421 ${pct / 100}turn 1turn);`;
+            const hole = document.createElement("div");
+            hole.style.cssText = "position:absolute;inset:4px;border-radius:50%;background:#150a12;";
+            const num = document.createElement("div");
+            num.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"
+                + `font-size:11px;font-weight:bold;z-index:1;color:${metal};`;
+            num.textContent = pct + "%";
+            ring.appendChild(hole);
+            ring.appendChild(num);
+            plaque.appendChild(ring);
+            const txt = document.createElement("div");
+            txt.style.cssText = "flex:1;min-width:0;";
+            const head = document.createElement("div");
+            head.style.cssText = `font-size:12px;font-weight:bold;color:${metal};`;
+            head.textContent = pct >= 100 ? "Every achievement unlocked" : "Achievement progress";
+            const sub = document.createElement("div");
+            sub.style.cssText = "font-size:11px;color:#c9b0bd;margin-top:2px;";
+            sub.textContent = `${done} of ${total} done`;
+            const by = document.createElement("div");
+            by.style.cssText = "font-size:9.5px;color:#8a7080;margin-top:3px;";
+            by.textContent = byline;
+            txt.appendChild(head);
+            txt.appendChild(sub);
+            txt.appendChild(by);
+            plaque.appendChild(txt);
+            log.appendChild(plaque);
+            log.scrollTop = log.scrollHeight;
+            return true;
+        }
+        catch (_a) {
+            return false;
+        }
+    }
     function handleAchievementShareMessage(data) {
-        var _a, _b, _c, _d, _e;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j;
         try {
             if (!data || (data.Type !== "Emote" && data.Type !== "Chat" && data.Type !== "Whisper"))
                 return false;
             const dict = Array.isArray(data.Dictionary) ? data.Dictionary : [];
+            // Someone else's progress share - drawn as a plaque like the rest.
+            const pctEntry = dict.find(d => (d === null || d === void 0 ? void 0 : d.Tag) === "EBCACHPCT");
+            if (pctEntry && typeof pctEntry.Text === "string") {
+                if (!getShowSharedPlaques())
+                    return false;
+                const sender = typeof data.Sender === "number" ? data.Sender : 0;
+                if (sender && sender === ((_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : -1))
+                    return true;
+                try {
+                    const p = JSON.parse(pctEntry.Text);
+                    if (typeof p.pct === "number") {
+                        let who = `#${sender}`;
+                        try {
+                            const room = window.ChatRoomCharacter;
+                            const c = room === null || room === void 0 ? void 0 : room.find(x => x.MemberNumber === sender);
+                            if (c)
+                                who = (((_b = c.Nickname) === null || _b === void 0 ? void 0 : _b.trim()) || c.Name || who);
+                        }
+                        catch ( /* ignore */_k) { /* ignore */ }
+                        renderProgressPlaque(`shared by ${who}`, p.pct, (_c = p.done) !== null && _c !== void 0 ? _c : 0, (_d = p.total) !== null && _d !== void 0 ? _d : 0);
+                        return true;
+                    }
+                }
+                catch ( /* not ours after all */_l) { /* not ours after all */ }
+            }
             const entry = dict.find(d => (d === null || d === void 0 ? void 0 : d.Tag) === "EBCACH");
             if (!entry)
                 return false;
@@ -9414,11 +9516,11 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 try {
                     const parsed = JSON.parse(entry.Text);
                     if (parsed && typeof parsed === "object") {
-                        sharedId = (_a = parsed.id) !== null && _a !== void 0 ? _a : sharedId;
-                        sharedTier = (_b = parsed.tier) !== null && _b !== void 0 ? _b : sharedTier;
+                        sharedId = (_e = parsed.id) !== null && _e !== void 0 ? _e : sharedId;
+                        sharedTier = (_f = parsed.tier) !== null && _f !== void 0 ? _f : sharedTier;
                     }
                 }
-                catch ( /* not ours after all - fall through to the old fields */_f) { /* not ours after all - fall through to the old fields */ }
+                catch ( /* not ours after all - fall through to the old fields */_m) { /* not ours after all - fall through to the old fields */ }
             }
             const a = ACHIEVEMENTS.find(x => x.id === sharedId);
             if (!a)
@@ -9428,9 +9530,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             // already drawn the nicer "you shared with the room" plaque. Without this
             // the sharer saw the same achievement twice, once as themselves and once
             // as "shared by <own name>".
-            if (senderNum && senderNum === ((_c = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _c !== void 0 ? _c : -1))
+            if (senderNum && senderNum === ((_g = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _g !== void 0 ? _g : -1))
                 return true;
-            const last = (_d = _plaqueLastBySender.get(senderNum)) !== null && _d !== void 0 ? _d : 0;
+            const last = (_h = _plaqueLastBySender.get(senderNum)) !== null && _h !== void 0 ? _h : 0;
             if (Date.now() - last < 30000)
                 return true; // swallow the spam silently
             _plaqueLastBySender.set(senderNum, Date.now());
@@ -9440,12 +9542,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 const room = window.ChatRoomCharacter;
                 const c = room === null || room === void 0 ? void 0 : room.find(x => x.MemberNumber === senderNum);
                 if (c)
-                    senderName = ((_e = c.Nickname) !== null && _e !== void 0 ? _e : "").trim() || c.Name || senderName;
+                    senderName = ((_j = c.Nickname) !== null && _j !== void 0 ? _j : "").trim() || c.Name || senderName;
             }
-            catch ( /* ignore */_g) { /* ignore */ }
+            catch ( /* ignore */_o) { /* ignore */ }
             return renderSharedPlaque(`shared by ${senderName}`, a, tier);
         }
-        catch (_h) {
+        catch (_p) {
             return false;
         }
     }
@@ -30062,7 +30164,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     const r = shareOverallProgress();
                     shareAll.textContent = r === "ok" ? "Shared ✓"
                         : r === "cooldown" ? "Wait a moment"
-                            : "Only in a room";
+                            : r === "nothing" ? "Nothing unlocked yet"
+                                : "Only in a room";
                     window.setTimeout(() => { shareAll.textContent = "Share my progress"; }, 2000);
                 });
                 shareRow.appendChild(shareAll);
@@ -42804,7 +42907,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.8";
-    const SAL_VERSION = 317; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 318; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42821,6 +42924,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.8",
             changes: [
+                "The Emery achievements are marked with the gold paw - the same one on the creator name and the credits card - so the rare set reads as one group instead of fourteen identical stars.",
+                "Sharing your overall progress looks like the achievement shares do. It went out as plain emote text sitting next to proper plaques, reading ", shares, their, achievement, progress, 0 % (0), of, 29, " - three numbers and no meaning. It now says it as a sentence and draws a plaque with a progress ring, and it refuses when you have nothing unlocked, because announcing 0% to a room is not a share.",
                 "The Achievements window is redesigned. Every achievement has its own icon on its medal - rope, gag, feather, paddle and the rest - and the icon is painted by how far you have got: grey untouched, pink in progress, gold when finished. Progress is one ring at the top instead of a bar, a count, a gold tally and a notice all saying pieces of the same thing. The Completionist reward sits beside it as a strip that still shows your name the way it would look, rather than a card taking a third of the window.",
                 "Card text is readable. The count is brighter and bold, descriptions are no longer a whisper, and the level is a bordered chip rather than a third line of the same grey - so you can tell what each line is without reading it first.",
                 "Achievements with more than one level now say so. A card showed only the target of the level you were on, so Tied Down read as 0 / 5 and looked finished at five - when five is the first of three rungs. Each one now says which level you are on, how many there are, and what the later targets are, because knowing the next number is 25 rather than 500 changes whether it is worth chasing.",
