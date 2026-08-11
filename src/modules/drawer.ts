@@ -28421,6 +28421,93 @@ This cannot be undone.`,
         body.appendChild(aeCard);
     }
 
+    /**
+     * Warn someone who has misused the Feedback & Bugs form.
+     *
+     * Reports carry a member number, so the person is identifiable, but there
+     * was no way to say anything back to them - the form is one-way. Creator
+     * only, one message at a time, and it always confirms first: this sends a
+     * real message to a real person and there is no taking it back.
+     */
+    private buildReportWarningSection(body: HTMLElement): void {
+        const card = document.createElement("div");
+        card.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+
+        const lbl = document.createElement("div");
+        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:6px;";
+        lbl.textContent = "Report misuse";
+        card.appendChild(lbl);
+
+        const hint = document.createElement("div");
+        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#b79aa8;margin-bottom:7px;line-height:1.45;";
+        hint.textContent = "Sends one private beep to someone who sent a junk report. "
+            + "The member number is on the report in the sheet.";
+        card.appendChild(hint);
+
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap;";
+
+        const numIn = document.createElement("input");
+        numIn.type = "text";
+        numIn.className = "ebc-form-input";
+        numIn.placeholder = "Member #";
+        numIn.style.cssText = "width:96px;font-size:11px;padding:2px 6px;";
+
+        const noteIn = document.createElement("input");
+        noteIn.type = "text";
+        noteIn.className = "ebc-form-input";
+        noteIn.placeholder = "Optional note (what they sent)";
+        noteIn.style.cssText = "flex:1;min-width:120px;font-size:11px;padding:2px 6px;";
+
+        const sendBtn = document.createElement("button");
+        sendBtn.textContent = "Send warning";
+        sendBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;"
+            + "padding:3px 11px;border-radius:6px;border:1px solid #a8925a;background:transparent;color:#d8c890;cursor:pointer;";
+
+        const say = (text: string, good = true): void => {
+            hint.textContent = text;
+            hint.style.color = good ? "#98d0a8" : "#c9737f";
+        };
+
+        sendBtn.addEventListener("click", () => {
+            const num = parseInt(numIn.value.trim().replace(/[^0-9]/g, ""), 10);
+            if (!num || num < 1) { say("Enter the member number from the report.", false); return; }
+            if (num === (Player as { MemberNumber?: number })?.MemberNumber) {
+                say("That is your own number.", false);
+                return;
+            }
+            const note = noteIn.value.trim();
+            const who = resolveName(num) || `#${num}`;
+            // Firm, factual, and no threat EBC cannot actually carry out.
+            const message = "[EBC] Your Feedback & Bugs report was not a real report.\n\n"
+                + "That form goes to one person who reads every entry and fixes what it describes. "
+                + "Joke and empty submissions waste that time and push real bugs further down the list.\n\n"
+                + (note ? `What was sent: ${note}\n\n` : "")
+                + "Please only use it for genuine bugs and suggestions.";
+
+            showConfirmOverlay(
+                `Send a warning beep to ${who} (#${num})?\n\nThey will receive it as a normal beep from you, and it cannot be unsent.`,
+                "Cancel", "Send",
+                () => {
+                    try {
+                        sendBeep(num, message);
+                        say(`Warning sent to ${who}.`);
+                        numIn.value = "";
+                        noteIn.value = "";
+                    } catch {
+                        say("Could not send - are they on your friends list?", false);
+                    }
+                },
+            );
+        });
+
+        row.appendChild(numIn);
+        row.appendChild(noteIn);
+        row.appendChild(sendBtn);
+        card.appendChild(row);
+        body.appendChild(card);
+    }
+
     private renderDomTools(): void {
         const body = this.tabBody();
         if (!body) return;
@@ -28436,6 +28523,8 @@ This cannot be undone.`,
             body.appendChild(msg);
             return;
         }
+
+        this.buildReportWarningSection(body);
 
         // ── Dom Settings (announce) - floated into setsCard header below ─────
         const dsSel = document.createElement("select");

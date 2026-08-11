@@ -40294,6 +40294,82 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             aeCard.appendChild(aeEmoteHint);
             body.appendChild(aeCard);
         }
+        /**
+         * Warn someone who has misused the Feedback & Bugs form.
+         *
+         * Reports carry a member number, so the person is identifiable, but there
+         * was no way to say anything back to them - the form is one-way. Creator
+         * only, one message at a time, and it always confirms first: this sends a
+         * real message to a real person and there is no taking it back.
+         */
+        buildReportWarningSection(body) {
+            const card = document.createElement("div");
+            card.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+            const lbl = document.createElement("div");
+            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:6px;";
+            lbl.textContent = "Report misuse";
+            card.appendChild(lbl);
+            const hint = document.createElement("div");
+            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#b79aa8;margin-bottom:7px;line-height:1.45;";
+            hint.textContent = "Sends one private beep to someone who sent a junk report. "
+                + "The member number is on the report in the sheet.";
+            card.appendChild(hint);
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap;";
+            const numIn = document.createElement("input");
+            numIn.type = "text";
+            numIn.className = "ebc-form-input";
+            numIn.placeholder = "Member #";
+            numIn.style.cssText = "width:96px;font-size:11px;padding:2px 6px;";
+            const noteIn = document.createElement("input");
+            noteIn.type = "text";
+            noteIn.className = "ebc-form-input";
+            noteIn.placeholder = "Optional note (what they sent)";
+            noteIn.style.cssText = "flex:1;min-width:120px;font-size:11px;padding:2px 6px;";
+            const sendBtn = document.createElement("button");
+            sendBtn.textContent = "Send warning";
+            sendBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;"
+                + "padding:3px 11px;border-radius:6px;border:1px solid #a8925a;background:transparent;color:#d8c890;cursor:pointer;";
+            const say = (text, good = true) => {
+                hint.textContent = text;
+                hint.style.color = good ? "#98d0a8" : "#c9737f";
+            };
+            sendBtn.addEventListener("click", () => {
+                const num = parseInt(numIn.value.trim().replace(/[^0-9]/g, ""), 10);
+                if (!num || num < 1) {
+                    say("Enter the member number from the report.", false);
+                    return;
+                }
+                if (num === (Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) {
+                    say("That is your own number.", false);
+                    return;
+                }
+                const note = noteIn.value.trim();
+                const who = resolveName(num) || `#${num}`;
+                // Firm, factual, and no threat EBC cannot actually carry out.
+                const message = "[EBC] Your Feedback & Bugs report was not a real report.\n\n"
+                    + "That form goes to one person who reads every entry and fixes what it describes. "
+                    + "Joke and empty submissions waste that time and push real bugs further down the list.\n\n"
+                    + (note ? `What was sent: ${note}\n\n` : "")
+                    + "Please only use it for genuine bugs and suggestions.";
+                showConfirmOverlay(`Send a warning beep to ${who} (#${num})?\n\nThey will receive it as a normal beep from you, and it cannot be unsent.`, "Cancel", "Send", () => {
+                    try {
+                        sendBeep(num, message);
+                        say(`Warning sent to ${who}.`);
+                        numIn.value = "";
+                        noteIn.value = "";
+                    }
+                    catch (_a) {
+                        say("Could not send - are they on your friends list?", false);
+                    }
+                });
+            });
+            row.appendChild(numIn);
+            row.appendChild(noteIn);
+            row.appendChild(sendBtn);
+            card.appendChild(row);
+            body.appendChild(card);
+        }
         renderDomTools() {
             const body = this.tabBody();
             if (!body)
@@ -40309,6 +40385,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 body.appendChild(msg);
                 return;
             }
+            this.buildReportWarningSection(body);
             // ── Dom Settings (announce) - floated into setsCard header below ─────
             const dsSel = document.createElement("select");
             dsSel.className = "ebc-form-input";
@@ -42203,7 +42280,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.7";
-    const SAL_VERSION = 305; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 306; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42220,6 +42297,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.7",
             changes: [
+                "New (creator only): a Report misuse box on the DOM tab. Reports carry a member number so the sender is identifiable, but the form is one-way and there was no way to say anything back. Enter the number, optionally note what they sent, and it beeps them once. It confirms first, because that is a real message to a real person and it cannot be unsent.",
                 "Changed: Bug Hunter no longer counts toward 100%. Requiring it meant the only way to finish your list was to file bug reports, and people had already started sending junk to farm it - which is worse for everyone than the achievement is worth. It is still there to earn.",
                 "Achievements that are not needed for 100% now say so on the card itself, and are listed by name under the progress bar and on the Completionist card. The bar counts everything, so without that the number reads as a wall between you and the reward when some of it is optional.",
                 "Fix: dragging the scrollbar in the Achievements window scrolls it, rather than dragging the window. A scrollbar belongs to its element rather than sitting inside it, so it could not be excluded the way buttons and text boxes are - the drag handler ran first and cancelled the browser's own scrollbar drag. It now recognises a press on the bar and leaves it alone. Same for the Suggestions & Bugs window and the Tutorial.",
