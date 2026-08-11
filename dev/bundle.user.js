@@ -9426,14 +9426,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 return false;
             ensureShineStyle();
             const metal = pct >= 100 ? "#ffd700" : "#cf6f98";
+            // Same frame as every other EBC line in chat - dark card, accent bar down
+            // the left - rather than a shape of its own. The ring inside is what
+            // makes it an achievement; the frame is what makes it recognisably EBC.
             const plaque = document.createElement("div");
             plaque.style.cssText = [
-                "margin:4px 4px", "padding:8px 11px", "border-radius:9px",
-                `border:1px solid ${metal}`,
-                "background:linear-gradient(160deg, rgba(40,19,32,0.92), rgba(16,7,13,0.96))",
+                "margin:3px 0", "padding:7px 10px", "border-radius:4px",
+                `border-left:3px solid ${metal}`,
+                "background:#190b13",
                 "display:flex", "align-items:center", "gap:11px",
                 "font-family:'Trebuchet MS', serif", "position:relative", "overflow:hidden",
             ].join(";");
+            const tag = document.createElement("span");
+            tag.style.cssText = "position:absolute;top:4px;right:8px;font-size:8.5px;letter-spacing:0.1em;color:#5e4452;";
+            tag.textContent = "EBC";
+            plaque.appendChild(tag);
             const ring = document.createElement("div");
             ring.style.cssText = "width:42px;height:42px;border-radius:50%;flex-shrink:0;position:relative;"
                 + `background:conic-gradient(${metal} 0turn ${pct / 100}turn, #2a1421 ${pct / 100}turn 1turn);`;
@@ -42907,7 +42914,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.8";
-    const SAL_VERSION = 318; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 319; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42924,6 +42931,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.8",
             changes: [
+                "The shared-progress box in chat uses the same frame as every other EBC message - dark card with the accent bar down the left - instead of having a look of its own. It is marked EBC in the corner so it is obvious where it came from.",
                 "The Emery achievements are marked with the gold paw - the same one on the creator name and the credits card - so the rare set reads as one group instead of fourteen identical stars.",
                 "Sharing your overall progress looks like the achievement shares do. It went out as plain emote text sitting next to proper plaques, reading 'shares their achievement progress: 0% (0 of 29)' - three numbers and no meaning. It now says it as a sentence and draws a plaque with a progress ring, and it refuses when you have nothing unlocked, because announcing 0% to a room is not a share.",
                 "The Achievements window is redesigned. Every achievement has its own icon on its medal - rope, gag, feather, paddle and the rest - and the icon is painted by how far you have got: grey untouched, pink in progress, gold when finished. Progress is one ring at the top instead of a bar, a count, a gold tally and a notice all saying pieces of the same thing. The Completionist reward sits beside it as a strip that still shows your name the way it would look, rather than a card taking a third of the window.",
