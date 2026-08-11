@@ -30031,6 +30031,23 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
                         ds.textContent = a.descNow;
                         main.appendChild(ds);
+                        // Most of these have three levels, and the card only ever
+                        // showed the target of the one you are on - so "0 / 5" read
+                        // as the whole achievement rather than the first rung of a
+                        // ladder. The remaining steps are named, because knowing the
+                        // next number is 25 and not 500 changes whether you bother.
+                        if (a.tiers.length > 1) {
+                            const lvl = document.createElement("div");
+                            lvl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;"
+                                + "color:#8a7080;margin-top:2px;";
+                            const at = Math.min(a.tier + (a.maxed ? 0 : 1), a.tiers.length);
+                            const later = a.tiers.slice(a.tier + (a.maxed ? 0 : 1));
+                            lvl.textContent = a.maxed
+                                ? `Level ${a.tiers.length} of ${a.tiers.length} - all done`
+                                : `Level ${at} of ${a.tiers.length}`
+                                    + (later.length ? ` - then ${later.map(n => a.fmtN ? a.fmtN(n) : n).join(", ")}` : "");
+                            main.appendChild(lvl);
+                        }
                         // Said on the card, not only in the Completionist summary.
                         // Someone looking at an unfinished achievement wants to know
                         // right there whether it is blocking their 100%.
@@ -42636,7 +42653,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.8";
-    const SAL_VERSION = 315; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 316; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42653,6 +42670,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.8",
             changes: [
+                "Achievements with more than one level now say so. A card showed only the target of the level you were on, so Tied Down read as 0 / 5 and looked finished at five - when five is the first of three rungs. Each one now says which level you are on, how many there are, and what the later targets are, because knowing the next number is 25 rather than 500 changes whether it is worth chasing.",
                 "IMPORTANT fix: achievements were being blanked on login. Anything that asked for your progress before the account settings had finished loading got an empty record - and that empty record was then SAVED. When your real progress arrived a moment later it was skipped over as already present, and the next sync wrote the empty one out over it. 9.0.4 added a check on your progress to the presence broadcast, which made this fire on almost every login instead of hardly ever. Nothing is written now until the settings have actually arrived, and a copy from your account always beats an empty one held in memory.",
                 "Fix: Reset for testing keeps a copy of what you have now. It only saved a copy when no copy existed, so anyone who had reset once long ago wiped their real progress against a backup slot holding something ancient - and the confirm told them Restore would still bring their progress back, which was untrue. It now saves the current state every time, unless what it is clearing is already empty, and the confirm says how old the copy it replaces is.",
                 "Achievements that are not needed for 100% now have their own Optional category, so you can see which ones are and are not in the way of the reward without reading every card. Bug Hunter and Met the Crew live there. The OPTIONAL badges stay.",
