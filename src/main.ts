@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.7";
-const SAL_VERSION  = 312;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 313;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.0.7",
         changes: [
+            "Achievements that are not needed for 100% now have their own Optional category, so you can see which ones are and are not in the way of the reward without reading every card. Bug Hunter and Met the Crew live there. The OPTIONAL badges stay.",
+            "Removed: the Report misuse tool. BC only delivers beeps to friends, and the people it existed for are the least likely to be on that list - so it would mostly have sent nothing. Removing Bug Hunter from the 100% requirement is what actually stops the junk, since it removes the reason for it.",
+            "The sharing controls in the Achievements window sit under a Sharing heading now, with a line saying what they do. The toggle was reported as reading like a filter on the list above it, and renaming it alone still left it floating loose under a list of achievements.",
             "New (requested by Emery): an outfit can set your Allowed Interactions - who is permitted to put things on you. It is in the outfit editor next to Nickname and Title, and every outfit starts on No change. That default is deliberate: this decides who may touch you, so getting dressed must never widen it as a side effect. It only moves for an outfit you gave a level to yourself, and it says in chat when it does.",
             "The DOM tab is split into pills - Auto-escape, Sets, Control and Management - instead of one long scroll. Report misuse lives under Management. Which pill you were on is remembered.",
             "The beep volume slider matches the rest of the panel instead of rendering in the browser default blue.",

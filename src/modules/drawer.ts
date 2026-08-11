@@ -108,7 +108,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, getWarnLog, addWarnEntry, clearWarnLog, lastWarnedAt, getBeepVolume, setBeepVolume, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, getBeepVolume, setBeepVolume, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -116,7 +116,7 @@ import { getFriendList, getFriendStatus, isEBCComplete, getEBCAchPct, getFriendT
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, hasCompletedEverything, completionProgress, shareOverallProgress, isRequiredForCompletion, optionalAchievementNames, setAchievementsChangedCallback, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
+import { isAchievementUser, hasCompletedEverything, completionProgress, shareOverallProgress, isOptionalAchievement, optionalAchievementNames, setAchievementsChangedCallback, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -18993,7 +18993,7 @@ This cannot be undone.`,
                     // Deliberately loud. This was a faint line under the
                     // description and read as decoration - the one thing it has
                     // to do is stop someone thinking this blocks their 100%.
-                    if (!isRequiredForCompletion(a.id)) {
+                    if (isOptionalAchievement(a.id)) {
                         const opt = document.createElement("div");
                         opt.style.cssText = "display:inline-block;margin-top:4px;padding:1px 8px;"
                             + "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;"
@@ -19261,7 +19261,26 @@ This cannot be undone.`,
             };
             paintPlaque();
             plaqueBtn.addEventListener("click", () => { setShowSharedPlaques(!getShowSharedPlaques()); paintPlaque(); });
+
+            // Under a heading that says what it is about.
+            //
+            // Sitting loose at the foot of the list, this button read as though
+            // it filtered the achievements above it - which is exactly how it
+            // was reported. Naming the group is what fixes that; renaming the
+            // button alone still left it floating under a list of achievements.
+            const shareHead = document.createElement("div");
+            shareHead.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:9px;"
+                + "letter-spacing:0.12em;text-transform:uppercase;color:#7a5a6a;margin-top:4px;";
+            shareHead.textContent = "Sharing";
+            panel.appendChild(shareHead);
             panel.appendChild(plaqueBtn);
+
+            const shareHint = document.createElement("div");
+            shareHint.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:9.5px;"
+                + "color:#7a5a6a;text-align:center;max-width:300px;line-height:1.4;";
+            shareHint.textContent = "This is about other people's unlocks appearing in your chat. "
+                + "It does not hide anything from the list above.";
+            panel.appendChild(shareHint);
 
             const optOutBtn = document.createElement("button");
             optOutBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;border:1px solid #33283c;background:transparent;color:#7a6a86;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
@@ -28597,204 +28616,6 @@ This cannot be undone.`,
         body.appendChild(aeCard);
     }
 
-    /**
-     * Warn someone who has misused the Feedback & Bugs form.
-     *
-     * Reports carry a member number, so the person is identifiable, but there
-     * was no way to say anything back to them - the form is one-way. Creator
-     * only, one message at a time, and it always confirms first: this sends a
-     * real message to a real person and there is no taking it back.
-     */
-    private buildReportWarningSection(body: HTMLElement): void {
-        const card = document.createElement("div");
-        card.dataset.domGroup = "management";
-        card.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
-
-        const lbl = document.createElement("div");
-        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:6px;";
-        lbl.textContent = "Report misuse";
-        card.appendChild(lbl);
-
-        const hint = document.createElement("div");
-        hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#b79aa8;margin-bottom:7px;line-height:1.45;";
-        hint.textContent = "Sends one private notice to someone who sent a junk report. "
-            + "The member number is on the report in the sheet. BC only delivers beeps to "
-            + "friends, so for anyone else this whispers instead - they have to be in the room.";
-        card.appendChild(hint);
-
-        const row = document.createElement("div");
-        row.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap;";
-
-        const numIn = document.createElement("input");
-        numIn.type = "text";
-        numIn.className = "ebc-form-input";
-        numIn.placeholder = "Member #";
-        numIn.style.cssText = "width:96px;font-size:11px;padding:2px 6px;";
-
-        const noteIn = document.createElement("input");
-        noteIn.type = "text";
-        noteIn.className = "ebc-form-input";
-        noteIn.placeholder = "Optional note (what they sent)";
-        noteIn.style.cssText = "flex:1;min-width:120px;font-size:11px;padding:2px 6px;";
-
-        const sendBtn = document.createElement("button");
-        sendBtn.textContent = "Send warning";
-        sendBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;"
-            + "padding:3px 11px;border-radius:6px;border:1px solid #a8925a;background:transparent;color:#d8c890;cursor:pointer;";
-
-        const say = (text: string, good = true): void => {
-            hint.textContent = text;
-            hint.style.color = good ? "#98d0a8" : "#c9737f";
-        };
-
-        sendBtn.addEventListener("click", () => {
-            const num = parseInt(numIn.value.trim().replace(/[^0-9]/g, ""), 10);
-            if (!num || num < 1) { say("Enter the member number from the report.", false); return; }
-            if (num === (Player as { MemberNumber?: number })?.MemberNumber) {
-                say("That is your own number.", false);
-                return;
-            }
-            const note = noteIn.value.trim();
-            const who = resolveName(num) || `#${num}`;
-            // Surfaced before sending, not after. Warning the same person twice
-            // for the same thing lands very differently from warning them once.
-            const before = lastWarnedAt(num);
-            const againNote = before
-                ? `\n\nYou already warned them on ${new Date(before).toLocaleDateString()}.`
-                : "";
-            // Framed as a notice from the addon rather than a personal message.
-            //
-            // BC gives a beep no sender field - the server stamps it from your
-            // account, so this always shows as coming from you and there is no
-            // honest way around that. What the wording can do is make plain it
-            // is a moderation notice about a submission, rather than Emery
-            // messaging a stranger out of the blue.
-            const message = "=== EmeryBC Management ===\n"
-                + "Automated notice about a Feedback & Bugs submission from your account.\n\n"
-                + "The report received was not a genuine one.\n\n"
-                + (note ? `Submitted: ${note}\n\n` : "")
-                + "That form goes to one person, who reads every entry and fixes what it describes. "
-                + "Joke and empty submissions take that time away from real bugs.\n\n"
-                + "Please only use it for genuine bugs and suggestions.\n\n"
-                + "-- Sent by the EmeryBC addon. Replying reaches Emery directly.";
-
-            // How this person can actually be reached.
-            //
-            // A beep only lands reliably on someone who has you as a friend -
-            // EBC removed a "message any member number" feature years ago for
-            // exactly this reason, and the people misusing the form are the
-            // least likely to be on your list. Working that out BEFORE sending
-            // beats a button that silently does nothing.
-            const friends = Array.isArray(Player?.FriendList) ? Player.FriendList as number[] : [];
-            const isFriend = friends.includes(num);
-            const inRoom = (() => {
-                try {
-                    const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
-                        Array<{ MemberNumber?: number }> | undefined;
-                    return Array.isArray(room) && room.some(c => c.MemberNumber === num);
-                } catch { return false; }
-            })();
-
-            if (!isFriend && !inRoom) {
-                say(`${who} is not on your friends list and is not in this room, so there is `
-                    + "no way to reach them. BC only delivers beeps to friends. Wait until they "
-                    + "are in a room with you, and this will whisper instead.", false);
-                return;
-            }
-
-            const how = isFriend ? "beep" : "whisper";
-            const reachNote = isFriend
-                ? "It is written as an EmeryBC Management notice, but BC always shows the sender "
-                  + "as you - a beep carries no sender field to set."
-                : `${who} is not on your friends list, so a beep would not arrive. They are in `
-                  + "this room, so it will be whispered instead - only they will see it.";
-
-            showConfirmOverlay(
-                `Send a warning ${how} to ${who} (#${num})?\n\n${reachNote} It cannot be unsent.${againNote}`,
-                "Cancel", "Send",
-                () => {
-                    try {
-                        if (isFriend) {
-                            sendBeep(num, message);
-                        } else {
-                            (ChatRoomSendWhisper as unknown as (t: number, m: string) => void)(num, message);
-                        }
-                        addWarnEntry(num, who, note);
-                        say(`Warning ${isFriend ? "beeped" : "whispered"} to ${who}.`);
-                        numIn.value = "";
-                        noteIn.value = "";
-                        paintLog();
-                    } catch {
-                        say("Could not send - they may have gone offline or left the room.", false);
-                    }
-                },
-            );
-        });
-
-        row.appendChild(numIn);
-        row.appendChild(noteIn);
-        row.appendChild(sendBtn);
-        card.appendChild(row);
-
-        // Who has been warned, most recent first. Kept because "have I already
-        // said something to this person" is the question you actually have when
-        // the same number turns up in the sheet again.
-        const logWrap = document.createElement("div");
-        logWrap.style.cssText = "margin-top:8px;";
-        card.appendChild(logWrap);
-
-        const paintLog = (): void => {
-            while (logWrap.firstChild) logWrap.removeChild(logWrap.firstChild);
-            const log = getWarnLog();
-            const head = document.createElement("div");
-            head.style.cssText = "display:flex;align-items:center;gap:7px;font-family:'Trebuchet MS',serif;"
-                + "font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:#a3859a;margin-bottom:4px;";
-            const ht = document.createElement("span");
-            ht.textContent = log.length ? `Warned (${log.length})` : "Nobody warned yet";
-            head.appendChild(ht);
-            if (log.length) {
-                const clr = document.createElement("button");
-                clr.textContent = "Clear";
-                clr.style.cssText = "margin-left:auto;font-family:'Trebuchet MS',serif;font-size:9.5px;"
-                    + "padding:1px 8px;border-radius:8px;border:1px solid #4c2537;background:transparent;color:#b07888;cursor:pointer;";
-                clr.addEventListener("click", () => {
-                    showConfirmOverlay("Clear the whole warning record?", "Cancel", "Clear", () => {
-                        clearWarnLog();
-                        paintLog();
-                    });
-                });
-                head.appendChild(clr);
-            }
-            logWrap.appendChild(head);
-
-            if (!log.length) return;
-            const list = document.createElement("div");
-            list.style.cssText = "max-height:120px;overflow-y:auto;border:1px solid #2a1421;border-radius:6px;";
-            for (const w of log) {
-                const r = document.createElement("div");
-                r.style.cssText = "display:flex;gap:7px;align-items:baseline;padding:3px 7px;"
-                    + "border-bottom:1px solid rgba(42,20,33,0.7);font-family:'Trebuchet MS',serif;font-size:10.5px;";
-                const nm = document.createElement("span");
-                nm.style.cssText = "color:#c8a0b4;flex-shrink:0;";
-                nm.textContent = `${w.name} #${w.num}`;
-                const nt = document.createElement("span");
-                nt.style.cssText = "color:#8a7080;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                nt.textContent = w.note || "";
-                const dt = document.createElement("span");
-                dt.style.cssText = "color:#6f5766;flex-shrink:0;font-size:9.5px;";
-                dt.textContent = new Date(w.ts).toLocaleDateString();
-                r.appendChild(nm);
-                r.appendChild(nt);
-                r.appendChild(dt);
-                list.appendChild(r);
-            }
-            logWrap.appendChild(list);
-        };
-        paintLog();
-
-        body.appendChild(card);
-    }
-
     private renderDomTools(): void {
         const body = this.tabBody();
         if (!body) return;
@@ -28811,7 +28632,6 @@ This cannot be undone.`,
             return;
         }
 
-        this.buildReportWarningSection(body);
 
         // ── Dom Settings (announce) - floated into setsCard header below ─────
         const dsSel = document.createElement("select");

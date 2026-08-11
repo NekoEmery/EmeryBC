@@ -98,9 +98,21 @@ function countsTowardCompletion(a: AchievementDef): boolean {
     return !COMPLETION_EXCLUDES.has(a.id);
 }
 
-/** Whether this one is needed for the 100% reward - drives the card label. */
+/** Whether this one is needed for the 100% reward. */
 export function isRequiredForCompletion(id: string): boolean {
     return !COMPLETION_EXCLUDES.has(id);
+}
+
+/**
+ * Optional in the sense the badge means: not needed, and something you could
+ * choose to chase anyway.
+ *
+ * Completionist is excluded from itself for a mechanical reason - it is worked
+ * out FROM the others - so labelling it optional would read as though the
+ * reward were beside the point.
+ */
+export function isOptionalAchievement(id: string): boolean {
+    return id !== "completionist" && !isRequiredForCompletion(id);
 }
 
 /** Names of the ones that do not count, for saying so plainly in the UI. */
@@ -163,6 +175,10 @@ export const ACHIEVEMENT_CLASSES: Array<{ id: string; label: string; icon: strin
     { id: "given",    label: "Given",    icon: "🖐" },
     { id: "bondage",  label: "Bondage",  icon: "⛓" },
     { id: "emery",    label: "Emery",    icon: "⭐" },
+    // Its own class rather than a badge alone. Someone scanning the list should
+    // be able to see at once which achievements are and are not in the way of
+    // the reward, without reading every card.
+    { id: "optional", label: "Optional", icon: "○" },
 ];
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -177,7 +193,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "patgiver",  icon: "🖐", name: "Pat Dispenser",  desc: "Headpat others {n} times",  counter: "pet_give",    tiers: [10, 50, 250], cls: "given" },
     { id: "huggiver",  icon: "💞", name: "Hug Dealer",     desc: "Give {n} hugs",             counter: "hug_give",    tiers: [10, 50, 250], cls: "given" },
     { id: "kissgiver", icon: "😘", name: "Kiss Bandit",    desc: "Kiss others {n} times",     counter: "kiss_give",   tiers: [10, 50, 250], cls: "given" },
-    { id: "bughunter", icon: "🐛", name: "Bug Hunter",     desc: "Send {n} bug reports or suggestions", counter: "feedback_sent", tiers: [1, 5, 15], cls: "given" },
+    { id: "bughunter", icon: "🐛", name: "Bug Hunter",     desc: "Send {n} bug reports or suggestions", counter: "feedback_sent", tiers: [1, 5, 15], cls: "optional" },
     { id: "spanker",   icon: "🍑", name: "Heavy Hand",     desc: "Spank others {n} times",    counter: "spank_give",  tiers: [10, 50, 250], cls: "given" },
     { id: "tickler",   icon: "🪶", name: "Tickle Monster", desc: "Tickle others {n} times",   counter: "tickle_give", tiers: [10, 50, 250], cls: "given" },
     // ⛓ Bondage
@@ -210,7 +226,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     // are credited yourself you count toward your own total - you already know
     // who you are - so everyone needs the same number.
     { id: "met_emery", icon: "⭐", name: "Met the Kitty", desc: "Share a room with Emery",                        counter: "met_emery", tiers: [1], cls: "emery", rare: true },
-    { id: "crew_met",  icon: "⭐", name: "Met the Crew",  desc: "Share a room with each of the {n} credited EBC people, in any order", counter: "crew_met",  tiers: [CREDITED.length], cls: "emery", rare: true },
+    { id: "crew_met",  icon: "⭐", name: "Met the Crew",  desc: "Share a room with each of the {n} credited EBC people, in any order", counter: "crew_met",  tiers: [CREDITED.length], cls: "optional", rare: true },
 
     // Completionist is not tracked like the others - its progress is derived
     // from everything else, in completionProgress() below. It is listed last so

@@ -3446,39 +3446,6 @@
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    const WARN_CAP = 60;
-    function getWarnLog() {
-        try {
-            const v = getSettings().feedbackWarnings;
-            return Array.isArray(v) ? v : [];
-        }
-        catch (_a) {
-            return [];
-        }
-    }
-    function addWarnEntry(num, name, note) {
-        try {
-            const list = getWarnLog();
-            list.unshift({ num, name, ts: Date.now(), note });
-            if (list.length > WARN_CAP)
-                list.length = WARN_CAP;
-            getSettings().feedbackWarnings = list;
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    function clearWarnLog() {
-        try {
-            getSettings().feedbackWarnings = [];
-            syncSettings();
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
-    /** Most recent warning for this member, or null. */
-    function lastWarnedAt(num) {
-        const hit = getWarnLog().find(w => w.num === num);
-        return hit ? hit.ts : null;
-    }
     // -- Beep sound volume ----------------------------------------------------------
     // EBC's beep is a generated tone rather than a sound file, and it was noticeably
     // quieter than BC's own. Stored as a percentage so the slider reads plainly.
@@ -3523,7 +3490,6 @@
         { label: "Barks", keys: ["barks"], help: "Saved bark phrases." },
         { label: "Favorite rooms", keys: ["favoriteRooms"], help: "Rooms you saved, including their full settings so they can be rebuilt." },
         { label: "Restraint timers", keys: ["restraintTimers"], help: "How long each item you are wearing has been on. Feeds the bound timer." },
-        { label: "Misuse warnings", keys: ["feedbackWarnings"], help: "A record of people you have warned for sending junk through the Feedback form. Creator-side only; nobody else can see it." },
         { label: "Dom config", keys: ["domConfig"], help: "Your dom tool setup - targets and saved restraint sets for them." },
     ];
     /** Every localStorage key any category declares - the import whitelist. */
@@ -8555,9 +8521,20 @@
     function countsTowardCompletion(a) {
         return !COMPLETION_EXCLUDES.has(a.id);
     }
-    /** Whether this one is needed for the 100% reward - drives the card label. */
+    /** Whether this one is needed for the 100% reward. */
     function isRequiredForCompletion(id) {
         return !COMPLETION_EXCLUDES.has(id);
+    }
+    /**
+     * Optional in the sense the badge means: not needed, and something you could
+     * choose to chase anyway.
+     *
+     * Completionist is excluded from itself for a mechanical reason - it is worked
+     * out FROM the others - so labelling it optional would read as though the
+     * reward were beside the point.
+     */
+    function isOptionalAchievement(id) {
+        return id !== "completionist" && !isRequiredForCompletion(id);
     }
     /** Names of the ones that do not count, for saying so plainly in the UI. */
     function optionalAchievementNames() {
@@ -8618,6 +8595,10 @@
         { id: "given", label: "Given", icon: "🖐" },
         { id: "bondage", label: "Bondage", icon: "⛓" },
         { id: "emery", label: "Emery", icon: "⭐" },
+        // Its own class rather than a badge alone. Someone scanning the list should
+        // be able to see at once which achievements are and are not in the way of
+        // the reward, without reading every card.
+        { id: "optional", label: "Optional", icon: "○" },
     ];
     const ACHIEVEMENTS = [
         // 💝 Received - things done TO you
@@ -8631,7 +8612,7 @@
         { id: "patgiver", icon: "🖐", name: "Pat Dispenser", desc: "Headpat others {n} times", counter: "pet_give", tiers: [10, 50, 250], cls: "given" },
         { id: "huggiver", icon: "💞", name: "Hug Dealer", desc: "Give {n} hugs", counter: "hug_give", tiers: [10, 50, 250], cls: "given" },
         { id: "kissgiver", icon: "😘", name: "Kiss Bandit", desc: "Kiss others {n} times", counter: "kiss_give", tiers: [10, 50, 250], cls: "given" },
-        { id: "bughunter", icon: "🐛", name: "Bug Hunter", desc: "Send {n} bug reports or suggestions", counter: "feedback_sent", tiers: [1, 5, 15], cls: "given" },
+        { id: "bughunter", icon: "🐛", name: "Bug Hunter", desc: "Send {n} bug reports or suggestions", counter: "feedback_sent", tiers: [1, 5, 15], cls: "optional" },
         { id: "spanker", icon: "🍑", name: "Heavy Hand", desc: "Spank others {n} times", counter: "spank_give", tiers: [10, 50, 250], cls: "given" },
         { id: "tickler", icon: "🪶", name: "Tickle Monster", desc: "Tickle others {n} times", counter: "tickle_give", tiers: [10, 50, 250], cls: "given" },
         // ⛓ Bondage
@@ -8663,7 +8644,7 @@
         // are credited yourself you count toward your own total - you already know
         // who you are - so everyone needs the same number.
         { id: "met_emery", icon: "⭐", name: "Met the Kitty", desc: "Share a room with Emery", counter: "met_emery", tiers: [1], cls: "emery", rare: true },
-        { id: "crew_met", icon: "⭐", name: "Met the Crew", desc: "Share a room with each of the {n} credited EBC people, in any order", counter: "crew_met", tiers: [CREDITED.length], cls: "emery", rare: true },
+        { id: "crew_met", icon: "⭐", name: "Met the Crew", desc: "Share a room with each of the {n} credited EBC people, in any order", counter: "crew_met", tiers: [CREDITED.length], cls: "optional", rare: true },
         // Completionist is not tracked like the others - its progress is derived
         // from everything else, in completionProgress() below. It is listed last so
         // it reads as the summary of the list rather than another entry in it.
@@ -30010,7 +29991,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         // Deliberately loud. This was a faint line under the
                         // description and read as decoration - the one thing it has
                         // to do is stop someone thinking this blocks their 100%.
-                        if (!isRequiredForCompletion(a.id)) {
+                        if (isOptionalAchievement(a.id)) {
                             const opt = document.createElement("div");
                             opt.style.cssText = "display:inline-block;margin-top:4px;padding:1px 8px;"
                                 + "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;"
@@ -30279,7 +30260,24 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 };
                 paintPlaque();
                 plaqueBtn.addEventListener("click", () => { setShowSharedPlaques(!getShowSharedPlaques()); paintPlaque(); });
+                // Under a heading that says what it is about.
+                //
+                // Sitting loose at the foot of the list, this button read as though
+                // it filtered the achievements above it - which is exactly how it
+                // was reported. Naming the group is what fixes that; renaming the
+                // button alone still left it floating under a list of achievements.
+                const shareHead = document.createElement("div");
+                shareHead.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:9px;"
+                    + "letter-spacing:0.12em;text-transform:uppercase;color:#7a5a6a;margin-top:4px;";
+                shareHead.textContent = "Sharing";
+                panel.appendChild(shareHead);
                 panel.appendChild(plaqueBtn);
+                const shareHint = document.createElement("div");
+                shareHint.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:9.5px;"
+                    + "color:#7a5a6a;text-align:center;max-width:300px;line-height:1.4;";
+                shareHint.textContent = "This is about other people's unlocks appearing in your chat. "
+                    + "It does not hide anything from the list above.";
+                panel.appendChild(shareHint);
                 const optOutBtn = document.createElement("button");
                 optOutBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;border:1px solid #33283c;background:transparent;color:#7a6a86;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
                 optOutBtn.textContent = "Opt out of achievements";
@@ -40603,191 +40601,6 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             aeCard.appendChild(aeEmoteHint);
             body.appendChild(aeCard);
         }
-        /**
-         * Warn someone who has misused the Feedback & Bugs form.
-         *
-         * Reports carry a member number, so the person is identifiable, but there
-         * was no way to say anything back to them - the form is one-way. Creator
-         * only, one message at a time, and it always confirms first: this sends a
-         * real message to a real person and there is no taking it back.
-         */
-        buildReportWarningSection(body) {
-            const card = document.createElement("div");
-            card.dataset.domGroup = "management";
-            card.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
-            const lbl = document.createElement("div");
-            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:6px;";
-            lbl.textContent = "Report misuse";
-            card.appendChild(lbl);
-            const hint = document.createElement("div");
-            hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#b79aa8;margin-bottom:7px;line-height:1.45;";
-            hint.textContent = "Sends one private notice to someone who sent a junk report. "
-                + "The member number is on the report in the sheet. BC only delivers beeps to "
-                + "friends, so for anyone else this whispers instead - they have to be in the room.";
-            card.appendChild(hint);
-            const row = document.createElement("div");
-            row.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap;";
-            const numIn = document.createElement("input");
-            numIn.type = "text";
-            numIn.className = "ebc-form-input";
-            numIn.placeholder = "Member #";
-            numIn.style.cssText = "width:96px;font-size:11px;padding:2px 6px;";
-            const noteIn = document.createElement("input");
-            noteIn.type = "text";
-            noteIn.className = "ebc-form-input";
-            noteIn.placeholder = "Optional note (what they sent)";
-            noteIn.style.cssText = "flex:1;min-width:120px;font-size:11px;padding:2px 6px;";
-            const sendBtn = document.createElement("button");
-            sendBtn.textContent = "Send warning";
-            sendBtn.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;"
-                + "padding:3px 11px;border-radius:6px;border:1px solid #a8925a;background:transparent;color:#d8c890;cursor:pointer;";
-            const say = (text, good = true) => {
-                hint.textContent = text;
-                hint.style.color = good ? "#98d0a8" : "#c9737f";
-            };
-            sendBtn.addEventListener("click", () => {
-                const num = parseInt(numIn.value.trim().replace(/[^0-9]/g, ""), 10);
-                if (!num || num < 1) {
-                    say("Enter the member number from the report.", false);
-                    return;
-                }
-                if (num === (Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) {
-                    say("That is your own number.", false);
-                    return;
-                }
-                const note = noteIn.value.trim();
-                const who = resolveName(num) || `#${num}`;
-                // Surfaced before sending, not after. Warning the same person twice
-                // for the same thing lands very differently from warning them once.
-                const before = lastWarnedAt(num);
-                const againNote = before
-                    ? `\n\nYou already warned them on ${new Date(before).toLocaleDateString()}.`
-                    : "";
-                // Framed as a notice from the addon rather than a personal message.
-                //
-                // BC gives a beep no sender field - the server stamps it from your
-                // account, so this always shows as coming from you and there is no
-                // honest way around that. What the wording can do is make plain it
-                // is a moderation notice about a submission, rather than Emery
-                // messaging a stranger out of the blue.
-                const message = "=== EmeryBC Management ===\n"
-                    + "Automated notice about a Feedback & Bugs submission from your account.\n\n"
-                    + "The report received was not a genuine one.\n\n"
-                    + (note ? `Submitted: ${note}\n\n` : "")
-                    + "That form goes to one person, who reads every entry and fixes what it describes. "
-                    + "Joke and empty submissions take that time away from real bugs.\n\n"
-                    + "Please only use it for genuine bugs and suggestions.\n\n"
-                    + "-- Sent by the EmeryBC addon. Replying reaches Emery directly.";
-                // How this person can actually be reached.
-                //
-                // A beep only lands reliably on someone who has you as a friend -
-                // EBC removed a "message any member number" feature years ago for
-                // exactly this reason, and the people misusing the form are the
-                // least likely to be on your list. Working that out BEFORE sending
-                // beats a button that silently does nothing.
-                const friends = Array.isArray(Player === null || Player === void 0 ? void 0 : Player.FriendList) ? Player.FriendList : [];
-                const isFriend = friends.includes(num);
-                const inRoom = (() => {
-                    try {
-                        const room = window.ChatRoomCharacter;
-                        return Array.isArray(room) && room.some(c => c.MemberNumber === num);
-                    }
-                    catch (_a) {
-                        return false;
-                    }
-                })();
-                if (!isFriend && !inRoom) {
-                    say(`${who} is not on your friends list and is not in this room, so there is `
-                        + "no way to reach them. BC only delivers beeps to friends. Wait until they "
-                        + "are in a room with you, and this will whisper instead.", false);
-                    return;
-                }
-                const how = isFriend ? "beep" : "whisper";
-                const reachNote = isFriend
-                    ? "It is written as an EmeryBC Management notice, but BC always shows the sender "
-                        + "as you - a beep carries no sender field to set."
-                    : `${who} is not on your friends list, so a beep would not arrive. They are in `
-                        + "this room, so it will be whispered instead - only they will see it.";
-                showConfirmOverlay(`Send a warning ${how} to ${who} (#${num})?\n\n${reachNote} It cannot be unsent.${againNote}`, "Cancel", "Send", () => {
-                    try {
-                        if (isFriend) {
-                            sendBeep(num, message);
-                        }
-                        else {
-                            ChatRoomSendWhisper(num, message);
-                        }
-                        addWarnEntry(num, who, note);
-                        say(`Warning ${isFriend ? "beeped" : "whispered"} to ${who}.`);
-                        numIn.value = "";
-                        noteIn.value = "";
-                        paintLog();
-                    }
-                    catch (_a) {
-                        say("Could not send - they may have gone offline or left the room.", false);
-                    }
-                });
-            });
-            row.appendChild(numIn);
-            row.appendChild(noteIn);
-            row.appendChild(sendBtn);
-            card.appendChild(row);
-            // Who has been warned, most recent first. Kept because "have I already
-            // said something to this person" is the question you actually have when
-            // the same number turns up in the sheet again.
-            const logWrap = document.createElement("div");
-            logWrap.style.cssText = "margin-top:8px;";
-            card.appendChild(logWrap);
-            const paintLog = () => {
-                while (logWrap.firstChild)
-                    logWrap.removeChild(logWrap.firstChild);
-                const log = getWarnLog();
-                const head = document.createElement("div");
-                head.style.cssText = "display:flex;align-items:center;gap:7px;font-family:'Trebuchet MS',serif;"
-                    + "font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:#a3859a;margin-bottom:4px;";
-                const ht = document.createElement("span");
-                ht.textContent = log.length ? `Warned (${log.length})` : "Nobody warned yet";
-                head.appendChild(ht);
-                if (log.length) {
-                    const clr = document.createElement("button");
-                    clr.textContent = "Clear";
-                    clr.style.cssText = "margin-left:auto;font-family:'Trebuchet MS',serif;font-size:9.5px;"
-                        + "padding:1px 8px;border-radius:8px;border:1px solid #4c2537;background:transparent;color:#b07888;cursor:pointer;";
-                    clr.addEventListener("click", () => {
-                        showConfirmOverlay("Clear the whole warning record?", "Cancel", "Clear", () => {
-                            clearWarnLog();
-                            paintLog();
-                        });
-                    });
-                    head.appendChild(clr);
-                }
-                logWrap.appendChild(head);
-                if (!log.length)
-                    return;
-                const list = document.createElement("div");
-                list.style.cssText = "max-height:120px;overflow-y:auto;border:1px solid #2a1421;border-radius:6px;";
-                for (const w of log) {
-                    const r = document.createElement("div");
-                    r.style.cssText = "display:flex;gap:7px;align-items:baseline;padding:3px 7px;"
-                        + "border-bottom:1px solid rgba(42,20,33,0.7);font-family:'Trebuchet MS',serif;font-size:10.5px;";
-                    const nm = document.createElement("span");
-                    nm.style.cssText = "color:#c8a0b4;flex-shrink:0;";
-                    nm.textContent = `${w.name} #${w.num}`;
-                    const nt = document.createElement("span");
-                    nt.style.cssText = "color:#8a7080;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-                    nt.textContent = w.note || "";
-                    const dt = document.createElement("span");
-                    dt.style.cssText = "color:#6f5766;flex-shrink:0;font-size:9.5px;";
-                    dt.textContent = new Date(w.ts).toLocaleDateString();
-                    r.appendChild(nm);
-                    r.appendChild(nt);
-                    r.appendChild(dt);
-                    list.appendChild(r);
-                }
-                logWrap.appendChild(list);
-            };
-            paintLog();
-            body.appendChild(card);
-        }
         renderDomTools() {
             const body = this.tabBody();
             if (!body)
@@ -40803,7 +40616,6 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 body.appendChild(msg);
                 return;
             }
-            this.buildReportWarningSection(body);
             // ── Dom Settings (announce) - floated into setsCard header below ─────
             const dsSel = document.createElement("select");
             dsSel.className = "ebc-form-input";
@@ -42766,7 +42578,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.7";
-    const SAL_VERSION = 312; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 313; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42783,6 +42595,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.7",
             changes: [
+                "Achievements that are not needed for 100% now have their own Optional category, so you can see which ones are and are not in the way of the reward without reading every card. Bug Hunter and Met the Crew live there. The OPTIONAL badges stay.",
+                "Removed: the Report misuse tool. BC only delivers beeps to friends, and the people it existed for are the least likely to be on that list - so it would mostly have sent nothing. Removing Bug Hunter from the 100% requirement is what actually stops the junk, since it removes the reason for it.",
+                "The sharing controls in the Achievements window sit under a Sharing heading now, with a line saying what they do. The toggle was reported as reading like a filter on the list above it, and renaming it alone still left it floating loose under a list of achievements.",
                 "New (requested by Emery): an outfit can set your Allowed Interactions - who is permitted to put things on you. It is in the outfit editor next to Nickname and Title, and every outfit starts on No change. That default is deliberate: this decides who may touch you, so getting dressed must never widen it as a side effect. It only moves for an outfit you gave a level to yourself, and it says in chat when it does.",
                 "The DOM tab is split into pills - Auto-escape, Sets, Control and Management - instead of one long scroll. Report misuse lives under Management. Which pill you were on is remembered.",
                 "The beep volume slider matches the rest of the panel instead of rendering in the browser default blue.",
