@@ -40468,6 +40468,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         buildAutoEscapeSection(body) {
             // ── Auto-Escape card ─────────────────────────────────────────────────
             const aeCard = document.createElement("div");
+            aeCard.dataset.domGroup = "escape";
             aeCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
             const aeLbl = document.createElement("div");
             aeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
@@ -40563,6 +40564,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
          */
         buildReportWarningSection(body) {
             const card = document.createElement("div");
+            card.dataset.domGroup = "management";
             card.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
             const lbl = document.createElement("div");
             lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:6px;";
@@ -42393,10 +42395,78 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             });
             posPanel.appendChild(releaseBtn);
             // Order: Restraint Sets → Target → Actions → Release Tools
+            setsCard.dataset.domGroup = "sets";
+            targetCard.dataset.domGroup = "control";
+            actionsCard.dataset.domGroup = "control";
+            releaseCard.dataset.domGroup = "control";
             body.appendChild(setsCard);
             body.appendChild(targetCard);
             body.appendChild(actionsCard);
             body.appendChild(releaseCard);
+            this._domPills(body);
+        }
+        /**
+         * Pills for the DOM tab.
+         *
+         * Written for this tab rather than reusing _pillifyTab, which keys off a
+         * section class the DOM tab's hand-built cards do not use. Converting them
+         * would touch every card here for a cosmetic grouping; tagging each card
+         * with the group it belongs to does the same job in a few lines and cannot
+         * misclassify anything, because nothing is being guessed from text.
+         */
+        _domPills(body) {
+            var _a;
+            const GROUPS = [
+                { id: "escape", label: "Auto-escape" },
+                { id: "sets", label: "Sets" },
+                { id: "control", label: "Control" },
+                { id: "management", label: "Management" },
+            ];
+            const cards = Array.from(body.children)
+                .filter(el => !!el.dataset.domGroup);
+            if (cards.length === 0)
+                return;
+            const present = GROUPS.filter(g => cards.some(c => c.dataset.domGroup === g.id));
+            if (present.length < 2)
+                return; // nothing to switch between
+            const KEY = "EBC_domView";
+            let active = "escape";
+            try {
+                active = (_a = localStorage.getItem(KEY)) !== null && _a !== void 0 ? _a : "escape";
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            if (!present.some(g => g.id === active))
+                active = present[0].id;
+            const bar = document.createElement("div");
+            bar.style.cssText = "display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;";
+            const paint = () => {
+                for (const c of cards)
+                    c.style.display = c.dataset.domGroup === active ? "" : "none";
+                for (const b of Array.from(bar.children)) {
+                    const on = b.dataset.pill === active;
+                    b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;"
+                        + "padding:3px 12px;border-radius:11px;cursor:pointer;transition:background .12s,color .12s;"
+                        + (on
+                            ? "background:#6b3048;border:1px solid #cf6f98;color:#f7e6ee;"
+                            : "background:transparent;border:1px solid #4c2537;color:#9a7080;");
+                }
+            };
+            for (const g of present) {
+                const b = document.createElement("button");
+                b.dataset.pill = g.id;
+                b.textContent = g.label;
+                b.addEventListener("click", () => {
+                    active = g.id;
+                    try {
+                        localStorage.setItem(KEY, active);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    paint();
+                });
+                bar.appendChild(b);
+            }
+            body.insertBefore(bar, body.firstChild);
+            paint();
         }
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
@@ -42602,7 +42672,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.7";
-    const SAL_VERSION = 308; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 309; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42619,6 +42689,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.7",
             changes: [
+                "The DOM tab is split into pills - Auto-escape, Sets, Control and Management - instead of one long scroll. Report misuse lives under Management. Which pill you were on is remembered.",
                 "The beep volume slider matches the rest of the panel instead of rendering in the browser default blue.",
                 "Achievements that are not needed for 100% now say so loudly rather than in small grey text. A blue OPTIONAL badge on the achievement itself, and a bordered notice at the top listing them by name. The whole point of that line is to stop someone thinking an achievement blocks their reward, and it was quiet enough to read as decoration.",
                 "New (creator only): every warning sent is logged - who, when, and the note you added - and the confirm tells you if you have warned that person before. Warning someone twice for the same thing lands very differently from warning them once, and there was no way to know.",
