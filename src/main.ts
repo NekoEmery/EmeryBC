@@ -1,4 +1,5 @@
 ﻿import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
+import { TOP_BAR_PAW } from "./modules/topBarIcon";
 import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
 import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { addWhisperEntry } from "./modules/whisperLog";
@@ -8,7 +9,7 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand, applyPositions, clearAllPositions } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBeepVolume, getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat } from "./modules/settings";
+import { getBeepVolume, getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat, getTopBarButton } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -30,7 +31,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.0";
-const SAL_VERSION  = 327;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 328;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -52,6 +53,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         changes: [
             "IMPORTANT: spamming actions at Emery no longer earns anything. People started firing the same action at her over and over to farm the rare achievements, which is exactly what a reward for interacting with someone should not cause. Repeating the same action counts once a minute at most - five spanks across a scene still count, twenty in ten seconds count once. The unlocks are unchanged, only the pace. There is a note on those achievements asking people to actually play with her rather than treat her as a vending machine.",
             "Changed: Met the Kitty needs five minutes in a room with Emery, not five seconds. It unlocked the instant she appeared in the roster, so people joined, collected it and left. The clock restarts if she leaves, so it has to be one continuous stay.",
+            "New: EBC can live in BC's own chat room top bar. DEV -> Drawer -> 'Open EBC from the chat top bar' puts a paw next to Exit / Kneel / Icons and hides the side tab while you are in a room. Off by default. The tab always comes back outside a room, where there is no top bar to replace it - turning this on can never leave you without a way to open EBC.",
             "Fix: curses hold the ITEM, not the slot. A curse used to be a claim on a slot, so if the cursed collar came off for any reason the next thing anyone put on your neck inherited the curse and could not be removed - you were stuck in a replacement nobody meant to lock. The curse now knows which item it was placed on. Anything else in that slot comes off normally.",
             "Fix: cursed items can no longer be lost to an outfit change. The curse hooks only ever saw per-item traffic, and changing outfit replaces the whole appearance in one go - so a wardrobe change could wipe a cursed item with its owner lock still on it and neither hook fired. EBC now keeps a copy of each cursed item and checks every two seconds that it is still on, putting it back with its colour, crafting and lock if it is not. That catches every route it can go missing by, not just the ones we knew about.",
             "Fix: swapping something onto a cursed item is blocked as well as removing it. Dropping a different item into a cursed slot took the cursed one off just as surely as removing it, and that was the way around the curse.",
@@ -7707,6 +7709,52 @@ function init(): void {
         } catch { /* ignore */ }
         return result;
     });
+
+    // An EBC button in BC's own chat room top bar, next to Exit / Kneel / Icons.
+    //
+    // Done through BC's three menu functions rather than by injecting DOM: the
+    // bar rebuilds itself from ChatRoomMenuButtons whenever that list changes,
+    // so anything appended by hand disappears the moment a camera or a focus
+    // button comes or goes. Joining the list instead means BC draws it, styles
+    // it and keeps it, exactly like its own buttons.
+    const EBC_MENU_BTN = "EBC";
+    tryHookFunction(modAPI, "ChatRoomMenuBuild", 1, (args, next) => {
+        const result = next(args);
+        try {
+            if (getTopBarButton()) {
+                const w = window as unknown as Record<string, unknown>;
+                const list = w.ChatRoomMenuButtons as string[] | undefined;
+                if (Array.isArray(list) && !list.includes(EBC_MENU_BTN)) list.push(EBC_MENU_BTN);
+            }
+        } catch { /* ignore */ }
+        return result;
+    });
+
+    tryHookFunction(modAPI, "ChatRoomMenuButtonVisualState", 1, (args, next) => {
+        try {
+            if ((args as unknown[])[0] === EBC_MENU_BTN) {
+                return { image: TOP_BAR_PAW, state: "Default", hoverText: "EmeryBC" };
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
+    tryHookFunction(modAPI, "ChatRoomMenuPerformAction", 1, (args, next) => {
+        try {
+            if ((args as unknown[])[0] === EBC_MENU_BTN) { drawer?.toggle(); return; }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // Keep the side tab in step with the setting - and with whether the top bar
+    // exists at all. Outside a chat room there is no top bar, so the tab comes
+    // back regardless, or turning this on would strip the only way in.
+    window.setInterval(() => {
+        try {
+            const inRoom = (window as unknown as Record<string, unknown>).CurrentScreen === "ChatRoom";
+            drawer?.setTabHidden(getTopBarButton() && inRoom);
+        } catch { /* ignore */ }
+    }, 1_000);
 
     // Guard against the one-frame crash window between ChatRoomLeave() clearing
     // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
