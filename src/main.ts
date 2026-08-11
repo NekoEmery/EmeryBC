@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.0";
-const SAL_VERSION  = 325;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 326;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -52,6 +52,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         changes: [
             "IMPORTANT: spamming actions at Emery no longer earns anything. People started firing the same action at her over and over to farm the rare achievements, which is exactly what a reward for interacting with someone should not cause. Repeating the same action counts once a minute at most - five spanks across a scene still count, twenty in ten seconds count once. The unlocks are unchanged, only the pace. There is a note on those achievements asking people to actually play with her rather than treat her as a vending machine.",
             "Changed: Met the Kitty needs five minutes in a room with Emery, not five seconds. It unlocked the instant she appeared in the roster, so people joined, collected it and left. The clock restarts if she leaves, so it has to be one continuous stay.",
+            "Fix: a room whose map data went missing no longer crashes everyone in it. BC checks 'ChatRoomData?.MapData.Type' - the ?. covers the room but not the map, so once a room lost its map state every client in it threw 'Cannot read properties of undefined (reading Type)' on every settings sync, not just whoever changed something. EBC now fills the gap in before BC reads it, treating a room with no map data as a room with no map. This is a guard against BC's bug, so it protects anyone running EBC even when another addon caused it.",
         ],
     },
     {
@@ -7717,6 +7718,32 @@ function init(): void {
         }
         return next(args);
     });
+
+    // Guard a BC bug that empties a whole room at once.
+    //
+    // ChatRoomMapViewInitializeCharacter reads `ChatRoomData?.MapData.Type` - the
+    // optional chain covers ChatRoomData but not MapData, so a room whose map
+    // state has gone missing crashes every client on every properties sync, not
+    // just the person who changed something. Both sync entry points build
+    // ChatRoomData straight from their payload, so filling the gap in the payload
+    // is enough; "Never" is what a room without a map is meant to say.
+    //
+    // Priority 500 puts this ahead of every other mod's hook, since the crash
+    // happens inside BC's own body at the end of the chain.
+    const mapDataGuard = (args: unknown[], next: (a: unknown[]) => unknown): unknown => {
+        try {
+            const data = args[0] as Record<string, unknown> | null | undefined;
+            if (data && typeof data === "object") {
+                const md = data.MapData as Record<string, unknown> | null | undefined;
+                if (!md || typeof md !== "object" || typeof md.Type !== "string") {
+                    data.MapData = { Type: "Never" };
+                }
+            }
+        } catch { /* never let the guard itself break the sync */ }
+        return next(args);
+    };
+    tryHookFunction(modAPI, "ChatRoomSync", 500, mapDataGuard);
+    tryHookFunction(modAPI, "ChatRoomSyncRoomProperties", 500, mapDataGuard);
 
     // Provide fallback text for localisation keys that are absent in some BC versions.
     // TextGet returns "MISSING TEXT IN '...': key" when a key is not in TextLookup —
