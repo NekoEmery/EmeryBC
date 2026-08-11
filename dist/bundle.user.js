@@ -8479,19 +8479,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         return typeof memberNumber === "number" && !isAchievementsOptedOut();
     }
     /**
-     * Completionist means everything except two.
+     * Achievements that do not count toward Completionist.
      *
-     * Met the Crew needs five specific people online and in the same room at once,
-     * which is not a thing you can go and do - it is luck and other people's
-     * schedules. Met the Kitty replaces it as the required one: still meeting
-     * someone, but one person rather than five.
-     *
-     * Completionist itself is excluded because it is derived from the others and
-     * would otherwise be waiting on itself.
+     * - completionist: derived from the others, so it would wait on itself.
+     * - crew_met:      waits on five particular people being around.
+     * - bughunter:     requiring it would mean the only way to finish your list is
+     *                  to file bug reports, and people were already sending junk to
+     *                  farm it. Nobody should have to spam a form to reach 100%,
+     *                  and the reports it produces are worse than useless.
      */
-    const COMPLETION_EXCLUDES = new Set(["completionist", "crew_met"]);
+    const COMPLETION_EXCLUDES = new Set(["completionist", "crew_met", "bughunter"]);
     function countsTowardCompletion(a) {
         return !COMPLETION_EXCLUDES.has(a.id);
+    }
+    /** Whether this one is needed for the 100% reward - drives the card label. */
+    function isRequiredForCompletion(id) {
+        return !COMPLETION_EXCLUDES.has(id);
+    }
+    /** Names of the ones that do not count, for saying so plainly in the UI. */
+    function optionalAchievementNames() {
+        return ACHIEVEMENTS
+            .filter(a => a.id !== "completionist" && !countsTowardCompletion(a))
+            .map(a => a.name);
     }
     /** How far along the 100% reward is: [done, total]. */
     function completionProgress() {
@@ -29548,8 +29557,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             // this needs to know Met the Crew is not standing in their way.
             const t3 = document.createElement("div");
             t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a3859a;margin-top:3px;line-height:1.45;";
-            t3.textContent = "Met the Crew does not count - it waits on five particular people being around, "
-                + "however long that takes. Met the Kitty is the meeting one that counts.";
+            const optNames = optionalAchievementNames();
+            t3.textContent = optNames.length
+                ? "Not needed: " + optNames.join(", ") + ". Everything else counts, rare ones included."
+                : "Everything counts.";
             titles.appendChild(t1);
             titles.appendChild(t2);
             titles.appendChild(t3);
@@ -29641,6 +29652,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 trough.appendChild(fill);
                 summary.appendChild(line);
                 summary.appendChild(trough);
+                // The bar counts everything, but not everything is required. Saying
+                // which ones are optional right under it stops the count reading as
+                // a wall between someone and the reward.
+                const optional = optionalAchievementNames();
+                if (optional.length > 0) {
+                    const note = document.createElement("div");
+                    note.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#8fa8bd;line-height:1.4;";
+                    note.textContent = "○ Not needed for 100%: " + optional.join(", ")
+                        + ". Everything else counts.";
+                    summary.appendChild(note);
+                }
                 // Read a layout property first. That forces the browser to commit
                 // the 0% width, so the change below is something it can animate
                 // between rather than a single value it renders once.
@@ -29714,6 +29736,16 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
                         ds.textContent = a.descNow;
                         main.appendChild(ds);
+                        // Said on the card, not only in the Completionist summary.
+                        // Someone looking at an unfinished achievement wants to know
+                        // right there whether it is blocking their 100%.
+                        if (!isRequiredForCompletion(a.id)) {
+                            const opt = document.createElement("div");
+                            opt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#8fa8bd;"
+                                + "margin-top:2px;letter-spacing:0.03em;";
+                            opt.textContent = "○ Not needed for 100%";
+                            main.appendChild(opt);
+                        }
                         // Roster achievements name who is done and who is left. Both
                         // on screen rather than one behind a hover: seeing a name
                         // move between the lines is the confirmation that it landed.
@@ -42206,7 +42238,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.7";
-    const SAL_VERSION = 304; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 305; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42223,6 +42255,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.7",
             changes: [
+                "Changed: Bug Hunter no longer counts toward 100%. Requiring it meant the only way to finish your list was to file bug reports, and people had already started sending junk to farm it - which is worse for everyone than the achievement is worth. It is still there to earn.",
+                "Achievements that are not needed for 100% now say so on the card itself, and are listed by name under the progress bar and on the Completionist card. The bar counts everything, so without that the number reads as a wall between you and the reward when some of it is optional.",
                 "Fix: dragging the scrollbar in the Achievements window scrolls it, rather than dragging the window. A scrollbar belongs to its element rather than sitting inside it, so it could not be excluded the way buttons and text boxes are - the drag handler ran first and cancelled the browser's own scrollbar drag. It now recognises a press on the bar and leaves it alone. Same for the Suggestions & Bugs window and the Tutorial.",
                 "Fix: Met the Crew is described correctly. Both it and the Completionist card implied you needed all six credited people in a room at the same moment. You do not - it is a list that fills up over time, one person here, another somewhere else weeks later, and it is remembered. The wording said something harder than the achievement actually asks for.",
                 "The Completionist card now says which achievement does not count. It stated the rule - every achievement at its highest level - without mentioning the one carve-out, and a rule with a hidden exception is worse than no rule: anyone chasing it needs to know Met the Crew is not standing in their way. It is on its own line, along with why.",

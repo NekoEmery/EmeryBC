@@ -83,20 +83,31 @@ export interface AchievementDef {
 }
 
 /**
- * Completionist means everything except two.
+ * Achievements that do not count toward Completionist.
  *
- * Met the Crew needs five specific people online and in the same room at once,
- * which is not a thing you can go and do - it is luck and other people's
- * schedules. Met the Kitty replaces it as the required one: still meeting
- * someone, but one person rather than five.
- *
- * Completionist itself is excluded because it is derived from the others and
- * would otherwise be waiting on itself.
+ * - completionist: derived from the others, so it would wait on itself.
+ * - crew_met:      waits on five particular people being around.
+ * - bughunter:     requiring it would mean the only way to finish your list is
+ *                  to file bug reports, and people were already sending junk to
+ *                  farm it. Nobody should have to spam a form to reach 100%,
+ *                  and the reports it produces are worse than useless.
  */
-const COMPLETION_EXCLUDES = new Set(["completionist", "crew_met"]);
+const COMPLETION_EXCLUDES = new Set(["completionist", "crew_met", "bughunter"]);
 
 function countsTowardCompletion(a: AchievementDef): boolean {
     return !COMPLETION_EXCLUDES.has(a.id);
+}
+
+/** Whether this one is needed for the 100% reward - drives the card label. */
+export function isRequiredForCompletion(id: string): boolean {
+    return !COMPLETION_EXCLUDES.has(id);
+}
+
+/** Names of the ones that do not count, for saying so plainly in the UI. */
+export function optionalAchievementNames(): string[] {
+    return ACHIEVEMENTS
+        .filter(a => a.id !== "completionist" && !countsTowardCompletion(a))
+        .map(a => a.name);
 }
 
 /** How far along the 100% reward is: [done, total]. */

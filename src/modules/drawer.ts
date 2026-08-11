@@ -115,7 +115,7 @@ import { getFriendList, getFriendStatus, isEBCComplete, getFriendTagList, setFri
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, hasCompletedEverything, completionProgress, setAchievementsChangedCallback, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
+import { isAchievementUser, hasCompletedEverything, completionProgress, isRequiredForCompletion, optionalAchievementNames, setAchievementsChangedCallback, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -18631,8 +18631,10 @@ This cannot be undone.`,
         // this needs to know Met the Crew is not standing in their way.
         const t3 = document.createElement("div");
         t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a3859a;margin-top:3px;line-height:1.45;";
-        t3.textContent = "Met the Crew does not count - it waits on five particular people being around, "
-            + "however long that takes. Met the Kitty is the meeting one that counts.";
+        const optNames = optionalAchievementNames();
+        t3.textContent = optNames.length
+            ? "Not needed: " + optNames.join(", ") + ". Everything else counts, rare ones included."
+            : "Everything counts.";
         titles.appendChild(t1);
         titles.appendChild(t2);
         titles.appendChild(t3);
@@ -18726,6 +18728,18 @@ This cannot be undone.`,
             trough.appendChild(fill);
             summary.appendChild(line);
             summary.appendChild(trough);
+
+            // The bar counts everything, but not everything is required. Saying
+            // which ones are optional right under it stops the count reading as
+            // a wall between someone and the reward.
+            const optional = optionalAchievementNames();
+            if (optional.length > 0) {
+                const note = document.createElement("div");
+                note.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#8fa8bd;line-height:1.4;";
+                note.textContent = "○ Not needed for 100%: " + optional.join(", ")
+                    + ". Everything else counts.";
+                summary.appendChild(note);
+            }
             // Read a layout property first. That forces the browser to commit
             // the 0% width, so the change below is something it can animate
             // between rather than a single value it renders once.
@@ -18802,6 +18816,17 @@ This cannot be undone.`,
                     ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
                     ds.textContent = a.descNow;
                     main.appendChild(ds);
+
+                    // Said on the card, not only in the Completionist summary.
+                    // Someone looking at an unfinished achievement wants to know
+                    // right there whether it is blocking their 100%.
+                    if (!isRequiredForCompletion(a.id)) {
+                        const opt = document.createElement("div");
+                        opt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#8fa8bd;"
+                            + "margin-top:2px;letter-spacing:0.03em;";
+                        opt.textContent = "○ Not needed for 100%";
+                        main.appendChild(opt);
+                    }
 
                     // Roster achievements name who is done and who is left. Both
                     // on screen rather than one behind a hover: seeing a name

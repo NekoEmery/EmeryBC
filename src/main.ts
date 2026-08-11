@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, achievementScanRoom, achieve
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.7";
-const SAL_VERSION  = 304;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 305;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.0.7",
         changes: [
+            "Changed: Bug Hunter no longer counts toward 100%. Requiring it meant the only way to finish your list was to file bug reports, and people had already started sending junk to farm it - which is worse for everyone than the achievement is worth. It is still there to earn.",
+            "Achievements that are not needed for 100% now say so on the card itself, and are listed by name under the progress bar and on the Completionist card. The bar counts everything, so without that the number reads as a wall between you and the reward when some of it is optional.",
             "Fix: dragging the scrollbar in the Achievements window scrolls it, rather than dragging the window. A scrollbar belongs to its element rather than sitting inside it, so it could not be excluded the way buttons and text boxes are - the drag handler ran first and cancelled the browser's own scrollbar drag. It now recognises a press on the bar and leaves it alone. Same for the Suggestions & Bugs window and the Tutorial.",
             "Fix: Met the Crew is described correctly. Both it and the Completionist card implied you needed all six credited people in a room at the same moment. You do not - it is a list that fills up over time, one person here, another somewhere else weeks later, and it is remembered. The wording said something harder than the achievement actually asks for.",
             "The Completionist card now says which achievement does not count. It stated the rule - every achievement at its highest level - without mentioning the one carve-out, and a rule with a hidden exception is worse than no rule: anyone chasing it needs to know Met the Crew is not standing in their way. It is on its own line, along with why.",
