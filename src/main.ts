@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.7";
-const SAL_VERSION  = 307;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 308;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.0.7",
         changes: [
+            "The beep volume slider matches the rest of the panel instead of rendering in the browser default blue.",
+            "Achievements that are not needed for 100% now say so loudly rather than in small grey text. A blue OPTIONAL badge on the achievement itself, and a bordered notice at the top listing them by name. The whole point of that line is to stop someone thinking an achievement blocks their reward, and it was quiet enough to read as decoration.",
             "New (creator only): every warning sent is logged - who, when, and the note you added - and the confirm tells you if you have warned that person before. Warning someone twice for the same thing lands very differently from warning them once, and there was no way to know.",
             "New (requested by Julia): share your overall achievement progress, not only one achievement at a time. There is a Share my progress button under the bar.",
             "New (requested by Mika): friends running EBC show their achievement percentage beside their name. Only for people who have some progress - a 0% badge on everyone would be noise. It reaches 100% at the same point the sparkle does, so the two always agree.",

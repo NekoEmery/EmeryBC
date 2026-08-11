@@ -2107,6 +2107,42 @@ const CSS = `
     margin: 4px 0;
 }
 
+/* Sliders, themed. A bare range input renders in the browser's own blue and
+   sits badly against everything else in the panel. */
+.ebc-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #cf6f98 var(--fill, 33%), #2a1421 var(--fill, 33%));
+    outline: none;
+    cursor: pointer;
+    border: 1px solid #3a1c2c;
+}
+.ebc-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #f7b8d2, #cf6f98 60%, #91405f);
+    border: 1px solid #f8dce8;
+    box-shadow: 0 0 5px rgba(207,111,152,0.55);
+    cursor: grab;
+}
+.ebc-slider::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.12); }
+.ebc-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #cf6f98;
+    border: 1px solid #f8dce8;
+    box-shadow: 0 0 5px rgba(207,111,152,0.55);
+    cursor: grab;
+}
+.ebc-slider::-moz-range-track { height: 4px; border-radius: 3px; background: #2a1421; }
+.ebc-slider:focus-visible { box-shadow: 0 0 0 2px rgba(207,111,152,0.45); }
+
 .ebc-delay-row input[type="range"] {
     flex: 1;
     accent-color: #cf6f98;
@@ -16048,12 +16084,20 @@ This cannot be undone.`,
             slider.max = "300";
             slider.step = "10";
             slider.value = String(getBeepVolume());
+            slider.className = "ebc-slider";
             slider.style.cssText = "flex:1;min-width:80px;";
+            // The filled part of the track is drawn by a gradient, so it has to
+            // be told where the handle is - CSS cannot read the value itself.
+            const paintFill = (): void => {
+                const pct = (parseInt(slider.value, 10) / 300) * 100;
+                slider.style.setProperty("--fill", pct + "%");
+            };
+            paintFill();
             const val = document.createElement("span");
             val.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:#9a8290;"
                 + "flex-shrink:0;min-width:38px;text-align:right;";
             val.textContent = getBeepVolume() + "%";
-            slider.addEventListener("input", () => { val.textContent = slider.value + "%"; });
+            slider.addEventListener("input", () => { val.textContent = slider.value + "%"; paintFill(); });
             // Saved and previewed on release rather than per pixel of drag, so a
             // sweep does not fire a hundred sounds or a hundred writes.
             slider.addEventListener("change", () => {
@@ -18709,8 +18753,11 @@ This cannot be undone.`,
         const t3 = document.createElement("div");
         t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a3859a;margin-top:3px;line-height:1.45;";
         const optNames = optionalAchievementNames();
+        t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cfe3f4;margin-top:5px;"
+            + "line-height:1.45;padding:4px 8px;border-radius:6px;"
+            + "background:rgba(90,140,190,0.13);border-left:3px solid #6f9ec4;";
         t3.textContent = optNames.length
-            ? "Not needed: " + optNames.join(", ") + ". Everything else counts, rare ones included."
+            ? "OPTIONAL: " + optNames.join(", ") + " are not needed. Everything else is."
             : "Everything counts.";
         titles.appendChild(t1);
         titles.appendChild(t2);
@@ -18830,9 +18877,18 @@ This cannot be undone.`,
             const optional = optionalAchievementNames();
             if (optional.length > 0) {
                 const note = document.createElement("div");
-                note.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#8fa8bd;line-height:1.4;";
-                note.textContent = "○ Not needed for 100%: " + optional.join(", ")
-                    + ". Everything else counts.";
+                note.style.cssText = "display:flex;align-items:baseline;gap:7px;margin-top:2px;"
+                    + "padding:5px 9px;border:1px solid #6f9ec4;border-left-width:3px;border-radius:6px;"
+                    + "background:rgba(90,140,190,0.13);";
+                const tag = document.createElement("span");
+                tag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;font-weight:bold;"
+                    + "letter-spacing:0.09em;color:#a8cdea;flex-shrink:0;";
+                tag.textContent = "OPTIONAL";
+                const txt = document.createElement("span");
+                txt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cfe3f4;line-height:1.45;";
+                txt.textContent = optional.join(", ") + " are not needed for 100%. Everything else is.";
+                note.appendChild(tag);
+                note.appendChild(txt);
                 summary.appendChild(note);
             }
             // Read a layout property first. That forces the browser to commit
@@ -18915,11 +18971,16 @@ This cannot be undone.`,
                     // Said on the card, not only in the Completionist summary.
                     // Someone looking at an unfinished achievement wants to know
                     // right there whether it is blocking their 100%.
+                    // Deliberately loud. This was a faint line under the
+                    // description and read as decoration - the one thing it has
+                    // to do is stop someone thinking this blocks their 100%.
                     if (!isRequiredForCompletion(a.id)) {
                         const opt = document.createElement("div");
-                        opt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#8fa8bd;"
-                            + "margin-top:2px;letter-spacing:0.03em;";
-                        opt.textContent = "○ Not needed for 100%";
+                        opt.style.cssText = "display:inline-block;margin-top:4px;padding:1px 8px;"
+                            + "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;"
+                            + "letter-spacing:0.04em;border-radius:9px;"
+                            + "background:rgba(90,140,190,0.20);border:1px solid #6f9ec4;color:#a8cdea;";
+                        opt.textContent = "OPTIONAL - not needed for 100%";
                         main.appendChild(opt);
                     }
 
