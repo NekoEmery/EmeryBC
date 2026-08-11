@@ -441,6 +441,67 @@ export function setToastDurationSec(value: number): void {
     } catch { /* ignore */ }
 }
 
+// -- Feedback misuse warnings ---------------------------------------------------
+// Who has been warned, so the same person is not warned twice over the same
+// thing and there is a record of what was said. Creator-side only.
+
+export interface WarnEntry {
+    num: number;
+    name: string;
+    ts: number;
+    note: string;
+}
+
+const WARN_CAP = 60;
+
+export function getWarnLog(): WarnEntry[] {
+    try {
+        const v = getSettings().feedbackWarnings;
+        return Array.isArray(v) ? v as WarnEntry[] : [];
+    } catch { return []; }
+}
+
+export function addWarnEntry(num: number, name: string, note: string): void {
+    try {
+        const list = getWarnLog();
+        list.unshift({ num, name, ts: Date.now(), note });
+        if (list.length > WARN_CAP) list.length = WARN_CAP;
+        getSettings().feedbackWarnings = list;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+export function clearWarnLog(): void {
+    try {
+        getSettings().feedbackWarnings = [];
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+/** Most recent warning for this member, or null. */
+export function lastWarnedAt(num: number): number | null {
+    const hit = getWarnLog().find(w => w.num === num);
+    return hit ? hit.ts : null;
+}
+
+// -- Beep sound volume ----------------------------------------------------------
+// EBC's beep is a generated tone rather than a sound file, and it was noticeably
+// quieter than BC's own. Stored as a percentage so the slider reads plainly.
+
+export function getBeepVolume(): number {
+    try {
+        const v = getSettings().beepVolume;
+        return typeof v === "number" && v >= 0 && v <= 300 ? v : 100;
+    } catch { return 100; }
+}
+
+export function setBeepVolume(pct: number): void {
+    try {
+        getSettings().beepVolume = Math.max(0, Math.min(300, Math.round(pct)));
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Stored-data manager -------------------------------------------------------
 // Every category of data EBC keeps on the account, so the Storage panel can show
 // what is taking up space and let the user clear any of it.
@@ -482,6 +543,7 @@ export const EBC_DATA_CATEGORIES: DataCategory[] = [
     { label: "Barks",                keys: ["barks"], help: "Saved bark phrases." },
     { label: "Favorite rooms",       keys: ["favoriteRooms"], help: "Rooms you saved, including their full settings so they can be rebuilt." },
     { label: "Restraint timers",     keys: ["restraintTimers"], help: "How long each item you are wearing has been on. Feeds the bound timer." },
+    { label: "Misuse warnings",      keys: ["feedbackWarnings"], help: "A record of people you have warned for sending junk through the Feedback form. Creator-side only; nobody else can see it." },
     { label: "Dom config",           keys: ["domConfig"], help: "Your dom tool setup - targets and saved restraint sets for them." },
 ];
 

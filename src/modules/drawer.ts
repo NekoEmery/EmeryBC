@@ -107,15 +107,15 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, getWarnLog, addWarnEntry, clearWarnLog, lastWarnedAt, getBeepVolume, setBeepVolume, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, isEBCComplete, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, getPendingMessagesCleaned, cancelPendingMessage, isBeepBlocked, deleteBeepEntry, setQueueDeliveredCallback, type EBCGroup, type GroupBeepEntry } from "./friends";
+import { getFriendList, getFriendStatus, isEBCComplete, getEBCAchPct, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, getPendingMessagesCleaned, cancelPendingMessage, isBeepBlocked, deleteBeepEntry, setQueueDeliveredCallback, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, hasCompletedEverything, completionProgress, isRequiredForCompletion, optionalAchievementNames, setAchievementsChangedCallback, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
+import { isAchievementUser, hasCompletedEverything, completionProgress, shareOverallProgress, isRequiredForCompletion, optionalAchievementNames, setAchievementsChangedCallback, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -4168,6 +4168,32 @@ for (const _p of CREDITED) {
  * Anything that is itself interactive is ignored as a drag handle, so dragging
  * cannot start on a button, a text box or a link and steal the click from it.
  */
+/**
+ * Plays the beep at the current volume, so the slider can be judged by ear.
+ *
+ * Deliberately a copy of the tone in main.ts rather than an import - drawer is
+ * imported BY main, and reaching back the other way for one oscillator would
+ * add a cycle for no benefit. If the tone itself ever changes, this is the
+ * other place to change.
+ */
+function playBeepPreview(): void {
+    try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(Math.max(0.0001, 0.18 * (getBeepVolume() / 100)), ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.25);
+        osc.onended = () => ctx.close();
+    } catch { /* AudioContext may be unavailable */ }
+}
+
 function makeDraggable(el: HTMLElement): void {
     el.addEventListener("mousedown", (e: MouseEvent) => {
         const tgt = e.target as HTMLElement | null;
@@ -16008,6 +16034,43 @@ This cannot be undone.`,
             (v) => setOnlineSoundEnabled(v),
         ));
 
+        // EBC's beep is a generated tone, not a sound file, and its loudness was
+        // fixed - so it sat under BC's own with no way to even it up.
+        {
+            const volRow = document.createElement("div");
+            volRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:4px 7px;";
+            const volLbl = document.createElement("span");
+            volLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c8a0b4;flex-shrink:0;";
+            volLbl.textContent = "Beep volume";
+            const slider = document.createElement("input");
+            slider.type = "range";
+            slider.min = "0";
+            slider.max = "300";
+            slider.step = "10";
+            slider.value = String(getBeepVolume());
+            slider.style.cssText = "flex:1;min-width:80px;";
+            const val = document.createElement("span");
+            val.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:#9a8290;"
+                + "flex-shrink:0;min-width:38px;text-align:right;";
+            val.textContent = getBeepVolume() + "%";
+            slider.addEventListener("input", () => { val.textContent = slider.value + "%"; });
+            // Saved and previewed on release rather than per pixel of drag, so a
+            // sweep does not fire a hundred sounds or a hundred writes.
+            slider.addEventListener("change", () => {
+                setBeepVolume(parseInt(slider.value, 10));
+                try { playBeepPreview(); } catch { /* ignore */ }
+            });
+            volRow.appendChild(volLbl);
+            volRow.appendChild(slider);
+            volRow.appendChild(val);
+            chatSettingsBody.appendChild(volRow);
+
+            const volHint = document.createElement("div");
+            volHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;padding:0 7px 4px;";
+            volHint.textContent = "100% is the original level. Plays a sample when you let go.";
+            chatSettingsBody.appendChild(volHint);
+        }
+
         chatSettingsBody.appendChild(mkToggleRow(
             "LianChat compatibility",
             getLianChatCompat,
@@ -17485,6 +17548,20 @@ This cannot be undone.`,
                 nameRow.appendChild(nameEl);
                 for (const d of decorFriend.after) nameRow.appendChild(d);
 
+                // Only for people running EBC who have some progress - an empty
+                // or zero badge on everyone else would be noise, not information.
+                const achPct = getEBCAchPct(num);
+                if (achPct !== null && achPct > 0) {
+                    const pctEl = document.createElement("span");
+                    pctEl.textContent = achPct + "%";
+                    pctEl.title = "Achievement progress";
+                    pctEl.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:9px;flex-shrink:0;"
+                        + "border:1px solid " + (achPct >= 100 ? "#c9ab72" : "#4c2537")
+                        + ";color:" + (achPct >= 100 ? "#e8cf9a" : "#9a8290")
+                        + ";border-radius:8px;padding:0 5px;";
+                    nameRow.appendChild(pctEl);
+                }
+
                 // If this person has a nickname, show their account name in muted text
                 // so you can tell "Lucy" is actually "Lucas" on their account.
                 const acctName = getAccountName(num);
@@ -18732,6 +18809,24 @@ This cannot be undone.`,
             // The bar counts everything, but not everything is required. Saying
             // which ones are optional right under it stops the count reading as
             // a wall between someone and the reward.
+            // Share the whole thing, not one at a time. Placed with the bar it
+            // describes rather than among the individual achievements.
+            const shareRow = document.createElement("div");
+            shareRow.style.cssText = "display:flex;justify-content:flex-end;margin-top:2px;";
+            const shareAll = document.createElement("button");
+            shareAll.textContent = "Share my progress";
+            shareAll.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;padding:1px 9px;"
+                + "border-radius:9px;border:1px solid #4c2537;background:transparent;color:#b98aa0;cursor:pointer;";
+            shareAll.addEventListener("click", () => {
+                const r = shareOverallProgress();
+                shareAll.textContent = r === "ok" ? "Shared ✓"
+                    : r === "cooldown" ? "Wait a moment"
+                    : "Only in a room";
+                window.setTimeout(() => { shareAll.textContent = "Share my progress"; }, 2000);
+            });
+            shareRow.appendChild(shareAll);
+            summary.appendChild(shareRow);
+
             const optional = optionalAchievementNames();
             if (optional.length > 0) {
                 const note = document.createElement("div");
@@ -19076,7 +19171,7 @@ This cannot be undone.`,
             const plaqueBtn = document.createElement("button");
             const paintPlaque = (): void => {
                 const on = getShowSharedPlaques();
-                plaqueBtn.textContent = on ? "Shared achievements: shown" : "Shared achievements: hidden";
+                plaqueBtn.textContent = on ? "Others unlocks in chat: shown" : "Others unlocks in chat: hidden";
                 plaqueBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;" +
                     (on ? "border:1px solid #4c2537;background:transparent;color:#b088a0;"
                         : "border:1px solid #33283c;background:transparent;color:#7a6a86;");
@@ -28478,6 +28573,12 @@ This cannot be undone.`,
             }
             const note = noteIn.value.trim();
             const who = resolveName(num) || `#${num}`;
+            // Surfaced before sending, not after. Warning the same person twice
+            // for the same thing lands very differently from warning them once.
+            const before = lastWarnedAt(num);
+            const againNote = before
+                ? `\n\nYou already warned them on ${new Date(before).toLocaleDateString()}.`
+                : "";
             // Firm, factual, and no threat EBC cannot actually carry out.
             const message = "[EBC] Your Feedback & Bugs report was not a real report.\n\n"
                 + "That form goes to one person who reads every entry and fixes what it describes. "
@@ -28486,14 +28587,16 @@ This cannot be undone.`,
                 + "Please only use it for genuine bugs and suggestions.";
 
             showConfirmOverlay(
-                `Send a warning beep to ${who} (#${num})?\n\nThey will receive it as a normal beep from you, and it cannot be unsent.`,
+                `Send a warning beep to ${who} (#${num})?\n\nThey will receive it as a normal beep from you, and it cannot be unsent.${againNote}`,
                 "Cancel", "Send",
                 () => {
                     try {
                         sendBeep(num, message);
+                        addWarnEntry(num, who, note);
                         say(`Warning sent to ${who}.`);
                         numIn.value = "";
                         noteIn.value = "";
+                        paintLog();
                     } catch {
                         say("Could not send - are they on your friends list?", false);
                     }
@@ -28505,6 +28608,63 @@ This cannot be undone.`,
         row.appendChild(noteIn);
         row.appendChild(sendBtn);
         card.appendChild(row);
+
+        // Who has been warned, most recent first. Kept because "have I already
+        // said something to this person" is the question you actually have when
+        // the same number turns up in the sheet again.
+        const logWrap = document.createElement("div");
+        logWrap.style.cssText = "margin-top:8px;";
+        card.appendChild(logWrap);
+
+        const paintLog = (): void => {
+            while (logWrap.firstChild) logWrap.removeChild(logWrap.firstChild);
+            const log = getWarnLog();
+            const head = document.createElement("div");
+            head.style.cssText = "display:flex;align-items:center;gap:7px;font-family:'Trebuchet MS',serif;"
+                + "font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:#a3859a;margin-bottom:4px;";
+            const ht = document.createElement("span");
+            ht.textContent = log.length ? `Warned (${log.length})` : "Nobody warned yet";
+            head.appendChild(ht);
+            if (log.length) {
+                const clr = document.createElement("button");
+                clr.textContent = "Clear";
+                clr.style.cssText = "margin-left:auto;font-family:'Trebuchet MS',serif;font-size:9.5px;"
+                    + "padding:1px 8px;border-radius:8px;border:1px solid #4c2537;background:transparent;color:#b07888;cursor:pointer;";
+                clr.addEventListener("click", () => {
+                    showConfirmOverlay("Clear the whole warning record?", "Cancel", "Clear", () => {
+                        clearWarnLog();
+                        paintLog();
+                    });
+                });
+                head.appendChild(clr);
+            }
+            logWrap.appendChild(head);
+
+            if (!log.length) return;
+            const list = document.createElement("div");
+            list.style.cssText = "max-height:120px;overflow-y:auto;border:1px solid #2a1421;border-radius:6px;";
+            for (const w of log) {
+                const r = document.createElement("div");
+                r.style.cssText = "display:flex;gap:7px;align-items:baseline;padding:3px 7px;"
+                    + "border-bottom:1px solid rgba(42,20,33,0.7);font-family:'Trebuchet MS',serif;font-size:10.5px;";
+                const nm = document.createElement("span");
+                nm.style.cssText = "color:#c8a0b4;flex-shrink:0;";
+                nm.textContent = `${w.name} #${w.num}`;
+                const nt = document.createElement("span");
+                nt.style.cssText = "color:#8a7080;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                nt.textContent = w.note || "";
+                const dt = document.createElement("span");
+                dt.style.cssText = "color:#6f5766;flex-shrink:0;font-size:9.5px;";
+                dt.textContent = new Date(w.ts).toLocaleDateString();
+                r.appendChild(nm);
+                r.appendChild(nt);
+                r.appendChild(dt);
+                list.appendChild(r);
+            }
+            logWrap.appendChild(list);
+        };
+        paintLog();
+
         body.appendChild(card);
     }
 

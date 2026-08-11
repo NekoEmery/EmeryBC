@@ -8,7 +8,7 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand, applyPositions, clearAllPositions } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat } from "./modules/settings";
+import { getBeepVolume, getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -18,7 +18,7 @@ import { UI } from "./modules/ui";
 import { appendLocalLogLine, appendChangelogBlock } from "./modules/notify";
 import { getCursedGroups, isCursePaused, getCurseExpiry, handleCurseCommand, releaseAllCurses, describeCursedGroups } from "./modules/curse";
 import { broadcastRoom, parseShareMessage, noteSharedRoom } from "./modules/privateRooms";
-import { sendBeep, addBeepEntry, dedupeSentBeeps, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, cacheEBCComplete, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
+import { sendBeep, addBeepEntry, dedupeSentBeeps, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, cacheEBCComplete, cacheEBCAchPct, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
 import { callBC, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
@@ -26,11 +26,11 @@ import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import { isXToysUser, isXToysEnabled, xtoysConnect, xtoysStatus, xtoysActivityEvent, xtoysActivityOnOtherEvent, xtoysItemAdded, xtoysItemRemoved, xtoysShockEvent, xtoysToyEvent, parseXToysActivity, getXToysWebhookId } from "./modules/xtoys";
 import bcModSdk from "bondage-club-mod-sdk";
-import { isAchievementUser, hasCompletedEverything, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
+import { isAchievementUser, hasCompletedEverything, completionPercent, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.7";
-const SAL_VERSION  = 306;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 307;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,11 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.0.7",
         changes: [
+            "New (creator only): every warning sent is logged - who, when, and the note you added - and the confirm tells you if you have warned that person before. Warning someone twice for the same thing lands very differently from warning them once, and there was no way to know.",
+            "New (requested by Julia): share your overall achievement progress, not only one achievement at a time. There is a Share my progress button under the bar.",
+            "New (requested by Mika): friends running EBC show their achievement percentage beside their name. Only for people who have some progress - a 0% badge on everyone would be noise. It reaches 100% at the same point the sparkle does, so the two always agree.",
+            "Fix (reported by Julia): the shared-achievements toggle now reads \"Others unlocks in chat\". It said \"Shared achievements\", which reads just as easily as a filter on the list below it - something that does not exist.",
+            "New (requested by Lola): a beep volume slider in Chat & Notifications. EBC's beep is a generated tone rather than a sound file and its loudness was fixed, so it sat noticeably under the game's own with nothing to do about it. 0 to 300%, and it plays a sample when you let go of the slider.",
             "New (creator only): a Report misuse box on the DOM tab. Reports carry a member number so the sender is identifiable, but the form is one-way and there was no way to say anything back. Enter the number, optionally note what they sent, and it beeps them once. It confirms first, because that is a real message to a real person and it cannot be unsent.",
             "Changed: Bug Hunter no longer counts toward 100%. Requiring it meant the only way to finish your list was to file bug reports, and people had already started sending junk to farm it - which is worse for everyone than the achievement is worth. It is still there to earn.",
             "Achievements that are not needed for 100% now say so on the card itself, and are listed by name under the progress bar and on the Completionist card. The bar counts everything, so without that the number reads as a wall between you and the reward when some of it is optional.",
@@ -6138,6 +6143,16 @@ function showOnlineToast(memberNumber: number, fallbackName: string): void {
     } catch { /* ignore */ }
 }
 
+/**
+ * User volume as a multiplier on the generated tones.
+ *
+ * These are synthesised rather than sound files, and their gain was fixed - so
+ * EBC's beep sat noticeably under BC's own with no way to even it up.
+ */
+function beepGain(base: number): number {
+    try { return Math.max(0, base * (getBeepVolume() / 100)); } catch { return base; }
+}
+
 function playOnlineSound(): void {
     try {
         const ctx = new AudioContext();
@@ -6148,7 +6163,7 @@ function playOnlineSound(): void {
         osc.type = "sine";
         osc.frequency.setValueAtTime(520, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(780, ctx.currentTime + 0.18);
-        gain.gain.setValueAtTime(0.13, ctx.currentTime);
+        gain.gain.setValueAtTime(beepGain(0.13), ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
         osc.start(ctx.currentTime);
         osc.stop(ctx.currentTime + 0.32);
@@ -6166,7 +6181,7 @@ function playBeepSound(): void {
         osc.type = "sine";
         osc.frequency.setValueAtTime(880, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.18, ctx.currentTime);
+        gain.gain.setValueAtTime(beepGain(0.18), ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
         osc.start(ctx.currentTime);
         osc.stop(ctx.currentTime + 0.25);
@@ -7045,6 +7060,8 @@ interface EmeryPresence {
     isDev?: boolean;
     /** Set once every counting achievement is maxed - drives the 100% sparkle. */
     done100?: true;
+    /** Overall achievement completion, whole percent. */
+    achPct?: number;
     /** Unix timestamp (seconds) when this presence was last broadcast.
      *  Absent on old EBC versions (pre-2.8.5).  Presences without a ts are
      *  rejected so stale OnlineSharedSettings from previous EBC sessions no
@@ -7114,12 +7131,14 @@ function syncPresenceMarker(): void {
     // your tag. The toggle only controls whether YOU see it above your own head.
 
     const done100 = (() => { try { return hasCompletedEverything(); } catch { return false; } })();
+    const achPct = (() => { try { return completionPercent(); } catch { return 0; } })();
     const presence: EmeryPresence = {
         version: MOD_VERSION,
         marker:  "EBC",
         ts:      Math.floor(Date.now() / 1000), // seconds — refreshed every broadcast
         ...(IS_DEV_BUILD ? { isDev: true } : {}),
         ...(done100 ? { done100: true as const } : {}),
+        ...(achPct > 0 ? { achPct } : {}),
     };
 
     // Write to ExtensionSettings only if presence isn't already recorded —
@@ -7128,7 +7147,8 @@ function syncPresenceMarker(): void {
     if (settings) {
         const alreadyStored = settings.presence?.version === MOD_VERSION
             && settings.presence?.isDev === (IS_DEV_BUILD ? true : undefined)
-            && settings.presence?.done100 === (done100 ? true : undefined);
+            && settings.presence?.done100 === (done100 ? true : undefined)
+            && settings.presence?.achPct === (achPct > 0 ? achPct : undefined);
         if (!alreadyStored) {
             settings.presence = presence;
             ServerPlayerExtensionSettingsSync(MOD_NAME);
@@ -7908,6 +7928,8 @@ function init(): void {
                         if ((p as Record<string, unknown>).marker === "EBC" && typeof v === "string") {
                             cacheEBCVersion(c.MemberNumber, v);
                             cacheEBCComplete(c.MemberNumber, (p as Record<string, unknown>).done100 === true);
+                            const pp = (p as Record<string, unknown>).achPct;
+                            cacheEBCAchPct(c.MemberNumber, typeof pp === "number" ? pp : null);
                         }
                     }
                 }

@@ -3450,6 +3450,58 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    const WARN_CAP = 60;
+    function getWarnLog() {
+        try {
+            const v = getSettings().feedbackWarnings;
+            return Array.isArray(v) ? v : [];
+        }
+        catch (_a) {
+            return [];
+        }
+    }
+    function addWarnEntry(num, name, note) {
+        try {
+            const list = getWarnLog();
+            list.unshift({ num, name, ts: Date.now(), note });
+            if (list.length > WARN_CAP)
+                list.length = WARN_CAP;
+            getSettings().feedbackWarnings = list;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    function clearWarnLog() {
+        try {
+            getSettings().feedbackWarnings = [];
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /** Most recent warning for this member, or null. */
+    function lastWarnedAt(num) {
+        const hit = getWarnLog().find(w => w.num === num);
+        return hit ? hit.ts : null;
+    }
+    // -- Beep sound volume ----------------------------------------------------------
+    // EBC's beep is a generated tone rather than a sound file, and it was noticeably
+    // quieter than BC's own. Stored as a percentage so the slider reads plainly.
+    function getBeepVolume() {
+        try {
+            const v = getSettings().beepVolume;
+            return typeof v === "number" && v >= 0 && v <= 300 ? v : 100;
+        }
+        catch (_a) {
+            return 100;
+        }
+    }
+    function setBeepVolume(pct) {
+        try {
+            getSettings().beepVolume = Math.max(0, Math.min(300, Math.round(pct)));
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     const EBC_DATA_CATEGORIES = [
         { label: "Outfits", keys: ["outfits"], localKeys: [LOCAL_OUTFITS_KEY], help: "Every outfit you have saved, including the items, colours and settings in each one. This is usually the biggest thing EBC stores." },
         { label: "Restraint sets", keys: ["restraints", "restraintPresets"], localKeys: [LOCAL_RESTRAINTS_KEY], help: "Saved restraint sets and their presets - the groups of items you can apply in one go." },
@@ -3475,6 +3527,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { label: "Barks", keys: ["barks"], help: "Saved bark phrases." },
         { label: "Favorite rooms", keys: ["favoriteRooms"], help: "Rooms you saved, including their full settings so they can be rebuilt." },
         { label: "Restraint timers", keys: ["restraintTimers"], help: "How long each item you are wearing has been on. Feeds the bound timer." },
+        { label: "Misuse warnings", keys: ["feedbackWarnings"], help: "A record of people you have warned for sending junk through the Feedback form. Creator-side only; nobody else can see it." },
         { label: "Dom config", keys: ["domConfig"], help: "Your dom tool setup - targets and saved restraint sets for them." },
     ];
     /** Every localStorage key any category declares - the import whitelist. */
@@ -7442,6 +7495,20 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     function isEBCComplete(memberNumber) {
         return ebcCompleteCache.has(memberNumber);
     }
+    // Overall achievement percentage, as broadcast with their presence. Memory only
+    // for the same reason as the completion flag - it is theirs, and it changes.
+    const ebcAchPct = new Map();
+    function cacheEBCAchPct(memberNumber, pct) {
+        if (pct === null || !Number.isFinite(pct))
+            ebcAchPct.delete(memberNumber);
+        else
+            ebcAchPct.set(memberNumber, Math.max(0, Math.min(100, Math.round(pct))));
+    }
+    /** Their achievement percentage, or null if they have not told us. */
+    function getEBCAchPct(memberNumber) {
+        var _a;
+        return (_a = ebcAchPct.get(memberNumber)) !== null && _a !== void 0 ? _a : null;
+    }
     function updateOnlineFriends(entries) {
         var _a, _b, _c;
         const prevOnline = new Set(onlineSet);
@@ -8514,6 +8581,14 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         return [done, list.length];
     }
+    /**
+     * Overall completion as a whole percent, counting only what Completionist
+     * counts - so the number beside your name means the same thing as the reward.
+     */
+    function completionPercent() {
+        const [done, total] = completionProgress();
+        return total > 0 ? Math.round((done / total) * 100) : 0;
+    }
     /** True once every counting achievement is at its highest tier. */
     function hasCompletedEverything() {
         const [done, total] = completionProgress();
@@ -9187,6 +9262,35 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const _plaqueLastBySender = new Map();
     /** Detects an incoming achievement share. Renders the plaque and returns true
      *  so the caller suppresses the plain whisper. Works for EVERY EBC user. */
+    /**
+     * Shares your overall progress as a room emote.
+     *
+     * Sharing was per achievement only, so "how far along am I" could not be said
+     * at all without listing them one by one. Uses the same cooldown as a single
+     * share - it is the same room and the same politeness.
+     */
+    function shareOverallProgress() {
+        const w = window;
+        if (w.CurrentScreen !== "ChatRoom")
+            return "noRoom";
+        if (getShareCooldownMs() > 0)
+            return "cooldown";
+        const [done, total] = completionProgress();
+        const pct = completionPercent();
+        const content = `shares their achievement progress: 🏆 ${pct}% (${done} of ${total})`;
+        try {
+            ServerSend("ChatRoomChat", {
+                Content: content,
+                Type: "Emote",
+                Dictionary: [{ Tag: "EBCACHPCT", Text: JSON.stringify({ pct, done, total }) }],
+            });
+        }
+        catch (_a) {
+            return "noRoom";
+        }
+        _lastShareTs = Date.now();
+        return "ok";
+    }
     function handleAchievementShareMessage(data) {
         var _a, _b, _c, _d, _e;
         try {
@@ -15340,6 +15444,32 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
      * Anything that is itself interactive is ignored as a drag handle, so dragging
      * cannot start on a button, a text box or a link and steal the click from it.
      */
+    /**
+     * Plays the beep at the current volume, so the slider can be judged by ear.
+     *
+     * Deliberately a copy of the tone in main.ts rather than an import - drawer is
+     * imported BY main, and reaching back the other way for one oscillator would
+     * add a cycle for no benefit. If the tone itself ever changes, this is the
+     * other place to change.
+     */
+    function playBeepPreview() {
+        try {
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.12);
+            gain.gain.setValueAtTime(Math.max(0.0001, 0.18 * (getBeepVolume() / 100)), ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.25);
+            osc.onended = () => ctx.close();
+        }
+        catch ( /* AudioContext may be unavailable */_a) { /* AudioContext may be unavailable */ }
+    }
     function makeDraggable(el) {
         el.addEventListener("mousedown", (e) => {
             const tgt = e.target;
@@ -26839,6 +26969,44 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             chatSettingsBody.appendChild(showBeepInChatRow);
             chatSettingsBody.appendChild(mkToggleRow("Use BC native beep sound", getUseNativeBeepSound, (v) => setUseNativeBeepSound(v)));
             chatSettingsBody.appendChild(mkToggleRow("Sound when friend comes online", getOnlineSoundEnabled, (v) => setOnlineSoundEnabled(v)));
+            // EBC's beep is a generated tone, not a sound file, and its loudness was
+            // fixed - so it sat under BC's own with no way to even it up.
+            {
+                const volRow = document.createElement("div");
+                volRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:4px 7px;";
+                const volLbl = document.createElement("span");
+                volLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c8a0b4;flex-shrink:0;";
+                volLbl.textContent = "Beep volume";
+                const slider = document.createElement("input");
+                slider.type = "range";
+                slider.min = "0";
+                slider.max = "300";
+                slider.step = "10";
+                slider.value = String(getBeepVolume());
+                slider.style.cssText = "flex:1;min-width:80px;";
+                const val = document.createElement("span");
+                val.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:#9a8290;"
+                    + "flex-shrink:0;min-width:38px;text-align:right;";
+                val.textContent = getBeepVolume() + "%";
+                slider.addEventListener("input", () => { val.textContent = slider.value + "%"; });
+                // Saved and previewed on release rather than per pixel of drag, so a
+                // sweep does not fire a hundred sounds or a hundred writes.
+                slider.addEventListener("change", () => {
+                    setBeepVolume(parseInt(slider.value, 10));
+                    try {
+                        playBeepPreview();
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                });
+                volRow.appendChild(volLbl);
+                volRow.appendChild(slider);
+                volRow.appendChild(val);
+                chatSettingsBody.appendChild(volRow);
+                const volHint = document.createElement("div");
+                volHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;padding:0 7px 4px;";
+                volHint.textContent = "100% is the original level. Plays a sample when you let go.";
+                chatSettingsBody.appendChild(volHint);
+            }
             chatSettingsBody.appendChild(mkToggleRow("LianChat compatibility", getLianChatCompat, (v) => setLianChatCompat(v), () => {
                 var _a;
                 // When enabling LianChat compat, auto-enable "Show beeps in BC chat" too
@@ -28362,6 +28530,19 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     nameRow.appendChild(nameEl);
                     for (const d of decorFriend.after)
                         nameRow.appendChild(d);
+                    // Only for people running EBC who have some progress - an empty
+                    // or zero badge on everyone else would be noise, not information.
+                    const achPct = getEBCAchPct(num);
+                    if (achPct !== null && achPct > 0) {
+                        const pctEl = document.createElement("span");
+                        pctEl.textContent = achPct + "%";
+                        pctEl.title = "Achievement progress";
+                        pctEl.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:9px;flex-shrink:0;"
+                            + "border:1px solid " + (achPct >= 100 ? "#c9ab72" : "#4c2537")
+                            + ";color:" + (achPct >= 100 ? "#e8cf9a" : "#9a8290")
+                            + ";border-radius:8px;padding:0 5px;";
+                        nameRow.appendChild(pctEl);
+                    }
                     // If this person has a nickname, show their account name in muted text
                     // so you can tell "Lucy" is actually "Lucas" on their account.
                     const acctName = getAccountName(num);
@@ -29655,6 +29836,23 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 // The bar counts everything, but not everything is required. Saying
                 // which ones are optional right under it stops the count reading as
                 // a wall between someone and the reward.
+                // Share the whole thing, not one at a time. Placed with the bar it
+                // describes rather than among the individual achievements.
+                const shareRow = document.createElement("div");
+                shareRow.style.cssText = "display:flex;justify-content:flex-end;margin-top:2px;";
+                const shareAll = document.createElement("button");
+                shareAll.textContent = "Share my progress";
+                shareAll.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;padding:1px 9px;"
+                    + "border-radius:9px;border:1px solid #4c2537;background:transparent;color:#b98aa0;cursor:pointer;";
+                shareAll.addEventListener("click", () => {
+                    const r = shareOverallProgress();
+                    shareAll.textContent = r === "ok" ? "Shared ✓"
+                        : r === "cooldown" ? "Wait a moment"
+                            : "Only in a room";
+                    window.setTimeout(() => { shareAll.textContent = "Share my progress"; }, 2000);
+                });
+                shareRow.appendChild(shareAll);
+                summary.appendChild(shareRow);
                 const optional = optionalAchievementNames();
                 if (optional.length > 0) {
                     const note = document.createElement("div");
@@ -29996,7 +30194,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 const plaqueBtn = document.createElement("button");
                 const paintPlaque = () => {
                     const on = getShowSharedPlaques();
-                    plaqueBtn.textContent = on ? "Shared achievements: shown" : "Shared achievements: hidden";
+                    plaqueBtn.textContent = on ? "Others unlocks in chat: shown" : "Others unlocks in chat: hidden";
                     plaqueBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;" +
                         (on ? "border:1px solid #4c2537;background:transparent;color:#b088a0;"
                             : "border:1px solid #33283c;background:transparent;color:#7a6a86;");
@@ -40381,18 +40579,26 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 }
                 const note = noteIn.value.trim();
                 const who = resolveName(num) || `#${num}`;
+                // Surfaced before sending, not after. Warning the same person twice
+                // for the same thing lands very differently from warning them once.
+                const before = lastWarnedAt(num);
+                const againNote = before
+                    ? `\n\nYou already warned them on ${new Date(before).toLocaleDateString()}.`
+                    : "";
                 // Firm, factual, and no threat EBC cannot actually carry out.
                 const message = "[EBC] Your Feedback & Bugs report was not a real report.\n\n"
                     + "That form goes to one person who reads every entry and fixes what it describes. "
                     + "Joke and empty submissions waste that time and push real bugs further down the list.\n\n"
                     + (note ? `What was sent: ${note}\n\n` : "")
                     + "Please only use it for genuine bugs and suggestions.";
-                showConfirmOverlay(`Send a warning beep to ${who} (#${num})?\n\nThey will receive it as a normal beep from you, and it cannot be unsent.`, "Cancel", "Send", () => {
+                showConfirmOverlay(`Send a warning beep to ${who} (#${num})?\n\nThey will receive it as a normal beep from you, and it cannot be unsent.${againNote}`, "Cancel", "Send", () => {
                     try {
                         sendBeep(num, message);
+                        addWarnEntry(num, who, note);
                         say(`Warning sent to ${who}.`);
                         numIn.value = "";
                         noteIn.value = "";
+                        paintLog();
                     }
                     catch (_a) {
                         say("Could not send - are they on your friends list?", false);
@@ -40403,6 +40609,61 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             row.appendChild(noteIn);
             row.appendChild(sendBtn);
             card.appendChild(row);
+            // Who has been warned, most recent first. Kept because "have I already
+            // said something to this person" is the question you actually have when
+            // the same number turns up in the sheet again.
+            const logWrap = document.createElement("div");
+            logWrap.style.cssText = "margin-top:8px;";
+            card.appendChild(logWrap);
+            const paintLog = () => {
+                while (logWrap.firstChild)
+                    logWrap.removeChild(logWrap.firstChild);
+                const log = getWarnLog();
+                const head = document.createElement("div");
+                head.style.cssText = "display:flex;align-items:center;gap:7px;font-family:'Trebuchet MS',serif;"
+                    + "font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:#a3859a;margin-bottom:4px;";
+                const ht = document.createElement("span");
+                ht.textContent = log.length ? `Warned (${log.length})` : "Nobody warned yet";
+                head.appendChild(ht);
+                if (log.length) {
+                    const clr = document.createElement("button");
+                    clr.textContent = "Clear";
+                    clr.style.cssText = "margin-left:auto;font-family:'Trebuchet MS',serif;font-size:9.5px;"
+                        + "padding:1px 8px;border-radius:8px;border:1px solid #4c2537;background:transparent;color:#b07888;cursor:pointer;";
+                    clr.addEventListener("click", () => {
+                        showConfirmOverlay("Clear the whole warning record?", "Cancel", "Clear", () => {
+                            clearWarnLog();
+                            paintLog();
+                        });
+                    });
+                    head.appendChild(clr);
+                }
+                logWrap.appendChild(head);
+                if (!log.length)
+                    return;
+                const list = document.createElement("div");
+                list.style.cssText = "max-height:120px;overflow-y:auto;border:1px solid #2a1421;border-radius:6px;";
+                for (const w of log) {
+                    const r = document.createElement("div");
+                    r.style.cssText = "display:flex;gap:7px;align-items:baseline;padding:3px 7px;"
+                        + "border-bottom:1px solid rgba(42,20,33,0.7);font-family:'Trebuchet MS',serif;font-size:10.5px;";
+                    const nm = document.createElement("span");
+                    nm.style.cssText = "color:#c8a0b4;flex-shrink:0;";
+                    nm.textContent = `${w.name} #${w.num}`;
+                    const nt = document.createElement("span");
+                    nt.style.cssText = "color:#8a7080;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+                    nt.textContent = w.note || "";
+                    const dt = document.createElement("span");
+                    dt.style.cssText = "color:#6f5766;flex-shrink:0;font-size:9.5px;";
+                    dt.textContent = new Date(w.ts).toLocaleDateString();
+                    r.appendChild(nm);
+                    r.appendChild(nt);
+                    r.appendChild(dt);
+                    list.appendChild(r);
+                }
+                logWrap.appendChild(list);
+            };
+            paintLog();
             body.appendChild(card);
         }
         renderDomTools() {
@@ -42315,7 +42576,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.7";
-    const SAL_VERSION = 306; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 307; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42332,6 +42593,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.7",
             changes: [
+                "New (creator only): every warning sent is logged - who, when, and the note you added - and the confirm tells you if you have warned that person before. Warning someone twice for the same thing lands very differently from warning them once, and there was no way to know.",
+                "New (requested by Julia): share your overall achievement progress, not only one achievement at a time. There is a Share my progress button under the bar.",
+                "New (requested by Mika): friends running EBC show their achievement percentage beside their name. Only for people who have some progress - a 0% badge on everyone would be noise. It reaches 100% at the same point the sparkle does, so the two always agree.",
+                "Fix (reported by Julia): the shared-achievements toggle now reads \"Others unlocks in chat\". It said \"Shared achievements\", which reads just as easily as a filter on the list below it - something that does not exist.",
+                "New (requested by Lola): a beep volume slider in Chat & Notifications. EBC's beep is a generated tone rather than a sound file and its loudness was fixed, so it sat noticeably under the game's own with nothing to do about it. 0 to 300%, and it plays a sample when you let go of the slider.",
                 "New (creator only): a Report misuse box on the DOM tab. Reports carry a member number so the sender is identifiable, but the form is one-way and there was no way to say anything back. Enter the number, optionally note what they sent, and it beeps them once. It confirms first, because that is a real message to a real person and it cannot be unsent.",
                 "Changed: Bug Hunter no longer counts toward 100%. Requiring it meant the only way to finish your list was to file bug reports, and people had already started sending junk to farm it - which is worse for everyone than the achievement is worth. It is still there to earn.",
                 "Achievements that are not needed for 100% now say so on the card itself, and are listed by name under the progress bar and on the Completionist card. The bar counts everything, so without that the number reads as a wall between you and the reward when some of it is optional.",
@@ -48418,6 +48684,20 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         }
         catch ( /* ignore */_b) { /* ignore */ }
     }
+    /**
+     * User volume as a multiplier on the generated tones.
+     *
+     * These are synthesised rather than sound files, and their gain was fixed - so
+     * EBC's beep sat noticeably under BC's own with no way to even it up.
+     */
+    function beepGain(base) {
+        try {
+            return Math.max(0, base * (getBeepVolume() / 100));
+        }
+        catch (_a) {
+            return base;
+        }
+    }
     function playOnlineSound() {
         try {
             const ctx = new AudioContext();
@@ -48428,7 +48708,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             osc.type = "sine";
             osc.frequency.setValueAtTime(520, ctx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(780, ctx.currentTime + 0.18);
-            gain.gain.setValueAtTime(0.13, ctx.currentTime);
+            gain.gain.setValueAtTime(beepGain(0.13), ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
             osc.start(ctx.currentTime);
             osc.stop(ctx.currentTime + 0.32);
@@ -48446,7 +48726,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             osc.type = "sine";
             osc.frequency.setValueAtTime(880, ctx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.12);
-            gain.gain.setValueAtTime(0.18, ctx.currentTime);
+            gain.gain.setValueAtTime(beepGain(0.18), ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
             osc.start(ctx.currentTime);
             osc.stop(ctx.currentTime + 0.25);
@@ -49350,7 +49630,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     let lastPresenceSyncTime = 0;
     const PRESENCE_SYNC_COOLDOWN_MS = 6000; // 6 s between sends
     function syncPresenceMarker() {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e;
         const shared = ((_a = Player.OnlineSharedSettings) !== null && _a !== void 0 ? _a : (Player.OnlineSharedSettings = {}));
         // getBadgeEnabled() is a LOCAL display toggle only — it does not affect
         // broadcasting. Your EBC presence is always sent so others always see
@@ -49361,14 +49641,21 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         catch (_a) {
             return false;
         } })();
-        const presence = Object.assign(Object.assign({ version: MOD_VERSION, marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } )), (done100 ? { done100: true } : {}));
+        const achPct = (() => { try {
+            return completionPercent();
+        }
+        catch (_a) {
+            return 0;
+        } })();
+        const presence = Object.assign(Object.assign(Object.assign({ version: MOD_VERSION, marker: "EBC", ts: Math.floor(Date.now() / 1000) }, ({ isDev: true } )), (done100 ? { done100: true } : {})), (achPct > 0 ? { achPct } : {}));
         // Write to ExtensionSettings only if presence isn't already recorded —
         // avoids a redundant ServerPlayerExtensionSettingsSync on every room join.
         const settings = getAddonSettings(Player, true);
         if (settings) {
             const alreadyStored = ((_b = settings.presence) === null || _b === void 0 ? void 0 : _b.version) === MOD_VERSION
                 && ((_c = settings.presence) === null || _c === void 0 ? void 0 : _c.isDev) === (true )
-                && ((_d = settings.presence) === null || _d === void 0 ? void 0 : _d.done100) === (done100 ? true : undefined);
+                && ((_d = settings.presence) === null || _d === void 0 ? void 0 : _d.done100) === (done100 ? true : undefined)
+                && ((_e = settings.presence) === null || _e === void 0 ? void 0 : _e.achPct) === (achPct > 0 ? achPct : undefined);
             if (!alreadyStored) {
                 settings.presence = presence;
                 ServerPlayerExtensionSettingsSync(MOD_NAME);
@@ -50228,6 +50515,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                                 if (p.marker === "EBC" && typeof v === "string") {
                                     cacheEBCVersion(c.MemberNumber, v);
                                     cacheEBCComplete(c.MemberNumber, p.done100 === true);
+                                    const pp = p.achPct;
+                                    cacheEBCAchPct(c.MemberNumber, typeof pp === "number" ? pp : null);
                                 }
                             }
                         }

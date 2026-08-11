@@ -121,6 +121,15 @@ export function completionProgress(): [number, number] {
     return [done, list.length];
 }
 
+/**
+ * Overall completion as a whole percent, counting only what Completionist
+ * counts - so the number beside your name means the same thing as the reward.
+ */
+export function completionPercent(): number {
+    const [done, total] = completionProgress();
+    return total > 0 ? Math.round((done / total) * 100) : 0;
+}
+
 /** True once every counting achievement is at its highest tier. */
 export function hasCompletedEverything(): boolean {
     const [done, total] = completionProgress();
@@ -748,6 +757,31 @@ const _plaqueLastBySender = new Map<number, number>();
 
 /** Detects an incoming achievement share. Renders the plaque and returns true
  *  so the caller suppresses the plain whisper. Works for EVERY EBC user. */
+/**
+ * Shares your overall progress as a room emote.
+ *
+ * Sharing was per achievement only, so "how far along am I" could not be said
+ * at all without listing them one by one. Uses the same cooldown as a single
+ * share - it is the same room and the same politeness.
+ */
+export function shareOverallProgress(): "ok" | "noRoom" | "cooldown" {
+    const w = window as unknown as Record<string, unknown>;
+    if (w.CurrentScreen !== "ChatRoom") return "noRoom";
+    if (getShareCooldownMs() > 0) return "cooldown";
+    const [done, total] = completionProgress();
+    const pct = completionPercent();
+    const content = `shares their achievement progress: 🏆 ${pct}% (${done} of ${total})`;
+    try {
+        ServerSend("ChatRoomChat", {
+            Content: content,
+            Type: "Emote",
+            Dictionary: [{ Tag: "EBCACHPCT", Text: JSON.stringify({ pct, done, total }) }],
+        } as never);
+    } catch { return "noRoom"; }
+    _lastShareTs = Date.now();
+    return "ok";
+}
+
 export function handleAchievementShareMessage(data: Record<string, unknown> | null | undefined): boolean {
     try {
         if (!data || (data.Type !== "Emote" && data.Type !== "Chat" && data.Type !== "Whisper")) return false;
