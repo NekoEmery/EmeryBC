@@ -18942,6 +18942,7 @@ This cannot be undone.`,
                 const r = shareOverallProgress();
                 shareAll.textContent = r === "ok" ? "Shared ✓"
                     : r === "cooldown" ? "Wait a moment"
+                    : r === "nothing" ? "Nothing unlocked yet"
                     : "Only in a room";
                 window.setTimeout(() => { shareAll.textContent = "Share my progress"; }, 2000);
             });

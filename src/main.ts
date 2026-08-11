@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.8";
-const SAL_VERSION  = 317;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 318;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.0.8",
         changes: [
+            "The Emery achievements are marked with the gold paw - the same one on the creator name and the credits card - so the rare set reads as one group instead of fourteen identical stars.",
+            "Sharing your overall progress looks like the achievement shares do. It went out as plain emote text sitting next to proper plaques, reading "shares their achievement progress: 0% (0 of 29)" - three numbers and no meaning. It now says it as a sentence and draws a plaque with a progress ring, and it refuses when you have nothing unlocked, because announcing 0% to a room is not a share.",
             "The Achievements window is redesigned. Every achievement has its own icon on its medal - rope, gag, feather, paddle and the rest - and the icon is painted by how far you have got: grey untouched, pink in progress, gold when finished. Progress is one ring at the top instead of a bar, a count, a gold tally and a notice all saying pieces of the same thing. The Completionist reward sits beside it as a strip that still shows your name the way it would look, rather than a card taking a third of the window.",
             "Card text is readable. The count is brighter and bold, descriptions are no longer a whisper, and the level is a bordered chip rather than a third line of the same grey - so you can tell what each line is without reading it first.",
             "Achievements with more than one level now say so. A card showed only the target of the level you were on, so Tied Down read as 0 / 5 and looked finished at five - when five is the first of three rungs. Each one now says which level you are on, how many there are, and what the later targets are, because knowing the next number is 25 rather than 500 changes whether it is worth chasing.",

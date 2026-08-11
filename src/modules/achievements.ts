@@ -806,13 +806,24 @@ const _plaqueLastBySender = new Map<number, number>();
  * at all without listing them one by one. Uses the same cooldown as a single
  * share - it is the same room and the same politeness.
  */
-export function shareOverallProgress(): "ok" | "noRoom" | "cooldown" {
+export function shareOverallProgress(): "ok" | "noRoom" | "cooldown" | "nothing" {
     const w = window as unknown as Record<string, unknown>;
     if (w.CurrentScreen !== "ChatRoom") return "noRoom";
     if (getShareCooldownMs() > 0) return "cooldown";
     const [done, total] = completionProgress();
     const pct = completionPercent();
-    const content = `shares their achievement progress: 🏆 ${pct}% (${done} of ${total})`;
+
+    // Nothing to announce. Broadcasting "0%" to a room is not a share, it is a
+    // notification that you have not done anything.
+    const unlocked = getAchievementProgress().filter(p => p.tier > 0).length;
+    if (unlocked === 0) return "nothing";
+
+    // Reads as a sentence rather than a readout. The old one was
+    // "shares their achievement progress: 0% (0 of 29)", which is three numbers
+    // and no meaning.
+    const content = pct >= 100
+        ? `has unlocked every EBC achievement - all ${total} of them. 🏆`
+        : `is ${pct}% of the way through the EBC achievements (${done} of ${total} done).`;
     try {
         ServerSend("ChatRoomChat", {
             Content: content,
@@ -821,13 +832,95 @@ export function shareOverallProgress(): "ok" | "noRoom" | "cooldown" {
         } as never);
     } catch { return "noRoom"; }
     _lastShareTs = Date.now();
+    renderProgressPlaque("you shared with the room", pct, done, total);
     return "ok";
+}
+
+/**
+ * The plaque for a progress share.
+ *
+ * Individual achievements already draw one; progress shares were plain emote
+ * text next to them, which is why they looked out of place. Same frame, same
+ * shine, a ring instead of a medal.
+ */
+function renderProgressPlaque(byline: string, pct: number, done: number, total: number): boolean {
+    try {
+        const log = document.getElementById("TextAreaChatLog");
+        if (!log) return false;
+        ensureShineStyle();
+        const metal = pct >= 100 ? "#ffd700" : "#cf6f98";
+
+        const plaque = document.createElement("div");
+        plaque.style.cssText = [
+            "margin:4px 4px", "padding:8px 11px", "border-radius:9px",
+            `border:1px solid ${metal}`,
+            "background:linear-gradient(160deg, rgba(40,19,32,0.92), rgba(16,7,13,0.96))",
+            "display:flex", "align-items:center", "gap:11px",
+            "font-family:'Trebuchet MS', serif", "position:relative", "overflow:hidden",
+        ].join(";");
+
+        const ring = document.createElement("div");
+        ring.style.cssText = "width:42px;height:42px;border-radius:50%;flex-shrink:0;position:relative;"
+            + `background:conic-gradient(${metal} 0turn ${pct / 100}turn, #2a1421 ${pct / 100}turn 1turn);`;
+        const hole = document.createElement("div");
+        hole.style.cssText = "position:absolute;inset:4px;border-radius:50%;background:#150a12;";
+        const num = document.createElement("div");
+        num.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"
+            + `font-size:11px;font-weight:bold;z-index:1;color:${metal};`;
+        num.textContent = pct + "%";
+        ring.appendChild(hole);
+        ring.appendChild(num);
+        plaque.appendChild(ring);
+
+        const txt = document.createElement("div");
+        txt.style.cssText = "flex:1;min-width:0;";
+        const head = document.createElement("div");
+        head.style.cssText = `font-size:12px;font-weight:bold;color:${metal};`;
+        head.textContent = pct >= 100 ? "Every achievement unlocked" : "Achievement progress";
+        const sub = document.createElement("div");
+        sub.style.cssText = "font-size:11px;color:#c9b0bd;margin-top:2px;";
+        sub.textContent = `${done} of ${total} done`;
+        const by = document.createElement("div");
+        by.style.cssText = "font-size:9.5px;color:#8a7080;margin-top:3px;";
+        by.textContent = byline;
+        txt.appendChild(head);
+        txt.appendChild(sub);
+        txt.appendChild(by);
+        plaque.appendChild(txt);
+
+        log.appendChild(plaque);
+        log.scrollTop = log.scrollHeight;
+        return true;
+    } catch { return false; }
 }
 
 export function handleAchievementShareMessage(data: Record<string, unknown> | null | undefined): boolean {
     try {
         if (!data || (data.Type !== "Emote" && data.Type !== "Chat" && data.Type !== "Whisper")) return false;
         const dict = Array.isArray(data.Dictionary) ? data.Dictionary as Array<Record<string, unknown>> : [];
+
+        // Someone else's progress share - drawn as a plaque like the rest.
+        const pctEntry = dict.find(d => d?.Tag === "EBCACHPCT");
+        if (pctEntry && typeof pctEntry.Text === "string") {
+            if (!getShowSharedPlaques()) return false;
+            const sender = typeof data.Sender === "number" ? data.Sender : 0;
+            if (sender && sender === (Player?.MemberNumber ?? -1)) return true;
+            try {
+                const p = JSON.parse(pctEntry.Text) as { pct?: number; done?: number; total?: number };
+                if (typeof p.pct === "number") {
+                    let who = `#${sender}`;
+                    try {
+                        const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                            Array<{ MemberNumber?: number; Nickname?: string; Name?: string }> | undefined;
+                        const c = room?.find(x => x.MemberNumber === sender);
+                        if (c) who = (c.Nickname?.trim() || c.Name || who);
+                    } catch { /* ignore */ }
+                    renderProgressPlaque(`shared by ${who}`, p.pct, p.done ?? 0, p.total ?? 0);
+                    return true;
+                }
+            } catch { /* not ours after all */ }
+        }
+
         const entry = dict.find(d => d?.Tag === "EBCACH");
         if (!entry) return false;
         // Respect the viewer: opted out, or plaques switched off = show nothing
