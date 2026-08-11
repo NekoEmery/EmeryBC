@@ -225,7 +225,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     // Thresholds track the roster length so they stay right if it grows. If you
     // are credited yourself you count toward your own total - you already know
     // who you are - so everyone needs the same number.
-    { id: "met_emery", icon: "⭐", name: "Met the Kitty", desc: "Share a room with Emery",                        counter: "met_emery", tiers: [1], cls: "emery", rare: true },
+    { id: "met_emery", icon: "⭐", name: "Met the Kitty", desc: "Spend 5 minutes in a room with Emery",           counter: "met_emery", tiers: [1], cls: "emery", rare: true },
     { id: "crew_met",  icon: "⭐", name: "Met the Crew",  desc: "Share a room with each of the {n} credited EBC people, in any order", counter: "crew_met",  tiers: [CREDITED.length], cls: "optional", rare: true },
 
     // Completionist is not tracked like the others - its progress is derived
@@ -478,6 +478,10 @@ export function crewRosterStatus(id: string): { done: string[]; left: string[]; 
 
 /** Marks every credited person currently in the room as met. Called from the
  *  room-sync hooks rather than polled, so a brief visit still counts. */
+/** How long you have been in a room with her, this stay. 0 when she is absent. */
+let _metSince = 0;
+const MET_MIN_STAY_MS = 5 * 60_000;
+
 export function achievementScanRoom(): void {
     try {
         if (!isAchievementUser(Player?.MemberNumber)) return;
@@ -486,16 +490,27 @@ export function achievementScanRoom(): void {
         if (!Array.isArray(room)) return;
         for (const c of room) collectCredited("cm", "crew_met", c.MemberNumber ?? -1);
 
-        // Meeting Emery - or, when you ARE Emery, any of the credited crew,
-        // since she cannot share a room with herself. Recorded once and left
-        // alone; the room is scanned constantly and this is not a counter.
+        // Meeting her means being there a while, not walking in and out.
+        //
+        // Awarding this the instant the roster contained her made it a door to
+        // touch rather than a room to be in - people joined, collected it and
+        // left. The clock resets the moment she is no longer in the room with
+        // you, so it has to be one continuous stay.
         const specials = specialNums();
-        if (room.some(c => typeof c.MemberNumber === "number" && specials.includes(c.MemberNumber))) {
-            const st = getState();
-            if ((st.c["met_emery"] ?? 0) < 1) {
-                st.c["met_emery"] = 1;
-                checkUnlocks();
-                save();
+        const present = room.some(c => typeof c.MemberNumber === "number"
+            && specials.includes(c.MemberNumber));
+        if (!present) {
+            _metSince = 0;
+        } else {
+            const now = Date.now();
+            if (_metSince === 0) _metSince = now;
+            if (now - _metSince >= MET_MIN_STAY_MS) {
+                const st = getState();
+                if ((st.c["met_emery"] ?? 0) < 1) {
+                    st.c["met_emery"] = 1;
+                    checkUnlocks();
+                    save();
+                }
             }
         }
     } catch { /* ignore */ }
@@ -603,6 +618,31 @@ function specialNums(): number[] {
     return CREDITED.map(p => p.num).filter(n => n !== EMERY);
 }
 
+/**
+ * How long the same action has to wait before it counts again.
+ *
+ * Asking people not to spam does not work when spamming is the fastest route -
+ * the reward has to stop paying for it. Five spanks over five minutes of a
+ * scene still counts; twenty in ten seconds counts once. The unlock is
+ * unchanged, only the pace it can be reached at.
+ */
+const SPECIAL_COOLDOWN_MS = 60_000;
+const _specialLast = new Map<string, number>();
+
+/** True when this counter is off cooldown, and starts a new one if so. */
+function specialAllowed(counter: string): boolean {
+    const now = Date.now();
+    const last = _specialLast.get(counter) ?? 0;
+    if (now - last < SPECIAL_COOLDOWN_MS) return false;
+    _specialLast.set(counter, now);
+    return true;
+}
+
+/** bump(), but only once per cooldown window. */
+function bumpSpecial(counter: string): void {
+    if (specialAllowed(counter)) bump(counter);
+}
+
 function isSpecialTarget(n: number | undefined): boolean {
     return typeof n === "number" && specialNums().includes(n);
 }
@@ -640,11 +680,11 @@ export function achievementOnActivity(
             // Who it came from, per activity. Only the total existed before, so
             // "get spanked by Emery" had nothing to read.
             if (isFromSpecial(sourceNum)) {
-                bump("from_emery");
-                if (isSpank)  bump("spank_from_emery");
-                if (isPat)    bump("pet_from_emery");
-                if (isBoop)   bump("boop_from_emery");
-                if (isHug)    bump("hug_from_emery");
+                bumpSpecial("from_emery");
+                if (isSpank)  bumpSpecial("spank_from_emery");
+                if (isPat)    bumpSpecial("pet_from_emery");
+                if (isBoop)   bumpSpecial("boop_from_emery");
+                if (isHug)    bumpSpecial("hug_from_emery");
             }
             // Distinct people who have done anything to you
             const st = getState();
@@ -661,24 +701,24 @@ export function achievementOnActivity(
             const toEmery = isSpecialTarget(targetNum);
             if (isBoop) {
                 bump("boop_give");
-                if (toEmery) bump("boop_emery");
+                if (toEmery) bumpSpecial("boop_emery");
             }
             if (isPat) {
                 bump("pet_give");
-                if (toEmery) bump("pet_emery");
+                if (toEmery) bumpSpecial("pet_emery");
             }
             if (isHug) {
                 bump("hug_give");
-                if (toEmery) bump("hug_emery");
+                if (toEmery) bumpSpecial("hug_emery");
             }
             if (act.includes("kiss")) bump("kiss_give");
             if (act.includes("spank")) {
                 bump("spank_give");
-                if (toEmery) bump("spank_emery");
+                if (toEmery) bumpSpecial("spank_emery");
             }
             if (act.includes("tickle")) {
                 bump("tickle_give");
-                if (toEmery) bump("tickle_emery");
+                if (toEmery) bumpSpecial("tickle_emery");
             }
         }
     } catch { /* ignore */ }
@@ -696,10 +736,10 @@ export function achievementOnItemApply(
         const me = Player.MemberNumber ?? 0;
         if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
             bump("tied_recv");
-            if (isFromSpecial(sourceNum)) bump("tied_by_emery");
+            if (isFromSpecial(sourceNum)) bumpSpecial("tied_by_emery");
         } else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
             bump("tie_give");
-            if (isSpecialTarget(targetNum)) bump("bind_emery");
+            if (isSpecialTarget(targetNum)) bumpSpecial("bind_emery");
         }
     } catch { /* ignore */ }
 }

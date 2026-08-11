@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.9";
-const SAL_VERSION  = 323;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 324;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.0.9",
         changes: [
+            "IMPORTANT: spamming actions at Emery no longer earns anything. People started firing the same action at her over and over to farm the rare achievements, which is exactly what a reward for interacting with someone should not cause. Repeating the same action counts once a minute at most - five spanks across a scene still count, twenty in ten seconds count once. The unlocks are unchanged, only the pace. There is a note on those achievements asking people to actually play with her rather than treat her as a vending machine.",
+            "Changed: Met the Kitty needs five minutes in a room with Emery, not five seconds. It unlocked the instant she appeared in the roster, so people joined, collected it and left. The clock restarts if she leaves, so it has to be one continuous stay.",
             "Every achievement has its own icon now, hug included - 13 in all.",
             "Sharing an achievement or your progress to the room is now invisible to people without EBC. Only EBC can draw the plaque, so the old room emote put a line of text about an addon in front of everyone who does not have it - noise they could not act on. It goes out as a hidden message instead: EBC users get the plaque, everyone else sees nothing at all. Sharing privately to one person still whispers, because a hidden message reaches the whole room and using it there would broadcast something you chose to send to one person.",
             "The shared-progress box in chat uses the same frame as every other EBC message - dark card with the accent bar down the left - instead of having a look of its own. It is marked EBC in the corner so it is obvious where it came from.",
