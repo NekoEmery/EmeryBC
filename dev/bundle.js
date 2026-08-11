@@ -8717,7 +8717,7 @@
         // Thresholds track the roster length so they stay right if it grows. If you
         // are credited yourself you count toward your own total - you already know
         // who you are - so everyone needs the same number.
-        { id: "met_emery", icon: "⭐", name: "Met the Kitty", desc: "Share a room with Emery", counter: "met_emery", tiers: [1], cls: "emery", rare: true },
+        { id: "met_emery", icon: "⭐", name: "Met the Kitty", desc: "Spend 5 minutes in a room with Emery", counter: "met_emery", tiers: [1], cls: "emery", rare: true },
         { id: "crew_met", icon: "⭐", name: "Met the Crew", desc: "Share a room with each of the {n} credited EBC people, in any order", counter: "crew_met", tiers: [CREDITED.length], cls: "optional", rare: true },
         // Completionist is not tracked like the others - its progress is derived
         // from everything else, in completionProgress() below. It is listed last so
@@ -8996,6 +8996,9 @@
     }
     /** Marks every credited person currently in the room as met. Called from the
      *  room-sync hooks rather than polled, so a brief visit still counts. */
+    /** How long you have been in a room with her, this stay. 0 when she is absent. */
+    let _metSince = 0;
+    const MET_MIN_STAY_MS = 5 * 60000;
     function achievementScanRoom() {
         var _a, _b;
         try {
@@ -9006,16 +9009,29 @@
                 return;
             for (const c of room)
                 collectCredited("cm", "crew_met", (_a = c.MemberNumber) !== null && _a !== void 0 ? _a : -1);
-            // Meeting Emery - or, when you ARE Emery, any of the credited crew,
-            // since she cannot share a room with herself. Recorded once and left
-            // alone; the room is scanned constantly and this is not a counter.
+            // Meeting her means being there a while, not walking in and out.
+            //
+            // Awarding this the instant the roster contained her made it a door to
+            // touch rather than a room to be in - people joined, collected it and
+            // left. The clock resets the moment she is no longer in the room with
+            // you, so it has to be one continuous stay.
             const specials = specialNums();
-            if (room.some(c => typeof c.MemberNumber === "number" && specials.includes(c.MemberNumber))) {
-                const st = getState();
-                if (((_b = st.c["met_emery"]) !== null && _b !== void 0 ? _b : 0) < 1) {
-                    st.c["met_emery"] = 1;
-                    checkUnlocks();
-                    save();
+            const present = room.some(c => typeof c.MemberNumber === "number"
+                && specials.includes(c.MemberNumber));
+            if (!present) {
+                _metSince = 0;
+            }
+            else {
+                const now = Date.now();
+                if (_metSince === 0)
+                    _metSince = now;
+                if (now - _metSince >= MET_MIN_STAY_MS) {
+                    const st = getState();
+                    if (((_b = st.c["met_emery"]) !== null && _b !== void 0 ? _b : 0) < 1) {
+                        st.c["met_emery"] = 1;
+                        checkUnlocks();
+                        save();
+                    }
                 }
             }
         }
@@ -9127,6 +9143,31 @@
             return [EMERY];
         return CREDITED.map(p => p.num).filter(n => n !== EMERY);
     }
+    /**
+     * How long the same action has to wait before it counts again.
+     *
+     * Asking people not to spam does not work when spamming is the fastest route -
+     * the reward has to stop paying for it. Five spanks over five minutes of a
+     * scene still counts; twenty in ten seconds counts once. The unlock is
+     * unchanged, only the pace it can be reached at.
+     */
+    const SPECIAL_COOLDOWN_MS = 60000;
+    const _specialLast = new Map();
+    /** True when this counter is off cooldown, and starts a new one if so. */
+    function specialAllowed(counter) {
+        var _a;
+        const now = Date.now();
+        const last = (_a = _specialLast.get(counter)) !== null && _a !== void 0 ? _a : 0;
+        if (now - last < SPECIAL_COOLDOWN_MS)
+            return false;
+        _specialLast.set(counter, now);
+        return true;
+    }
+    /** bump(), but only once per cooldown window. */
+    function bumpSpecial(counter) {
+        if (specialAllowed(counter))
+            bump(counter);
+    }
     function isSpecialTarget(n) {
         return typeof n === "number" && specialNums().includes(n);
     }
@@ -9164,15 +9205,15 @@
                 // Who it came from, per activity. Only the total existed before, so
                 // "get spanked by Emery" had nothing to read.
                 if (isFromSpecial(sourceNum)) {
-                    bump("from_emery");
+                    bumpSpecial("from_emery");
                     if (isSpank)
-                        bump("spank_from_emery");
+                        bumpSpecial("spank_from_emery");
                     if (isPat)
-                        bump("pet_from_emery");
+                        bumpSpecial("pet_from_emery");
                     if (isBoop)
-                        bump("boop_from_emery");
+                        bumpSpecial("boop_from_emery");
                     if (isHug)
-                        bump("hug_from_emery");
+                        bumpSpecial("hug_from_emery");
                 }
                 // Distinct people who have done anything to you
                 const st = getState();
@@ -9193,29 +9234,29 @@
                 if (isBoop) {
                     bump("boop_give");
                     if (toEmery)
-                        bump("boop_emery");
+                        bumpSpecial("boop_emery");
                 }
                 if (isPat) {
                     bump("pet_give");
                     if (toEmery)
-                        bump("pet_emery");
+                        bumpSpecial("pet_emery");
                 }
                 if (isHug) {
                     bump("hug_give");
                     if (toEmery)
-                        bump("hug_emery");
+                        bumpSpecial("hug_emery");
                 }
                 if (act.includes("kiss"))
                     bump("kiss_give");
                 if (act.includes("spank")) {
                     bump("spank_give");
                     if (toEmery)
-                        bump("spank_emery");
+                        bumpSpecial("spank_emery");
                 }
                 if (act.includes("tickle")) {
                     bump("tickle_give");
                     if (toEmery)
-                        bump("tickle_emery");
+                        bumpSpecial("tickle_emery");
                 }
             }
         }
@@ -9233,12 +9274,12 @@
             if (targetNum === me && typeof sourceNum === "number" && sourceNum !== me) {
                 bump("tied_recv");
                 if (isFromSpecial(sourceNum))
-                    bump("tied_by_emery");
+                    bumpSpecial("tied_by_emery");
             }
             else if (sourceNum === me && typeof targetNum === "number" && targetNum !== me) {
                 bump("tie_give");
                 if (isSpecialTarget(targetNum))
-                    bump("bind_emery");
+                    bumpSpecial("bind_emery");
             }
         }
         catch ( /* ignore */_b) { /* ignore */ }
@@ -30133,6 +30174,28 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 trough.appendChild(fill);
                 summary.appendChild(line);
                 summary.appendChild(trough);
+                // Said where these achievements are read, because that is where the
+                // behaviour starts. The cooldown already stops spamming from paying;
+                // this explains why, so a stalled counter reads as a request rather
+                // than a bug.
+                if (filter === "emery" || filter === "all") {
+                    const rp = document.createElement("div");
+                    rp.style.cssText = "display:flex;align-items:baseline;gap:7px;margin-top:6px;padding:6px 9px;"
+                        + "border:1px solid #cf6f98;border-left-width:3px;border-radius:6px;"
+                        + "background:rgba(207,111,152,0.10);";
+                    const rtag = document.createElement("span");
+                    rtag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;font-weight:bold;"
+                        + "letter-spacing:0.09em;color:#f0b8d0;flex-shrink:0;";
+                    rtag.textContent = "PLEASE READ";
+                    const rtxt = document.createElement("span");
+                    rtxt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0dbe6;line-height:1.5;";
+                    rtxt.textContent = "Emery is a person, not a vending machine. Play with her - roleplay, "
+                        + "talk, spend time together. Do not spam actions at her to farm these. Repeating the "
+                        + "same thing quickly only counts once, so there is nothing to gain by it.";
+                    rp.appendChild(rtag);
+                    rp.appendChild(rtxt);
+                    summary.appendChild(rp);
+                }
                 // The bar counts everything, but not everything is required. Saying
                 // which ones are optional right under it stops the count reading as
                 // a wall between someone and the reward.
@@ -42891,7 +42954,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.9";
-    const SAL_VERSION = 323; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 324; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42908,6 +42971,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.9",
             changes: [
+                "IMPORTANT: spamming actions at Emery no longer earns anything. People started firing the same action at her over and over to farm the rare achievements, which is exactly what a reward for interacting with someone should not cause. Repeating the same action counts once a minute at most - five spanks across a scene still count, twenty in ten seconds count once. The unlocks are unchanged, only the pace. There is a note on those achievements asking people to actually play with her rather than treat her as a vending machine.",
+                "Changed: Met the Kitty needs five minutes in a room with Emery, not five seconds. It unlocked the instant she appeared in the roster, so people joined, collected it and left. The clock restarts if she leaves, so it has to be one continuous stay.",
                 "Every achievement has its own icon now, hug included - 13 in all.",
                 "Sharing an achievement or your progress to the room is now invisible to people without EBC. Only EBC can draw the plaque, so the old room emote put a line of text about an addon in front of everyone who does not have it - noise they could not act on. It goes out as a hidden message instead: EBC users get the plaque, everyone else sees nothing at all. Sharing privately to one person still whispers, because a hidden message reaches the whole room and using it there would broadcast something you chose to send to one person.",
                 "The shared-progress box in chat uses the same frame as every other EBC message - dark card with the accent bar down the left - instead of having a look of its own. It is marked EBC in the corner so it is obvious where it came from.",
