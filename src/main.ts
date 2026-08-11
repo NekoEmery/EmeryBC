@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.7";
-const SAL_VERSION  = 310;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 311;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -59,6 +59,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "New (requested by Mika): friends running EBC show their achievement percentage beside their name. Only for people who have some progress - a 0% badge on everyone would be noise. It reaches 100% at the same point the sparkle does, so the two always agree.",
             "Fix (reported by Julia): the shared-achievements toggle now reads \"Others unlocks in chat\". It said \"Shared achievements\", which reads just as easily as a filter on the list below it - something that does not exist.",
             "New (requested by Lola): a beep volume slider in Chat & Notifications. EBC's beep is a generated tone rather than a sound file and its loudness was fixed, so it sat noticeably under the game's own with nothing to do about it. 0 to 300%, and it plays a sample when you let go of the slider.",
+            "The misuse warning is written as an EmeryBC Management notice rather than a personal message. It still arrives showing Emery as the sender - BC gives a beep no sender field, so that cannot be changed and should not be faked - but it now reads as an automated notice about a submission, and says it came from the addon.",
             "New (creator only): a Report misuse box on the DOM tab. Reports carry a member number so the sender is identifiable, but the form is one-way and there was no way to say anything back. Enter the number, optionally note what they sent, and it beeps them once. It confirms first, because that is a real message to a real person and it cannot be unsent.",
             "Changed: Bug Hunter no longer counts toward 100%. Requiring it meant the only way to finish your list was to file bug reports, and people had already started sending junk to farm it - which is worse for everyone than the achievement is worth. It is still there to earn.",
             "Achievements that are not needed for 100% now say so on the card itself, and are listed by name under the progress bar and on the Completionist card. The bar counts everything, so without that the number reads as a wall between you and the reward when some of it is optional.",

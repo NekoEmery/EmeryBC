@@ -28661,15 +28661,27 @@ This cannot be undone.`,
             const againNote = before
                 ? `\n\nYou already warned them on ${new Date(before).toLocaleDateString()}.`
                 : "";
-            // Firm, factual, and no threat EBC cannot actually carry out.
-            const message = "[EBC] Your Feedback & Bugs report was not a real report.\n\n"
-                + "That form goes to one person who reads every entry and fixes what it describes. "
-                + "Joke and empty submissions waste that time and push real bugs further down the list.\n\n"
-                + (note ? `What was sent: ${note}\n\n` : "")
-                + "Please only use it for genuine bugs and suggestions.";
+            // Framed as a notice from the addon rather than a personal message.
+            //
+            // BC gives a beep no sender field - the server stamps it from your
+            // account, so this always shows as coming from you and there is no
+            // honest way around that. What the wording can do is make plain it
+            // is a moderation notice about a submission, rather than Emery
+            // messaging a stranger out of the blue.
+            const message = "=== EmeryBC Management ===\n"
+                + "Automated notice about a Feedback & Bugs submission from your account.\n\n"
+                + "The report received was not a genuine one.\n\n"
+                + (note ? `Submitted: ${note}\n\n` : "")
+                + "That form goes to one person, who reads every entry and fixes what it describes. "
+                + "Joke and empty submissions take that time away from real bugs.\n\n"
+                + "Please only use it for genuine bugs and suggestions.\n\n"
+                + "-- Sent by the EmeryBC addon. Replying reaches Emery directly.";
 
             showConfirmOverlay(
-                `Send a warning beep to ${who} (#${num})?\n\nThey will receive it as a normal beep from you, and it cannot be unsent.${againNote}`,
+                `Send a warning beep to ${who} (#${num})?\n\n`
+                + "It is written as an EmeryBC Management notice, but BC always shows the "
+                + "sender as you - a beep carries no sender field to set. It cannot be unsent."
+                + againNote,
                 "Cancel", "Send",
                 () => {
                     try {
