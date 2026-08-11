@@ -18987,6 +18987,24 @@ This cannot be undone.`,
                     ds.textContent = a.descNow;
                     main.appendChild(ds);
 
+                    // Most of these have three levels, and the card only ever
+                    // showed the target of the one you are on - so "0 / 5" read
+                    // as the whole achievement rather than the first rung of a
+                    // ladder. The remaining steps are named, because knowing the
+                    // next number is 25 and not 500 changes whether you bother.
+                    if (a.tiers.length > 1) {
+                        const lvl = document.createElement("div");
+                        lvl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;"
+                            + "color:#8a7080;margin-top:2px;";
+                        const at = Math.min(a.tier + (a.maxed ? 0 : 1), a.tiers.length);
+                        const later = a.tiers.slice(a.tier + (a.maxed ? 0 : 1));
+                        lvl.textContent = a.maxed
+                            ? `Level ${a.tiers.length} of ${a.tiers.length} - all done`
+                            : `Level ${at} of ${a.tiers.length}`
+                              + (later.length ? ` - then ${later.map(n => a.fmtN ? a.fmtN(n) : n).join(", ")}` : "");
+                        main.appendChild(lvl);
+                    }
+
                     // Said on the card, not only in the Completionist summary.
                     // Someone looking at an unfinished achievement wants to know
                     // right there whether it is blocking their 100%.
