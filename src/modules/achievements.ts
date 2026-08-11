@@ -760,7 +760,16 @@ export function shareAchievement(
         const dict = [{ Tag: "EBCACH", Text: JSON.stringify({ id: a.id, tier }) }];
 
         if (mode.kind === "public") {
-            ServerSend("ChatRoomChat", { Content: content, Type: "Emote", Dictionary: dict } as never);
+            // Hidden, for the same reason as the progress share: only EBC can
+            // draw this, so an emote put a line about an addon in front of
+            // everyone who does not have it.
+            //
+            // The whisper modes below deliberately stay whispers. Hidden goes to
+            // the whole room, so using it for "tell one person" would quietly
+            // broadcast something the sender chose to send privately - a worse
+            // outcome than a non-EBC recipient reading one plain sentence they
+            // were deliberately sent.
+            ServerSend("ChatRoomChat", { Content: "EBCACH", Type: "Hidden", Dictionary: dict } as never);
             _lastShareTs = Date.now();
             renderSharedPlaque("you shared with the room", a, tier);
             return "ok";
@@ -818,16 +827,17 @@ export function shareOverallProgress(): "ok" | "noRoom" | "cooldown" | "nothing"
     const unlocked = getAchievementProgress().filter(p => p.tier > 0).length;
     if (unlocked === 0) return "nothing";
 
-    // Reads as a sentence rather than a readout. The old one was
-    // "shares their achievement progress: 0% (0 of 29)", which is three numbers
-    // and no meaning.
-    const content = pct >= 100
-        ? `has unlocked every EBC achievement - all ${total} of them. 🏆`
-        : `is ${pct}% of the way through the EBC achievements (${done} of ${total} done).`;
+    // Sent Hidden, not as an emote.
+    //
+    // Only EBC can draw this, so an emote meant everyone else in the room got a
+    // line of text about an addon they do not have - noise they cannot act on
+    // and did not ask for. Hidden reaches EBC clients, which render the plaque,
+    // and is invisible to everyone else. The Content is a marker rather than
+    // prose because nothing ever displays it.
     try {
         ServerSend("ChatRoomChat", {
-            Content: content,
-            Type: "Emote",
+            Content: "EBCACHPCT",
+            Type: "Hidden",
             Dictionary: [{ Tag: "EBCACHPCT", Text: JSON.stringify({ pct, done, total }) }],
         } as never);
     } catch { return "noRoom"; }
@@ -904,7 +914,8 @@ function renderProgressPlaque(byline: string, pct: number, done: number, total: 
 
 export function handleAchievementShareMessage(data: Record<string, unknown> | null | undefined): boolean {
     try {
-        if (!data || (data.Type !== "Emote" && data.Type !== "Chat" && data.Type !== "Whisper")) return false;
+        if (!data || (data.Type !== "Emote" && data.Type !== "Chat"
+            && data.Type !== "Whisper" && data.Type !== "Hidden")) return false;
         const dict = Array.isArray(data.Dictionary) ? data.Dictionary as Array<Record<string, unknown>> : [];
 
         // Someone else's progress share - drawn as a plaque like the rest.

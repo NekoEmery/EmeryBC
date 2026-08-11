@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.8";
-const SAL_VERSION  = 319;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 320;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.0.8",
         changes: [
+            "Sharing an achievement or your progress to the room is now invisible to people without EBC. Only EBC can draw the plaque, so the old room emote put a line of text about an addon in front of everyone who does not have it - noise they could not act on. It goes out as a hidden message instead: EBC users get the plaque, everyone else sees nothing at all. Sharing privately to one person still whispers, because a hidden message reaches the whole room and using it there would broadcast something you chose to send to one person.",
             "The shared-progress box in chat uses the same frame as every other EBC message - dark card with the accent bar down the left - instead of having a look of its own. It is marked EBC in the corner so it is obvious where it came from.",
             "The Emery achievements are marked with the gold paw - the same one on the creator name and the credits card - so the rare set reads as one group instead of fourteen identical stars.",
             "Sharing your overall progress looks like the achievement shares do. It went out as plain emote text sitting next to proper plaques, reading 'shares their achievement progress: 0% (0 of 29)' - three numbers and no meaning. It now says it as a sentence and draws a plaque with a progress ring, and it refuses when you have nothing unlocked, because announcing 0% to a room is not a share.",

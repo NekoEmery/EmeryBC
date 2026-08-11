@@ -9295,7 +9295,16 @@
             // happens - it is only along for the ride.
             const dict = [{ Tag: "EBCACH", Text: JSON.stringify({ id: a.id, tier }) }];
             if (mode.kind === "public") {
-                ServerSend("ChatRoomChat", { Content: content, Type: "Emote", Dictionary: dict });
+                // Hidden, for the same reason as the progress share: only EBC can
+                // draw this, so an emote put a line about an addon in front of
+                // everyone who does not have it.
+                //
+                // The whisper modes below deliberately stay whispers. Hidden goes to
+                // the whole room, so using it for "tell one person" would quietly
+                // broadcast something the sender chose to send privately - a worse
+                // outcome than a non-EBC recipient reading one plain sentence they
+                // were deliberately sent.
+                ServerSend("ChatRoomChat", { Content: "EBCACH", Type: "Hidden", Dictionary: dict });
                 _lastShareTs = Date.now();
                 renderSharedPlaque("you shared with the room", a, tier);
                 return "ok";
@@ -9357,16 +9366,17 @@
         const unlocked = getAchievementProgress().filter(p => p.tier > 0).length;
         if (unlocked === 0)
             return "nothing";
-        // Reads as a sentence rather than a readout. The old one was
-        // "shares their achievement progress: 0% (0 of 29)", which is three numbers
-        // and no meaning.
-        const content = pct >= 100
-            ? `has unlocked every EBC achievement - all ${total} of them. 🏆`
-            : `is ${pct}% of the way through the EBC achievements (${done} of ${total} done).`;
+        // Sent Hidden, not as an emote.
+        //
+        // Only EBC can draw this, so an emote meant everyone else in the room got a
+        // line of text about an addon they do not have - noise they cannot act on
+        // and did not ask for. Hidden reaches EBC clients, which render the plaque,
+        // and is invisible to everyone else. The Content is a marker rather than
+        // prose because nothing ever displays it.
         try {
             ServerSend("ChatRoomChat", {
-                Content: content,
-                Type: "Emote",
+                Content: "EBCACHPCT",
+                Type: "Hidden",
                 Dictionary: [{ Tag: "EBCACHPCT", Text: JSON.stringify({ pct, done, total }) }],
             });
         }
@@ -9444,7 +9454,8 @@
     function handleAchievementShareMessage(data) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j;
         try {
-            if (!data || (data.Type !== "Emote" && data.Type !== "Chat" && data.Type !== "Whisper"))
+            if (!data || (data.Type !== "Emote" && data.Type !== "Chat"
+                && data.Type !== "Whisper" && data.Type !== "Hidden"))
                 return false;
             const dict = Array.isArray(data.Dictionary) ? data.Dictionary : [];
             // Someone else's progress share - drawn as a plaque like the rest.
@@ -42879,7 +42890,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.8";
-    const SAL_VERSION = 319; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 320; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42896,6 +42907,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.8",
             changes: [
+                "Sharing an achievement or your progress to the room is now invisible to people without EBC. Only EBC can draw the plaque, so the old room emote put a line of text about an addon in front of everyone who does not have it - noise they could not act on. It goes out as a hidden message instead: EBC users get the plaque, everyone else sees nothing at all. Sharing privately to one person still whispers, because a hidden message reaches the whole room and using it there would broadcast something you chose to send to one person.",
                 "The shared-progress box in chat uses the same frame as every other EBC message - dark card with the accent bar down the left - instead of having a look of its own. It is marked EBC in the corner so it is obvious where it came from.",
                 "The Emery achievements are marked with the gold paw - the same one on the creator name and the credits card - so the rare set reads as one group instead of fourteen identical stars.",
                 "Sharing your overall progress looks like the achievement shares do. It went out as plain emote text sitting next to proper plaques, reading 'shares their achievement progress: 0% (0 of 29)' - three numbers and no meaning. It now says it as a sentence and draws a plaque with a progress ring, and it refuses when you have nothing unlocked, because announcing 0% to a room is not a share.",
