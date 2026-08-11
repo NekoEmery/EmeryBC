@@ -30418,13 +30418,18 @@ This cannot be undone.`,
         });
         posPanel.appendChild(releaseBtn);
 
-        // Order: Restraint Sets → Target → Actions → Release Tools
+        // Target belongs to no pill. Sets, Actions and Release Tools all act on
+        // whoever is chosen here, so filing it under Control hid the one control
+        // the other pills depend on - Sets could be opened with no way to see or
+        // change who it would apply to. It sits above the pills instead, and
+        // _domPills leaves anything without a group alone.
         setsCard.dataset.domGroup = "sets";
-        targetCard.dataset.domGroup = "control";
         actionsCard.dataset.domGroup = "control";
         releaseCard.dataset.domGroup = "control";
+        // First child, above the auto-escape card the tab opens with, so it is
+        // the first thing read on the tab and stays put while pills change.
+        body.insertBefore(targetCard, body.firstChild);
         body.appendChild(setsCard);
-        body.appendChild(targetCard);
         body.appendChild(actionsCard);
         body.appendChild(releaseCard);
 
@@ -30487,7 +30492,10 @@ This cannot be undone.`,
             bar.appendChild(b);
         }
 
-        body.insertBefore(bar, body.firstChild);
+        // Above the first card the pills actually switch, not above everything.
+        // A card with no group is shared by all of them, so it belongs outside
+        // the switcher rather than being pushed below it.
+        body.insertBefore(bar, cards[0]);
         paint();
     }
 

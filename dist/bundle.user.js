@@ -42949,13 +42949,18 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 window.setTimeout(() => { posStatus.textContent = ""; }, 2000);
             });
             posPanel.appendChild(releaseBtn);
-            // Order: Restraint Sets → Target → Actions → Release Tools
+            // Target belongs to no pill. Sets, Actions and Release Tools all act on
+            // whoever is chosen here, so filing it under Control hid the one control
+            // the other pills depend on - Sets could be opened with no way to see or
+            // change who it would apply to. It sits above the pills instead, and
+            // _domPills leaves anything without a group alone.
             setsCard.dataset.domGroup = "sets";
-            targetCard.dataset.domGroup = "control";
             actionsCard.dataset.domGroup = "control";
             releaseCard.dataset.domGroup = "control";
+            // First child, above the auto-escape card the tab opens with, so it is
+            // the first thing read on the tab and stays put while pills change.
+            body.insertBefore(targetCard, body.firstChild);
             body.appendChild(setsCard);
-            body.appendChild(targetCard);
             body.appendChild(actionsCard);
             body.appendChild(releaseCard);
             this._domPills(body);
@@ -43020,7 +43025,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 });
                 bar.appendChild(b);
             }
-            body.insertBefore(bar, body.firstChild);
+            // Above the first card the pills actually switch, not above everything.
+            // A card with no group is shared by all of them, so it belongs outside
+            // the switcher rather than being pushed below it.
+            body.insertBefore(bar, cards[0]);
             paint();
         }
         // -- Open / Close / Toggle -------------------------------------------------
@@ -43247,7 +43255,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.0";
-    const SAL_VERSION = 328; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 329; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -43266,6 +43274,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             changes: [
                 "IMPORTANT: spamming actions at Emery no longer earns anything. People started firing the same action at her over and over to farm the rare achievements, which is exactly what a reward for interacting with someone should not cause. Repeating the same action counts once a minute at most - five spanks across a scene still count, twenty in ten seconds count once. The unlocks are unchanged, only the pace. There is a note on those achievements asking people to actually play with her rather than treat her as a vending machine.",
                 "Changed: Met the Kitty needs five minutes in a room with Emery, not five seconds. It unlocked the instant she appeared in the roster, so people joined, collected it and left. The clock restarts if she leaves, so it has to be one continuous stay.",
+                "Fix: the DOM tab's TARGET picker is no longer trapped inside the Control pill. Sets, Actions and Release Tools all act on whoever is chosen there, so filing it under Control meant opening Sets with no way to see or change who it would apply to. It now sits at the top of the tab, above the pills, and stays put whichever pill you are on.",
                 "New: EBC can live in BC's own chat room top bar. DEV -> Drawer -> 'Open EBC from the chat top bar' puts a paw next to Exit / Kneel / Icons and hides the side tab while you are in a room. Off by default. The tab always comes back outside a room, where there is no top bar to replace it - turning this on can never leave you without a way to open EBC.",
                 "Fix: curses hold the ITEM, not the slot. A curse used to be a claim on a slot, so if the cursed collar came off for any reason the next thing anyone put on your neck inherited the curse and could not be removed - you were stuck in a replacement nobody meant to lock. The curse now knows which item it was placed on. Anything else in that slot comes off normally.",
                 "Fix: cursed items can no longer be lost to an outfit change. The curse hooks only ever saw per-item traffic, and changing outfit replaces the whole appearance in one go - so a wardrobe change could wipe a cursed item with its owner lock still on it and neither hook fired. EBC now keeps a copy of each cursed item and checks every two seconds that it is still on, putting it back with its colour, crafting and lock if it is not. That catches every route it can go missing by, not just the ones we knew about.",
