@@ -32,9 +32,13 @@ export const ACH_ICONS: Record<string, string> = {
  */
 export const ACH_ICON_FOR: Record<string, string> = {
     // Received
-    pats: "headpat", hugs: "hug", kisses: "kiss", booped: "boop", popular: "people",
+    // hugs/huggiver point at people as a stand-in: the hug icon Emery chose
+    // was only ever pasted into chat, never saved, so there is no file for it.
+    // Two figures is closer than an emoji and swapping in hug.png later is a
+    // one-word change here.
+    pats: "headpat", hugs: "people", kisses: "kiss", booped: "boop", popular: "people",
     // Given
-    boops: "boop", patgiver: "headpat", huggiver: "hug", kissgiver: "kiss",
+    boops: "boop", patgiver: "headpat", huggiver: "people", kissgiver: "kiss",
     spanker: "spank", tickler: "tickle",
     // Bondage
     tied: "rope", streak: "rope", rigger: "rope", gagged: "gag", chaste: "chastity",
