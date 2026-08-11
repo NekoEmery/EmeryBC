@@ -3508,6 +3508,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- EBC button in the chat room top bar ---------------------------------------
+    // Puts a paw next to BC's own Exit / Kneel / Icons buttons and hides the side
+    // tab while you are in a room. Only while you are in a room - the top bar does
+    // not exist anywhere else, and hiding the tab everywhere would leave no way to
+    // open EBC at all. Off by default; the side tab is what people already know.
+    function getTopBarButton() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.topBarButton) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setTopBarButton(value) {
+        try {
+            const store = getSettings();
+            store.topBarButton = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Online friend notification sound -----------------------------------------
     function getOnlineSoundEnabled() {
         var _a;
@@ -31131,6 +31153,42 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             // ── Drawer Preferences ────────────────────────────────────────────────
             makeSection(t("dev.drawerPrefs"), "EBC_devAppearanceCollapsed", false, (cnt) => {
                 var _a, _b;
+                // ── Open EBC from the chat room top bar ───────────────────────────
+                const topBarRow = document.createElement("div");
+                topBarRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+                const topBarLbl = document.createElement("span");
+                topBarLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;user-select:none;";
+                topBarLbl.textContent = "Open EBC from the chat top bar";
+                topBarLbl.title = "Adds a paw next to BC's Exit / Kneel / Icons buttons and hides the side tab while you are in a room. The tab always comes back outside a room, where there is no top bar.";
+                const topBarBtn = document.createElement("button");
+                const refreshTopBar = () => {
+                    const on = getTopBarButton();
+                    topBarBtn.textContent = on ? t("core.on") : t("core.off");
+                    topBarBtn.style.cssText = [
+                        "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
+                        "padding:4px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                        "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                        "background:" + (on ? "#4a1f30" : "#100508"),
+                        "color:" + (on ? "#f7e6ee" : "#7a5070"),
+                        "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                    ].join(";");
+                };
+                refreshTopBar();
+                topBarBtn.addEventListener("click", () => {
+                    var _a;
+                    setTopBarButton(!getTopBarButton());
+                    refreshTopBar();
+                    // The bar only redraws when its button list changes, so nudge the
+                    // signature rather than waiting for the next camera or focus button.
+                    try {
+                        const w = window;
+                        (_a = w.ChatRoomMenuBuild) === null || _a === void 0 ? void 0 : _a.call(w);
+                    }
+                    catch ( /* ignore */_b) { /* ignore */ }
+                });
+                topBarRow.appendChild(topBarLbl);
+                topBarRow.appendChild(topBarBtn);
+                cnt.appendChild(topBarRow);
                 // ── Touch / phone mode toggle (dev preview) ───────────────────────
                 const touchRow = document.createElement("div");
                 touchRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
@@ -42967,6 +43025,19 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         }
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
+        /**
+         * Hides or shows the side tab, for when the chat room top bar button is
+         * standing in for it. Only ever called while a top bar button actually
+         * exists to open the panel with - a hidden tab and no button would mean no
+         * way in at all.
+         */
+        setTabHidden(hidden) {
+            var _a;
+            const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
+            if (!tabEl)
+                return;
+            tabEl.style.display = hidden ? "none" : "";
+        }
         open() {
             var _a, _b, _c, _d, _e, _f;
             if (!this.panelEl)
@@ -43108,6 +43179,13 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     EBCDrawer._psLog = [];
     EBCDrawer._psLogRenderer = null;
 
+    // The paw for the chat room top bar, baked in from assets/icons/paw.png.
+    //
+    // Black rather than the white stencil the achievement panel uses: BC sets a
+    // top bar icon as an <img src>, so there is no CSS painting step, and the bar
+    // is white. Regenerate with scratchpad/gen_topbar_icon.py.
+    const TOP_BAR_PAW = "data:image/png;base64,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";
+
     // Character bundle storage — session-memory only.
     // Dexie/IndexedDB was removed because Chrome's IDB implementation
     // leaks raw IDBRequest error Events as unhandled Promise rejections
@@ -43169,7 +43247,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.0";
-    const SAL_VERSION = 327; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 328; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -43188,6 +43266,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             changes: [
                 "IMPORTANT: spamming actions at Emery no longer earns anything. People started firing the same action at her over and over to farm the rare achievements, which is exactly what a reward for interacting with someone should not cause. Repeating the same action counts once a minute at most - five spanks across a scene still count, twenty in ten seconds count once. The unlocks are unchanged, only the pace. There is a note on those achievements asking people to actually play with her rather than treat her as a vending machine.",
                 "Changed: Met the Kitty needs five minutes in a room with Emery, not five seconds. It unlocked the instant she appeared in the roster, so people joined, collected it and left. The clock restarts if she leaves, so it has to be one continuous stay.",
+                "New: EBC can live in BC's own chat room top bar. DEV -> Drawer -> 'Open EBC from the chat top bar' puts a paw next to Exit / Kneel / Icons and hides the side tab while you are in a room. Off by default. The tab always comes back outside a room, where there is no top bar to replace it - turning this on can never leave you without a way to open EBC.",
                 "Fix: curses hold the ITEM, not the slot. A curse used to be a claim on a slot, so if the cursed collar came off for any reason the next thing anyone put on your neck inherited the curse and could not be removed - you were stuck in a replacement nobody meant to lock. The curse now knows which item it was placed on. Anything else in that slot comes off normally.",
                 "Fix: cursed items can no longer be lost to an outfit change. The curse hooks only ever saw per-item traffic, and changing outfit replaces the whole appearance in one go - so a wardrobe change could wipe a cursed item with its owner lock still on it and neither hook fired. EBC now keeps a copy of each cursed item and checks every two seconds that it is still on, putting it back with its colour, crafting and lock if it is not. That catches every route it can go missing by, not just the ones we knew about.",
                 "Fix: swapping something onto a cursed item is blocked as well as removing it. Dropping a different item into a cursed slot took the cursed one off just as surely as removing it, and that was the way around the curse.",
@@ -50808,6 +50887,56 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             catch ( /* ignore */_f) { /* ignore */ }
             return result;
         });
+        // An EBC button in BC's own chat room top bar, next to Exit / Kneel / Icons.
+        //
+        // Done through BC's three menu functions rather than by injecting DOM: the
+        // bar rebuilds itself from ChatRoomMenuButtons whenever that list changes,
+        // so anything appended by hand disappears the moment a camera or a focus
+        // button comes or goes. Joining the list instead means BC draws it, styles
+        // it and keeps it, exactly like its own buttons.
+        const EBC_MENU_BTN = "EBC";
+        tryHookFunction(modAPI, "ChatRoomMenuBuild", 1, (args, next) => {
+            const result = next(args);
+            try {
+                if (getTopBarButton()) {
+                    const w = window;
+                    const list = w.ChatRoomMenuButtons;
+                    if (Array.isArray(list) && !list.includes(EBC_MENU_BTN))
+                        list.push(EBC_MENU_BTN);
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return result;
+        });
+        tryHookFunction(modAPI, "ChatRoomMenuButtonVisualState", 1, (args, next) => {
+            try {
+                if (args[0] === EBC_MENU_BTN) {
+                    return { image: TOP_BAR_PAW, state: "Default", hoverText: "EmeryBC" };
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return next(args);
+        });
+        tryHookFunction(modAPI, "ChatRoomMenuPerformAction", 1, (args, next) => {
+            try {
+                if (args[0] === EBC_MENU_BTN) {
+                    drawer === null || drawer === void 0 ? void 0 : drawer.toggle();
+                    return;
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return next(args);
+        });
+        // Keep the side tab in step with the setting - and with whether the top bar
+        // exists at all. Outside a chat room there is no top bar, so the tab comes
+        // back regardless, or turning this on would strip the only way in.
+        window.setInterval(() => {
+            try {
+                const inRoom = window.CurrentScreen === "ChatRoom";
+                drawer === null || drawer === void 0 ? void 0 : drawer.setTabHidden(getTopBarButton() && inRoom);
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }, 1000);
         // Guard against the one-frame crash window between ChatRoomLeave() clearing
         // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
         // ChatRoomRun accesses ChatRoomData.MapData unconditionally, so that frame
