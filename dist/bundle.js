@@ -1340,6 +1340,15 @@
     // unbounded growth eventually blows BC's ~180 KB account cap and the server
     // starts dropping the connection on every sync (infinite relog loop).
     const OUTFITS_BUDGET = 60000;
+    /** BC's Allowed Interactions levels, worded as BC words them. */
+    const ALLOWED_INTERACTION_LABELS = {
+        0: "Everyone, no exceptions",
+        1: "Everyone, except blacklist",
+        2: "Owner, Lovers, whitelist & Dominants",
+        3: "Owner, Lovers and whitelist only",
+        4: "Owner and Lovers only",
+        5: "Owner only",
+    };
     /** Persists the outfit list. Account-stored outfits go to the BC account (60 KB
      *  budget); local:true outfits go to this device's localStorage. Returns false
      *  (keeping the previous list) when the account part would exceed the budget. */
@@ -1477,6 +1486,10 @@
             displayName: outfit.displayName,
             announceText: outfit.announceText,
             nickname: typeof outfit.nickname === "string" ? outfit.nickname.trim() || null : null,
+            // Only 0-5 are real levels; anything else means "leave it alone".
+            allowedInteractions: typeof outfit.allowedInteractions === "number"
+                && outfit.allowedInteractions >= 0 && outfit.allowedInteractions <= 5
+                ? Math.round(outfit.allowedInteractions) : null,
             title: typeof outfit.title === "string" ? outfit.title.trim() || null : null,
             tagIds: Array.isArray(outfit.tagIds) ? outfit.tagIds.filter((t) => typeof t === "string") : [],
             includeRestraints: !!outfit.includeRestraints,
@@ -1567,7 +1580,7 @@
         }));
     }
     function applyOutfit(outfit) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         if (outfitApplyPending) {
             localNotice$2("An outfit swap is already in progress.", "#ffb7c7");
             return;
@@ -1640,7 +1653,7 @@
                     const w = window;
                     isBlocked = !!((_a = w.InventoryGroupIsBlocked) === null || _a === void 0 ? void 0 : _a.call(w, Player, group));
                 }
-                catch ( /* ignore */_d) { /* ignore */ }
+                catch ( /* ignore */_e) { /* ignore */ }
             }
             if (!isLocked && !isBlocked)
                 continue;
@@ -1675,7 +1688,7 @@
                         catch ( /* ignore */_a) { /* ignore */ }
                     }, 100);
             }
-            catch ( /* ignore */_e) { /* ignore */ }
+            catch ( /* ignore */_f) { /* ignore */ }
         }
         // Apply nickname — outfit-specific takes priority, falls back to default
         const nickToApply = outfit.nickname || getDefaultNickname();
@@ -1686,12 +1699,29 @@
                 if (updater === null || updater === void 0 ? void 0 : updater.QueueData)
                     updater.QueueData({ Nickname: nickToApply });
             }
-            catch ( /* ignore */_f) { /* ignore */ }
+            catch ( /* ignore */_g) { /* ignore */ }
+        }
+        // Apply the interaction level, if this outfit sets one. No fallback to a
+        // default on purpose: unlike a nickname, a permission that quietly reverts
+        // to some global setting is the kind of surprise this should never spring.
+        if (typeof outfit.allowedInteractions === "number") {
+            try {
+                const lvl = outfit.allowedInteractions;
+                const p = Player;
+                p.AllowedInteractions = lvl;
+                // Kept in step with the old field, which BC still carries.
+                p.ItemPermission = lvl;
+                const updP = window.ServerAccountUpdate;
+                if (updP === null || updP === void 0 ? void 0 : updP.QueueData)
+                    updP.QueueData({ AllowedInteractions: lvl, ItemPermission: lvl });
+                localNotice$2(`Allowed interactions set to: ${(_b = ALLOWED_INTERACTION_LABELS[lvl]) !== null && _b !== void 0 ? _b : lvl}`, UI.gold);
+            }
+            catch ( /* ignore */_h) { /* ignore */ }
         }
         // Apply title — outfit-specific takes priority, falls back to default title
         // "__clear__" sentinel = explicitly remove the title (set to "")
         // ""  = no preference configured → don't touch the title
-        const titleRaw = (_c = (_b = outfit.title) !== null && _b !== void 0 ? _b : getDefaultTitle()) !== null && _c !== void 0 ? _c : "";
+        const titleRaw = (_d = (_c = outfit.title) !== null && _c !== void 0 ? _c : getDefaultTitle()) !== null && _d !== void 0 ? _d : "";
         if (titleRaw) {
             try {
                 const bcTitle = titleRaw === "__clear__" ? "" : titleRaw;
@@ -1700,7 +1730,7 @@
                 if (updater2 === null || updater2 === void 0 ? void 0 : updater2.QueueData)
                     updater2.QueueData({ Title: bcTitle });
             }
-            catch ( /* ignore */_g) { /* ignore */ }
+            catch ( /* ignore */_j) { /* ignore */ }
         }
         // Let the appearance update hit the send queue before we add the optional emote.
         window.setTimeout(() => {
@@ -1888,7 +1918,7 @@
         const outfits = getOutfits().filter(o => o.id !== id);
         saveOutfits(outfits);
     }
-    function editOutfit(id, command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "", title = "", expressionPresetId = null) {
+    function editOutfit(id, command, displayName, announceText, includeRestraints, preserveRestraints, preserveClothing = false, nickname = "", title = "", expressionPresetId = null, allowedInteractions = null) {
         const outfits = getOutfits();
         const outfit = outfits.find(o => o.id === id);
         if (!outfit)
@@ -1910,6 +1940,7 @@
         outfit.preserveRestraints = preserveRestraints;
         outfit.preserveClothing = preserveClothing;
         outfit.expressionPresetId = expressionPresetId || null;
+        outfit.allowedInteractions = typeof allowedInteractions === "number" ? allowedInteractions : null;
         saveOutfits(outfits);
         localNotice$2(`Updated "${outfit.displayName}" (/${outfit.command}).`);
         return true;
@@ -21371,7 +21402,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             body.appendChild(container);
         }
         buildOutfitRow(o, body) {
-            var _a, _b, _c;
+            var _a, _b, _c, _d;
             // Wrapper holds the visual row + collapsible diff panel
             const wrapper = document.createElement("div");
             wrapper.style.marginBottom = "4px";
@@ -21520,11 +21551,29 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             });
             const eTitleSel = this.makeTitleSelect((_b = o.title) !== null && _b !== void 0 ? _b : "");
             const eExprSel = this.makeExprPresetSelect((_c = o.expressionPresetId) !== null && _c !== void 0 ? _c : null);
+            // Who may put things on you, set by what you are wearing. Defaults to
+            // leaving it alone - getting dressed must never widen this by accident,
+            // so it only moves for an outfit you deliberately gave a level to.
+            const ePermSel = document.createElement("select");
+            ePermSel.className = "ebc-form-input";
+            ePermSel.style.cssText = "width:100%;font-size:11px;";
+            const permOpts = [["", "No change (leave as is)"]];
+            for (let i = 0; i <= 5; i++)
+                permOpts.push([String(i), ALLOWED_INTERACTION_LABELS[i]]);
+            for (const [v, label] of permOpts) {
+                const op = document.createElement("option");
+                op.value = v;
+                op.textContent = label;
+                if (String((_d = o.allowedInteractions) !== null && _d !== void 0 ? _d : "") === v)
+                    op.selected = true;
+                ePermSel.appendChild(op);
+            }
             editPanel.appendChild(makeEditRow("Command", eCmdInput));
             editPanel.appendChild(makeEditRow("Name", eNameInput));
             editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
             editPanel.appendChild(makeEditRow("Nickname", eNicknameInput));
             editPanel.appendChild(makeEditRow("Title", eTitleSel));
+            editPanel.appendChild(makeEditRow("Interactions", ePermSel));
             editPanel.appendChild(makeEditRow("Face preset", eExprSel));
             // Tag assignment
             const eTagsLbl = document.createElement("div");
@@ -21686,7 +21735,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 eNameInput.style.borderColor = eNameInput.value.trim() ? "" : "#cf6f98";
                 if (!eCmdInput.value.trim() || !eNameInput.value.trim())
                     return;
-                const ok = editOutfit(o.id, eCmdInput.value, eNameInput.value, eAnnounceInput.value, eInclCheck.checked, ePreserveCheck.checked, ePreserveClothingCheck.checked, eNicknameInput.value, eTitleSel.value, eExprSel.value || null);
+                const ok = editOutfit(o.id, eCmdInput.value, eNameInput.value, eAnnounceInput.value, eInclCheck.checked, ePreserveCheck.checked, ePreserveClothingCheck.checked, eNicknameInput.value, eTitleSel.value, eExprSel.value || null, ePermSel.value === "" ? null : parseInt(ePermSel.value, 10));
                 if (ok)
                     this.rerender();
             });
@@ -42672,7 +42721,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.7";
-    const SAL_VERSION = 309; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 310; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42689,6 +42738,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.7",
             changes: [
+                "New (requested by Emery): an outfit can set your Allowed Interactions - who is permitted to put things on you. It is in the outfit editor next to Nickname and Title, and every outfit starts on No change. That default is deliberate: this decides who may touch you, so getting dressed must never widen it as a side effect. It only moves for an outfit you gave a level to yourself, and it says in chat when it does.",
                 "The DOM tab is split into pills - Auto-escape, Sets, Control and Management - instead of one long scroll. Report misuse lives under Management. Which pill you were on is remembered.",
                 "The beep volume slider matches the rest of the panel instead of rendering in the browser default blue.",
                 "Achievements that are not needed for 100% now say so loudly rather than in small grey text. A blue OPTIONAL badge on the achievement itself, and a bordered notice at the top listing them by name. The whole point of that line is to stop someone thinking an achievement blocks their reward, and it was quiet enough to read as decoration.",

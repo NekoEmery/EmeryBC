@@ -30,6 +30,16 @@ export interface ConfiguredOutfit {
     preserveClothing: boolean;        // keep existing clothing (non-restraint) when applying (default: false)
     nameInAnnounce: boolean;          // whether to prepend the player name to the announce text (default: true)
     expressionPresetId: string | null; // optional face preset to apply when outfit is worn (null = no change)
+    /**
+     * BC's Allowed Interactions level to set when this outfit is worn, or null
+     * to leave it alone.
+     *
+     * null by default and on every existing outfit, deliberately. This decides
+     * who may put things on you, so an outfit must never widen it as a side
+     * effect of getting dressed - it only moves if you chose a level for that
+     * outfit yourself.
+     */
+    allowedInteractions?: number | null;
     items: SerializedItem[];
     local?: boolean;                  // true = stored in localStorage (this device only, shared across accounts, no account budget)
 }
@@ -166,6 +176,16 @@ export function setDefaultTitle(title: string): void {
 // unbounded growth eventually blows BC's ~180 KB account cap and the server
 // starts dropping the connection on every sync (infinite relog loop).
 export const OUTFITS_BUDGET = 60_000;
+
+/** BC's Allowed Interactions levels, worded as BC words them. */
+export const ALLOWED_INTERACTION_LABELS: Record<number, string> = {
+    0: "Everyone, no exceptions",
+    1: "Everyone, except blacklist",
+    2: "Owner, Lovers, whitelist & Dominants",
+    3: "Owner, Lovers and whitelist only",
+    4: "Owner and Lovers only",
+    5: "Owner only",
+};
 
 /** Persists the outfit list. Account-stored outfits go to the BC account (60 KB
  *  budget); local:true outfits go to this device's localStorage. Returns false
@@ -313,6 +333,10 @@ function sanitizeOutfit(outfit: ConfiguredOutfit): ConfiguredOutfit {
         displayName: outfit.displayName,
         announceText: outfit.announceText,
         nickname: typeof outfit.nickname === "string" ? outfit.nickname.trim() || null : null,
+        // Only 0-5 are real levels; anything else means "leave it alone".
+        allowedInteractions: typeof outfit.allowedInteractions === "number"
+            && outfit.allowedInteractions >= 0 && outfit.allowedInteractions <= 5
+            ? Math.round(outfit.allowedInteractions) : null,
         title:    typeof outfit.title    === "string" ? outfit.title.trim()    || null : null,
         tagIds: Array.isArray(outfit.tagIds) ? outfit.tagIds.filter((t: unknown) => typeof t === "string") : [],
         includeRestraints: !!outfit.includeRestraints,
@@ -514,6 +538,23 @@ export function applyOutfit(outfit: ConfiguredOutfit): void {
             type AccountUpdater = { QueueData(data: Record<string, unknown>): void };
             const updater = (window as unknown as Record<string, unknown>).ServerAccountUpdate as AccountUpdater | undefined;
             if (updater?.QueueData) updater.QueueData({ Nickname: nickToApply });
+        } catch { /* ignore */ }
+    }
+
+    // Apply the interaction level, if this outfit sets one. No fallback to a
+    // default on purpose: unlike a nickname, a permission that quietly reverts
+    // to some global setting is the kind of surprise this should never spring.
+    if (typeof outfit.allowedInteractions === "number") {
+        try {
+            const lvl = outfit.allowedInteractions;
+            const p = Player as unknown as Record<string, unknown>;
+            p.AllowedInteractions = lvl;
+            // Kept in step with the old field, which BC still carries.
+            p.ItemPermission = lvl;
+            type AccountUpdaterP = { QueueData(data: Record<string, unknown>): void };
+            const updP = (window as unknown as Record<string, unknown>).ServerAccountUpdate as AccountUpdaterP | undefined;
+            if (updP?.QueueData) updP.QueueData({ AllowedInteractions: lvl, ItemPermission: lvl });
+            localNotice(`Allowed interactions set to: ${ALLOWED_INTERACTION_LABELS[lvl] ?? lvl}`, UI.gold);
         } catch { /* ignore */ }
     }
 
@@ -753,6 +794,7 @@ export function editOutfit(
     nickname = "",
     title = "",
     expressionPresetId: string | null = null,
+    allowedInteractions: number | null = null,
 ): boolean {
     const outfits = getOutfits();
     const outfit = outfits.find(o => o.id === id);
@@ -776,6 +818,7 @@ export function editOutfit(
     outfit.preserveRestraints  = preserveRestraints;
     outfit.preserveClothing    = preserveClothing;
     outfit.expressionPresetId  = expressionPresetId || null;
+    outfit.allowedInteractions = typeof allowedInteractions === "number" ? allowedInteractions : null;
 
     saveOutfits(outfits);
     localNotice(`Updated "${outfit.displayName}" (/${outfit.command}).`);

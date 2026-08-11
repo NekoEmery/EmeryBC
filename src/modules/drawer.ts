@@ -59,6 +59,7 @@ import {
     setOutfitStorage,
     setRestraintStorage,
     getOutfitStorageUsage,
+    ALLOWED_INTERACTION_LABELS,
     reloadLocalLists,
     setAllOutfitsStorage,
     setAllRestraintsStorage,
@@ -10339,11 +10340,28 @@ This cannot be undone.`,
         const eTitleSel = this.makeTitleSelect(o.title ?? "");
         const eExprSel  = this.makeExprPresetSelect(o.expressionPresetId ?? null);
 
+        // Who may put things on you, set by what you are wearing. Defaults to
+        // leaving it alone - getting dressed must never widen this by accident,
+        // so it only moves for an outfit you deliberately gave a level to.
+        const ePermSel = document.createElement("select");
+        ePermSel.className = "ebc-form-input";
+        ePermSel.style.cssText = "width:100%;font-size:11px;";
+        const permOpts: Array<[string, string]> = [["", "No change (leave as is)"]];
+        for (let i = 0; i <= 5; i++) permOpts.push([String(i), ALLOWED_INTERACTION_LABELS[i]]);
+        for (const [v, label] of permOpts) {
+            const op = document.createElement("option");
+            op.value = v;
+            op.textContent = label;
+            if (String(o.allowedInteractions ?? "") === v) op.selected = true;
+            ePermSel.appendChild(op);
+        }
+
         editPanel.appendChild(makeEditRow("Command", eCmdInput));
         editPanel.appendChild(makeEditRow("Name", eNameInput));
         editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
         editPanel.appendChild(makeEditRow("Nickname", eNicknameInput));
         editPanel.appendChild(makeEditRow("Title", eTitleSel));
+        editPanel.appendChild(makeEditRow("Interactions", ePermSel));
         editPanel.appendChild(makeEditRow("Face preset", eExprSel));
 
         // Tag assignment
@@ -10530,6 +10548,7 @@ This cannot be undone.`,
                 eNicknameInput.value,
                 eTitleSel.value,
                 eExprSel.value || null,
+                ePermSel.value === "" ? null : parseInt(ePermSel.value, 10),
             );
             if (ok) this.rerender();
         });

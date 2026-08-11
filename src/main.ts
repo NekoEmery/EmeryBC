@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.0.7";
-const SAL_VERSION  = 309;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 310;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +50,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.0.7",
         changes: [
+            "New (requested by Emery): an outfit can set your Allowed Interactions - who is permitted to put things on you. It is in the outfit editor next to Nickname and Title, and every outfit starts on No change. That default is deliberate: this decides who may touch you, so getting dressed must never widen it as a side effect. It only moves for an outfit you gave a level to yourself, and it says in chat when it does.",
             "The DOM tab is split into pills - Auto-escape, Sets, Control and Management - instead of one long scroll. Report misuse lives under Management. Which pill you were on is remembered.",
             "The beep volume slider matches the rest of the panel instead of rendering in the browser default blue.",
             "Achievements that are not needed for 100% now say so loudly rather than in small grey text. A blue OPTIONAL badge on the achievement itself, and a bordered notice at the top listing them by name. The whole point of that line is to stop someone thinking an achievement blocks their reward, and it was quiet enough to read as decoration.",
