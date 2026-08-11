@@ -322,6 +322,20 @@
     // ---------------------------------------------------------------------------
     let _mem = {};
     let _initialized = false;
+    /** True once the account settings have actually been read. */
+    function settingsReady() {
+        return _initialized;
+    }
+    /** An object or array holding nothing - not the same as absent. */
+    function isEmptyish(v) {
+        if (v === null || v === undefined)
+            return true;
+        if (Array.isArray(v))
+            return v.length === 0;
+        if (typeof v === "object")
+            return Object.keys(v).length === 0;
+        return false;
+    }
     function initSettings() {
         var _a;
         if (_initialized)
@@ -455,6 +469,13 @@
                     }
                 }
                 else if (_mem[k] === undefined) {
+                    _mem[k] = v;
+                }
+                else if (isEmptyish(_mem[k]) && !isEmptyish(v)) {
+                    // Something in memory that holds nothing must never win over
+                    // real data from the account. Belt and braces for the wipe
+                    // above: even if an empty object gets in early, the server's
+                    // copy still takes precedence rather than being skipped.
                     _mem[k] = v;
                 }
             }
@@ -8661,6 +8682,19 @@
                     v.u = {};
                 return v;
             }
+            // Nothing is written until the account settings have actually arrived.
+            //
+            // This is what was wiping people's achievements. Anything asking for
+            // progress before the settings had loaded got an empty state that was
+            // then STORED - and reinitFromExtensionSettings only fills keys that are
+            // still undefined, so the real progress coming back from the server was
+            // skipped over as "already set". The next sync then wrote the empty one
+            // out over it.
+            //
+            // Returning a throwaway means an early reader sees zero, which is
+            // harmless, instead of zero becoming the truth.
+            if (!settingsReady())
+                return { c: {}, u: {} };
             const fresh = { c: {}, u: {} };
             store.achievements = fresh;
             return fresh;
@@ -8713,9 +8747,18 @@
         }
     }
     /**
-     * Clears all progress, keeping a copy. The copy is only taken when there is not
-     * already one - so resetting twice in a row still restores the state you had
-     * before you started testing, not the empty one from the first reset.
+     * Clears all progress, keeping a copy of what was there.
+     *
+     * The copy used to be written only when no copy already existed, so that
+     * resetting twice in a row still restored the state from before testing began.
+     * That reasoning is fine for a testing session and terrible for everything
+     * else: anyone who had reset once months ago, restored nothing, and then hit
+     * this again lost real progress to a backup slot already occupied by something
+     * ancient.
+     *
+     * Now the copy is always written, EXCEPT when the thing being wiped is already
+     * empty - which is the double-reset case the old rule was worried about, and
+     * the only case where overwriting would destroy the useful copy.
      */
     function resetAchievementsForTesting() {
         var _a;
@@ -8723,8 +8766,11 @@
             return false;
         try {
             const store = getSettings();
-            if (!hasAchievementBackup()) {
-                const snapshot = JSON.stringify({ ts: Date.now(), state: (_a = store.achievements) !== null && _a !== void 0 ? _a : {} });
+            const current = store.achievements;
+            const hasProgress = !!current && typeof current === "object"
+                && Object.keys(((_a = current.c) !== null && _a !== void 0 ? _a : {})).length > 0;
+            if (hasProgress) {
+                const snapshot = JSON.stringify({ ts: Date.now(), state: current });
                 localStorage.setItem(ACH_BACKUP_LS, snapshot);
             }
             store.achievements = { c: {}, u: {} };
@@ -30305,9 +30351,21 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     const resetBtn = mkTestBtn("Reset for testing", "#a8606c");
                     resetBtn.title = "Clears all progress so unlocks can be watched again. A copy is kept - nothing is lost.";
                     resetBtn.addEventListener("click", () => {
-                        showConfirmOverlay(hasAchievementBackup()
-                            ? "Clear achievement progress again?\n\nThe copy already held is from before your first reset, and is NOT replaced - Restore still brings back your real progress."
-                            : "Clear all achievement progress?\n\nA copy is taken first and Restore puts it straight back, so nothing is actually lost.", "Cancel", "Reset", () => {
+                        // The old wording promised that when a copy already existed
+                        // it was "NOT replaced - Restore still brings back your real
+                        // progress". That was false. The copy was never replaced, so
+                        // resetting after months of play wrote nothing and left the
+                        // slot holding something ancient - the dialog said it was
+                        // safe at the exact moment it was not. It now states what is
+                        // actually kept, how old the previous copy was, and where it
+                        // lives.
+                        showConfirmOverlay("Clear ALL achievement progress?\n\n"
+                            + "A copy of what you have right now is saved first, and Restore puts it back.\n\n"
+                            + (backupAge
+                                ? `This replaces the copy currently held from ${backupAge}.\n\n`
+                                : "")
+                            + "The copy is kept in this browser only. Clearing site data, or moving to "
+                            + "another device, loses it.", "Cancel", "Reset", () => {
                             resetAchievementsForTesting();
                             overlay.remove();
                             this.showAchievementsOverlay();
@@ -42577,8 +42635,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "9.0.7";
-    const SAL_VERSION = 313; // internal sub-version - shown when Emery Versioning is ON
+    const MOD_VERSION = "9.0.8";
+    const SAL_VERSION = 314; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42593,8 +42651,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "9.0.7",
+            version: "9.0.8",
             changes: [
+                "IMPORTANT fix: achievements were being blanked on login. Anything that asked for your progress before the account settings had finished loading got an empty record - and that empty record was then SAVED. When your real progress arrived a moment later it was skipped over as already present, and the next sync wrote the empty one out over it. 9.0.4 added a check on your progress to the presence broadcast, which made this fire on almost every login instead of hardly ever. Nothing is written now until the settings have actually arrived, and a copy from your account always beats an empty one held in memory.",
+                "Fix: Reset for testing keeps a copy of what you have now. It only saved a copy when no copy existed, so anyone who had reset once long ago wiped their real progress against a backup slot holding something ancient - and the confirm told them Restore would still bring their progress back, which was untrue. It now saves the current state every time, unless what it is clearing is already empty, and the confirm says how old the copy it replaces is.",
                 "Achievements that are not needed for 100% now have their own Optional category, so you can see which ones are and are not in the way of the reward without reading every card. Bug Hunter and Met the Crew live there. The OPTIONAL badges stay.",
                 "Removed: the Report misuse tool. BC only delivers beeps to friends, and the people it existed for are the least likely to be on that list - so it would mostly have sent nothing. Removing Bug Hunter from the 100% requirement is what actually stops the junk, since it removes the reason for it.",
                 "The sharing controls in the Achievements window sit under a Sharing heading now, with a line saying what they do. The toggle was reported as reading like a filter on the list above it, and renaming it alone still left it floating loose under a list of achievements.",
@@ -42602,16 +42662,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "The DOM tab is split into pills - Auto-escape, Sets, Control and Management - instead of one long scroll. Report misuse lives under Management. Which pill you were on is remembered.",
                 "The beep volume slider matches the rest of the panel instead of rendering in the browser default blue.",
                 "Achievements that are not needed for 100% now say so loudly rather than in small grey text. A blue OPTIONAL badge on the achievement itself, and a bordered notice at the top listing them by name. The whole point of that line is to stop someone thinking an achievement blocks their reward, and it was quiet enough to read as decoration.",
-                "New (creator only): every warning sent is logged - who, when, and the note you added - and the confirm tells you if you have warned that person before. Warning someone twice for the same thing lands very differently from warning them once, and there was no way to know.",
                 "New (requested by Julia): share your overall achievement progress, not only one achievement at a time. There is a Share my progress button under the bar.",
                 "New (requested by Mika): friends running EBC show their achievement percentage beside their name. Only for people who have some progress - a 0% badge on everyone would be noise. It reaches 100% at the same point the sparkle does, so the two always agree.",
                 "Fix (reported by Julia): the shared-achievements toggle now reads \"Others unlocks in chat\". It said \"Shared achievements\", which reads just as easily as a filter on the list below it - something that does not exist.",
                 "New (requested by Lola): a beep volume slider in Chat & Notifications. EBC's beep is a generated tone rather than a sound file and its loudness was fixed, so it sat noticeably under the game's own with nothing to do about it. 0 to 300%, and it plays a sample when you let go of the slider.",
-                "Fix: the misuse warning checks it can actually reach the person first. BC only delivers beeps to friends, and someone sending junk through the form is the least likely person to be on your list - so the button would mostly have done nothing. It now beeps friends, whispers anyone else who is in the room with you, and says plainly when neither is possible instead of failing quietly.",
-                "The misuse warning is written as an EmeryBC Management notice rather than a personal message. It still arrives showing Emery as the sender - BC gives a beep no sender field, so that cannot be changed and should not be faked - but it now reads as an automated notice about a submission, and says it came from the addon.",
-                "New (creator only): a Report misuse box on the DOM tab. Reports carry a member number so the sender is identifiable, but the form is one-way and there was no way to say anything back. Enter the number, optionally note what they sent, and it beeps them once. It confirms first, because that is a real message to a real person and it cannot be unsent.",
                 "Changed: Bug Hunter no longer counts toward 100%. Requiring it meant the only way to finish your list was to file bug reports, and people had already started sending junk to farm it - which is worse for everyone than the achievement is worth. It is still there to earn.",
                 "Achievements that are not needed for 100% now say so on the card itself, and are listed by name under the progress bar and on the Completionist card. The bar counts everything, so without that the number reads as a wall between you and the reward when some of it is optional.",
+            ],
+        },
+        {
+            version: "9.0.7",
+            changes: [
                 "Fix: dragging the scrollbar in the Achievements window scrolls it, rather than dragging the window. A scrollbar belongs to its element rather than sitting inside it, so it could not be excluded the way buttons and text boxes are - the drag handler ran first and cancelled the browser's own scrollbar drag. It now recognises a press on the bar and leaves it alone. Same for the Suggestions & Bugs window and the Tutorial.",
                 "Fix: Met the Crew is described correctly. Both it and the Completionist card implied you needed all six credited people in a room at the same moment. You do not - it is a list that fills up over time, one person here, another somewhere else weeks later, and it is remembered. The wording said something harder than the achievement actually asks for.",
                 "The Completionist card now says which achievement does not count. It stated the rule - every achievement at its highest level - without mentioning the one carve-out, and a rule with a hidden exception is worse than no rule: anyone chasing it needs to know Met the Crew is not standing in their way. It is on its own line, along with why.",
