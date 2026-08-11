@@ -109,7 +109,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, getBeepVolume, setBeepVolume, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, getBeepVolume, setBeepVolume, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED, getTopBarButton, setTopBarButton } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -19680,6 +19680,44 @@ This cannot be undone.`,
         // ── Drawer Preferences ────────────────────────────────────────────────
         makeSection(t("dev.drawerPrefs"), "EBC_devAppearanceCollapsed", false, (cnt) => {
 
+            // ── Open EBC from the chat room top bar ───────────────────────────
+            const topBarRow = document.createElement("div");
+            topBarRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+
+            const topBarLbl = document.createElement("span");
+            topBarLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;user-select:none;";
+            topBarLbl.textContent = "Open EBC from the chat top bar";
+            topBarLbl.title = "Adds a paw next to BC's Exit / Kneel / Icons buttons and hides the side tab while you are in a room. The tab always comes back outside a room, where there is no top bar.";
+
+            const topBarBtn = document.createElement("button");
+            const refreshTopBar = (): void => {
+                const on = getTopBarButton();
+                topBarBtn.textContent = on ? t("core.on") : t("core.off");
+                topBarBtn.style.cssText = [
+                    "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
+                    "padding:4px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                    "background:" + (on ? "#4a1f30" : "#100508"),
+                    "color:" + (on ? "#f7e6ee" : "#7a5070"),
+                    "transition:background 0.14s,color 0.14s,border-color 0.14s",
+                ].join(";");
+            };
+            refreshTopBar();
+            topBarBtn.addEventListener("click", () => {
+                setTopBarButton(!getTopBarButton());
+                refreshTopBar();
+                // The bar only redraws when its button list changes, so nudge the
+                // signature rather than waiting for the next camera or focus button.
+                try {
+                    const w = window as unknown as Record<string, unknown>;
+                    (w.ChatRoomMenuBuild as (() => void) | undefined)?.();
+                } catch { /* ignore */ }
+            });
+
+            topBarRow.appendChild(topBarLbl);
+            topBarRow.appendChild(topBarBtn);
+            cnt.appendChild(topBarRow);
+
             // ── Touch / phone mode toggle (dev preview) ───────────────────────
             const touchRow = document.createElement("div");
             touchRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
@@ -30380,13 +30418,18 @@ This cannot be undone.`,
         });
         posPanel.appendChild(releaseBtn);
 
-        // Order: Restraint Sets → Target → Actions → Release Tools
+        // Target belongs to no pill. Sets, Actions and Release Tools all act on
+        // whoever is chosen here, so filing it under Control hid the one control
+        // the other pills depend on - Sets could be opened with no way to see or
+        // change who it would apply to. It sits above the pills instead, and
+        // _domPills leaves anything without a group alone.
         setsCard.dataset.domGroup = "sets";
-        targetCard.dataset.domGroup = "control";
         actionsCard.dataset.domGroup = "control";
         releaseCard.dataset.domGroup = "control";
+        // First child, above the auto-escape card the tab opens with, so it is
+        // the first thing read on the tab and stays put while pills change.
+        body.insertBefore(targetCard, body.firstChild);
         body.appendChild(setsCard);
-        body.appendChild(targetCard);
         body.appendChild(actionsCard);
         body.appendChild(releaseCard);
 
@@ -30449,13 +30492,28 @@ This cannot be undone.`,
             bar.appendChild(b);
         }
 
-        body.insertBefore(bar, body.firstChild);
+        // Above the first card the pills actually switch, not above everything.
+        // A card with no group is shared by all of them, so it belongs outside
+        // the switcher rather than being pushed below it.
+        body.insertBefore(bar, cards[0]);
         paint();
     }
 
     // -- Open / Close / Toggle -------------------------------------------------
 
     public toggle(): void { this.isOpen ? this.close() : this.open(); }
+
+    /**
+     * Hides or shows the side tab, for when the chat room top bar button is
+     * standing in for it. Only ever called while a top bar button actually
+     * exists to open the panel with - a hidden tab and no button would mean no
+     * way in at all.
+     */
+    public setTabHidden(hidden: boolean): void {
+        const tabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab");
+        if (!tabEl) return;
+        tabEl.style.display = hidden ? "none" : "";
+    }
 
     public open(): void {
         if (!this.panelEl) return;

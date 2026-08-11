@@ -1,4 +1,5 @@
 ﻿import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
+import { TOP_BAR_PAW } from "./modules/topBarIcon";
 import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
 import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { addWhisperEntry } from "./modules/whisperLog";
@@ -8,7 +9,7 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand, applyPositions, clearAllPositions } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBeepVolume, getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat } from "./modules/settings";
+import { getBeepVolume, getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat, getTopBarButton } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -16,7 +17,7 @@ import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modu
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 import { appendLocalLogLine, appendChangelogBlock } from "./modules/notify";
-import { getCursedGroups, isCursePaused, getCurseExpiry, handleCurseCommand, releaseAllCurses, describeCursedGroups } from "./modules/curse";
+import { getCursedGroups, isCursePaused, getCurseExpiry, handleCurseCommand, releaseAllCurses, describeCursedGroups, enforceCurses, isCursedItem, cursedItemName } from "./modules/curse";
 import { broadcastRoom, parseShareMessage, noteSharedRoom } from "./modules/privateRooms";
 import { sendBeep, addBeepEntry, dedupeSentBeeps, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, cacheEBCComplete, cacheEBCAchPct, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
@@ -29,8 +30,8 @@ import bcModSdk from "bondage-club-mod-sdk";
 import { isAchievementUser, hasCompletedEverything, completionPercent, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.1.0";
-const SAL_VERSION  = 324;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.1.1";
+const SAL_VERSION  = 329;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -47,6 +48,17 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "9.1.1",
+        changes: [
+            "Fix: the DOM tab's TARGET picker is no longer trapped inside the Control pill. Sets, Actions and Release Tools all act on whoever is chosen there, so filing it under Control meant opening Sets with no way to see or change who it would apply to. It now sits at the top of the tab, above the pills, and stays put whichever pill you are on.",
+            "New: EBC can live in BC's own chat room top bar. DEV -> Drawer -> 'Open EBC from the chat top bar' puts a paw next to Exit / Kneel / Icons and hides the side tab while you are in a room. Off by default. The tab always comes back outside a room, where there is no top bar to replace it - turning this on can never leave you without a way to open EBC.",
+            "Fix: curses hold the ITEM, not the slot. A curse used to be a claim on a slot, so if the cursed collar came off for any reason the next thing anyone put on your neck inherited the curse and could not be removed - you were stuck in a replacement nobody meant to lock. The curse now knows which item it was placed on. Anything else in that slot comes off normally.",
+            "Fix: cursed items can no longer be lost to an outfit change. The curse hooks only ever saw per-item traffic, and changing outfit replaces the whole appearance in one go - so a wardrobe change could wipe a cursed item with its owner lock still on it and neither hook fired. EBC now keeps a copy of each cursed item and checks every two seconds that it is still on, putting it back with its colour, crafting and lock if it is not. That catches every route it can go missing by, not just the ones we knew about.",
+            "Fix: swapping something onto a cursed item is blocked as well as removing it. Dropping a different item into a cursed slot took the cursed one off just as surely as removing it, and that was the way around the curse.",
+            "Fix: a room whose map data went missing no longer crashes everyone in it. BC checks 'ChatRoomData?.MapData.Type' - the ?. covers the room but not the map, so once a room lost its map state every client in it threw 'Cannot read properties of undefined (reading Type)' on every settings sync, not just whoever changed something. EBC now fills the gap in before BC reads it, treating a room with no map data as a room with no map. This is a guard against BC's bug, so it protects anyone running EBC even when another addon caused it.",
+        ],
+    },
     {
         version: "9.1.0",
         changes: [
@@ -7704,6 +7716,52 @@ function init(): void {
         return result;
     });
 
+    // An EBC button in BC's own chat room top bar, next to Exit / Kneel / Icons.
+    //
+    // Done through BC's three menu functions rather than by injecting DOM: the
+    // bar rebuilds itself from ChatRoomMenuButtons whenever that list changes,
+    // so anything appended by hand disappears the moment a camera or a focus
+    // button comes or goes. Joining the list instead means BC draws it, styles
+    // it and keeps it, exactly like its own buttons.
+    const EBC_MENU_BTN = "EBC";
+    tryHookFunction(modAPI, "ChatRoomMenuBuild", 1, (args, next) => {
+        const result = next(args);
+        try {
+            if (getTopBarButton()) {
+                const w = window as unknown as Record<string, unknown>;
+                const list = w.ChatRoomMenuButtons as string[] | undefined;
+                if (Array.isArray(list) && !list.includes(EBC_MENU_BTN)) list.push(EBC_MENU_BTN);
+            }
+        } catch { /* ignore */ }
+        return result;
+    });
+
+    tryHookFunction(modAPI, "ChatRoomMenuButtonVisualState", 1, (args, next) => {
+        try {
+            if ((args as unknown[])[0] === EBC_MENU_BTN) {
+                return { image: TOP_BAR_PAW, state: "Default", hoverText: "EmeryBC" };
+            }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
+    tryHookFunction(modAPI, "ChatRoomMenuPerformAction", 1, (args, next) => {
+        try {
+            if ((args as unknown[])[0] === EBC_MENU_BTN) { drawer?.toggle(); return; }
+        } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // Keep the side tab in step with the setting - and with whether the top bar
+    // exists at all. Outside a chat room there is no top bar, so the tab comes
+    // back regardless, or turning this on would strip the only way in.
+    window.setInterval(() => {
+        try {
+            const inRoom = (window as unknown as Record<string, unknown>).CurrentScreen === "ChatRoom";
+            drawer?.setTabHidden(getTopBarButton() && inRoom);
+        } catch { /* ignore */ }
+    }, 1_000);
+
     // Guard against the one-frame crash window between ChatRoomLeave() clearing
     // ChatRoomData and the screen transitioning away from "ChatRoom".  BC's own
     // ChatRoomRun accesses ChatRoomData.MapData unconditionally, so that frame
@@ -7717,6 +7775,32 @@ function init(): void {
         }
         return next(args);
     });
+
+    // Guard a BC bug that empties a whole room at once.
+    //
+    // ChatRoomMapViewInitializeCharacter reads `ChatRoomData?.MapData.Type` - the
+    // optional chain covers ChatRoomData but not MapData, so a room whose map
+    // state has gone missing crashes every client on every properties sync, not
+    // just the person who changed something. Both sync entry points build
+    // ChatRoomData straight from their payload, so filling the gap in the payload
+    // is enough; "Never" is what a room without a map is meant to say.
+    //
+    // Priority 500 puts this ahead of every other mod's hook, since the crash
+    // happens inside BC's own body at the end of the chain.
+    const mapDataGuard = (args: unknown[], next: (a: unknown[]) => unknown): unknown => {
+        try {
+            const data = args[0] as Record<string, unknown> | null | undefined;
+            if (data && typeof data === "object") {
+                const md = data.MapData as Record<string, unknown> | null | undefined;
+                if (!md || typeof md !== "object" || typeof md.Type !== "string") {
+                    data.MapData = { Type: "Never" };
+                }
+            }
+        } catch { /* never let the guard itself break the sync */ }
+        return next(args);
+    };
+    tryHookFunction(modAPI, "ChatRoomSync", 500, mapDataGuard);
+    tryHookFunction(modAPI, "ChatRoomSyncRoomProperties", 500, mapDataGuard);
 
     // Provide fallback text for localisation keys that are absent in some BC versions.
     // TextGet returns "MISSING TEXT IN '...': key" when a key is not in TextLookup —
@@ -8245,13 +8329,48 @@ function init(): void {
         } catch { /* ignore */ }
     }, 30_000);
 
+    // Keep cursed items on, whatever took them off.
+    //
+    // The item hooks only see per-item traffic. Changing outfit does not produce
+    // any - it replaces the whole appearance at once - so a cursed item could be
+    // wiped by a wardrobe change with its owner lock still on it, and neither
+    // hook ever fired. Checking the result on a timer catches every route in,
+    // including the ones nobody has found yet.
+    window.setInterval(() => {
+        try {
+            if (getCursedGroups().size === 0) return;
+            const repaired = enforceCurses();
+            if (repaired.length === 0) return;
+
+            const lost = repaired.filter(g => g.endsWith(":lost")).map(g => g.slice(0, -5).replace("Item", ""));
+            const back = repaired.filter(g => !g.endsWith(":lost")).map(g => g.replace("Item", ""));
+            if (back.length > 0) {
+                callBC(() => CharacterRefresh(Player, false));
+                callBC(() => ChatRoomCharacterUpdate(Player));
+                callBC(() => ServerPlayerAppearanceSync());
+                appendLocalLogLine(`[EBC] ⛓ Cursed item put back: ${back.join(", ")}`, UI.accent);
+            }
+            if (lost.length > 0) {
+                // Said out loud rather than silently re-locking the slot: a curse
+                // with nothing to hold is over, and the wearer should know it is.
+                appendLocalLogLine(
+                    `[EBC] ⛓ Curse lifted on ${lost.join(", ")} — the cursed item is gone and could not be restored.`,
+                    UI.textMuted);
+            }
+        } catch { /* ignore */ }
+    }, 2_000);
+
     // Hook InventoryRemove: block LOCAL removal of cursed item groups (self-removal via BC menu).
     tryHookFunction(modAPI, "InventoryRemove", 1, (args, next) => {
         try {
             const [char, group] = args as [Character, string, boolean?];
             if (char === Player && typeof group === "string") {
-                const cursed = getCursedGroups();
-                if (cursed.has(group) && !isCursePaused(group)) {
+                // Only the cursed item itself is held. A different item that ended
+                // up in the same slot is not the curse's business and comes off
+                // normally - protecting the slot is what left people stuck in
+                // whatever replaced a collar they had lost.
+                const worn = (Player.Appearance ?? []).find(a => a.Asset?.Group?.Name === group);
+                if (isCursedItem(group, worn?.Asset?.Name)) {
                     appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — it cannot be removed.`, UI.accent);
                     return; // block self-removal of cursed item
                 }
@@ -8271,15 +8390,20 @@ function init(): void {
             const targetNum = typeof item.Target === "number" ? item.Target : 0;
             const group = typeof item.Group === "string" ? item.Group : "";
             const nameVal = item.Name; // undefined = removal
-            if (targetNum === Player.MemberNumber && group && nameVal === undefined) {
-                const cursed = getCursedGroups();
-                if (cursed.has(group) && !isCursePaused(group)) {
-                    appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — removal blocked.`, UI.accent);
+            if (targetNum === Player.MemberNumber && group) {
+                const worn = (Player.Appearance ?? []).find(a => a.Asset?.Group?.Name === group);
+                // A removal blocks; so does a swap. Dropping a different item onto
+                // the cursed one takes it off just as surely as removing it, and
+                // that was the way round the curse.
+                const isSwap = typeof nameVal === "string" && nameVal !== cursedItemName(group);
+                if ((nameVal === undefined || isSwap) && isCursedItem(group, worn?.Asset?.Name)) {
+                    appendLocalLogLine(
+                        `[EBC] ⛓ ${group.replace("Item", "")} is cursed — ${isSwap ? "it cannot be swapped." : "removal blocked."}`,
+                        UI.accent);
                     // Send correction only if the item is actually present in our appearance;
                     // calling ChatRoomCharacterItemUpdate on an empty slot sends Name:undefined
                     // which would itself become a removal broadcast.
-                    const slotItem = (Player.Appearance ?? []).find(a => a.Asset?.Group?.Name === group);
-                    if (slotItem) {
+                    if (worn) {
                         const itemUpdateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
                             ((c: Character, g: string) => void) | undefined;
                         window.setTimeout(() => {

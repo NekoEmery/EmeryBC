@@ -81,7 +81,164 @@ export function releaseAllCurses(): number {
     saveCurseItemMap({});
     saveCursePauses({});
     saveCurseExpiry(null);
+    // Drop the kept copies too, or the keeper would put back an item the
+    // safeword just released.
+    heldItems.clear();
+    try { localStorage.removeItem(bundleKey()); } catch { /* ignore */ }
     return n;
+}
+
+// -- Keeping the cursed item on ------------------------------------------------
+//
+// A curse used to be a claim on a SLOT: the hooks refused removals for a cursed
+// group and never looked at what was in it. Two things went wrong with that.
+//
+// A curse could be escaped. The hooks only see per-item traffic, and an outfit
+// change does not send per-item traffic - it replaces the whole appearance in
+// one go, so the cursed item simply vanished, owner lock and all.
+//
+// And a curse could latch onto the wrong thing. Once the slot was empty, the
+// next item anyone put there inherited the curse and could not be taken off -
+// so losing a cursed collar meant being stuck in whatever replaced it.
+//
+// A curse is now a claim on an ITEM. We keep a copy of it, check every couple
+// of seconds that it is still on, and put it back if it is not. Nothing else in
+// that slot is protected, so a replacement is always removable.
+
+const bundleKey = (): string => `EBC_curseBundles_${Player.MemberNumber ?? ""}`;
+
+interface CurseBundle {
+    Name: string;
+    Color?: unknown;
+    Craft?: unknown;
+    Property?: unknown;
+    Difficulty?: number;
+}
+
+/** Exact items, kept live so a restore is the real thing and not a lookalike. */
+const heldItems = new Map<string, Item>();
+
+function getCurseBundles(): Record<string, CurseBundle> {
+    try {
+        const raw = localStorage.getItem(bundleKey());
+        return raw ? (JSON.parse(raw) as Record<string, CurseBundle>) : {};
+    } catch { return {}; }
+}
+
+function saveCurseBundles(b: Record<string, CurseBundle>): void {
+    try { localStorage.setItem(bundleKey(), JSON.stringify(b)); } catch { /* ignore */ }
+}
+
+/** Stores the item so it can be rebuilt after a refresh, colour and lock included. */
+function snapshot(group: string, item: Item): void {
+    heldItems.set(group, item);
+    try {
+        const raw = item as unknown as Record<string, unknown>;
+        const b: CurseBundle = { Name: item.Asset.Name };
+        if (raw.Color      !== undefined) b.Color = raw.Color;
+        if (raw.Craft      !== undefined) b.Craft = raw.Craft;
+        if (raw.Property   !== undefined) b.Property = raw.Property;
+        if (typeof raw.Difficulty === "number") b.Difficulty = raw.Difficulty;
+        const all = getCurseBundles();
+        all[group] = b;
+        saveCurseBundles(all);
+    } catch { /* a missing snapshot only costs us the restore, not the curse */ }
+}
+
+/** The exact item if we still hold it, otherwise one rebuilt from the bundle. */
+function rebuild(group: string): Item | null {
+    const held = heldItems.get(group);
+    if (held) return held;
+    try {
+        const b = getCurseBundles()[group];
+        if (!b || typeof b.Name !== "string") return null;
+        const w = window as unknown as Record<string, unknown>;
+        const assetGet = w.AssetGet as ((family: string, group: string, name: string) => Asset | null) | undefined;
+        const asset = assetGet?.(Player.AssetFamily, group, b.Name);
+        if (!asset) return null;
+        const item = { Asset: asset } as unknown as Record<string, unknown>;
+        if (b.Color      !== undefined) item.Color = b.Color;
+        if (b.Craft      !== undefined) item.Craft = b.Craft;
+        if (b.Property   !== undefined) item.Property = b.Property;
+        if (b.Difficulty !== undefined) item.Difficulty = b.Difficulty;
+        return item as unknown as Item;
+    } catch { return null; }
+}
+
+/** The asset name a curse is holding, or null when it is not holding anything. */
+export function cursedItemName(group: string): string | null {
+    const map = getCurseItemMap();
+    const v = map[group];
+    return typeof v === "string" && v ? v : null;
+}
+
+/**
+ * True when this exact item is the one the curse is on.
+ *
+ * Everything that blocks a removal asks this first, so a curse can only ever
+ * refuse to release the item it was placed on - never the slot, and never
+ * whatever happens to be sitting there instead.
+ */
+export function isCursedItem(group: string, assetName: string | undefined): boolean {
+    if (!getCursedGroups().has(group) || isCursePaused(group)) return false;
+    const want = cursedItemName(group);
+    if (!want) return true;   // pre-item-binding curse; bound on the next sweep
+    return !!assetName && assetName === want;
+}
+
+/**
+ * Checks every curse and puts back anything that got taken off.
+ *
+ * Run on a timer rather than from the item hooks, because the ways a cursed
+ * item goes missing are exactly the ways that produce no item hook - an outfit
+ * change, a wardrobe load, a full appearance sync. Polling the result catches
+ * all of them without having to guess which BC function did it.
+ *
+ * Returns the groups it had to repair, so the caller can say so.
+ */
+export function enforceCurses(): string[] {
+    const cursed = getCursedGroups();
+    if (cursed.size === 0) return [];
+    const map = getCurseItemMap();
+    const repaired: string[] = [];
+    let mapDirty = false;
+
+    for (const group of cursed) {
+        if (isCursePaused(group)) continue;
+        const worn = (Player.Appearance ?? []).find(a => a.Asset?.Group?.Name === group);
+
+        // A curse from before items were tracked binds to what is on right now,
+        // so it stops being a claim on the slot from here on.
+        if (!map[group]) {
+            if (worn?.Asset?.Name) { map[group] = worn.Asset.Name; mapDirty = true; snapshot(group, worn); }
+            continue;
+        }
+
+        if (worn && worn.Asset?.Name === map[group]) { snapshot(group, worn); continue; }
+
+        // The cursed item is gone, or something else is in its place.
+        const original = rebuild(group);
+        if (!original) {
+            // Nothing to put back. Holding the slot from here would only trap
+            // whatever lands in it next, which is the trap this is meant to stop.
+            cursed.delete(group);
+            delete map[group];
+            mapDirty = true;
+            repaired.push(`${group}:lost`);
+            continue;
+        }
+        try {
+            const app = Player.Appearance as Item[];
+            for (let i = app.length - 1; i >= 0; i--) {
+                if (app[i]?.Asset?.Group?.Name === group) app.splice(i, 1);
+            }
+            app.push(original);
+            repaired.push(group);
+        } catch { /* ignore */ }
+    }
+
+    if (mapDirty) { saveCursedGroups(cursed); saveCurseItemMap(map); }
+    return repaired;
 }
 
 /** Human-readable slot names for the release notice, e.g. "Legs, ArmsLeft". */
@@ -117,11 +274,16 @@ export function handleCurseCommand(msg: string): void {
         releaseAllCurses();
     } else if (inner.startsWith("clear:")) {
         const itemMap = getCurseItemMap();
+        const bundles = getCurseBundles();
         for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) {
             current.delete(g);
             delete itemMap[g];
+            // Forget the copy as well, or the keeper would put it straight back.
+            delete bundles[g];
+            heldItems.delete(g);
         }
         saveCursedGroups(current);
         saveCurseItemMap(itemMap);
+        saveCurseBundles(bundles);
     }
 }

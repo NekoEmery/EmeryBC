@@ -270,6 +270,24 @@ export function setShowMemberNumbers(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- EBC button in the chat room top bar ---------------------------------------
+// Puts a paw next to BC's own Exit / Kneel / Icons buttons and hides the side
+// tab while you are in a room. Only while you are in a room - the top bar does
+// not exist anywhere else, and hiding the tab everywhere would leave no way to
+// open EBC at all. Off by default; the side tab is what people already know.
+
+export function getTopBarButton(): boolean {
+    try { return getSettings()?.topBarButton === true; } catch { return false; }
+}
+
+export function setTopBarButton(value: boolean): void {
+    try {
+        const store = getSettings();
+        store.topBarButton = value;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Online friend notification sound -----------------------------------------
 
 export function getOnlineSoundEnabled(): boolean {
