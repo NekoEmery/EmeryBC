@@ -9,6 +9,7 @@
  * Thank you Sin for the open design!
  */
 import { sendRoomEmote, ruleAddonName } from "./bcSpeech";
+import { ACH_ICONS, ACH_ICON_FOR } from "./achievementIcons";
 import {
     getOutfits,
     applyOutfit,
@@ -4229,6 +4230,32 @@ function playBeepPreview(): void {
         osc.stop(ctx.currentTime + 0.25);
         osc.onended = () => ctx.close();
     } catch { /* AudioContext may be unavailable */ }
+}
+
+/**
+ * Draws an achievement's icon into its disc.
+ *
+ * The icons are alpha stencils, so the shape comes from mask-image and the
+ * colour from background-color. That is what lets one file be grey while it is
+ * untouched, pink while in progress and gold once finished - the source art is
+ * black, which would be invisible on this panel if it were used as a picture.
+ *
+ * Returns false when there is no icon for that achievement, so the caller can
+ * fall back to the emoji rather than showing an empty circle.
+ */
+function paintAchievementIcon(host: HTMLElement, id: string, tone: "dim" | "on" | "gold"): boolean {
+    const key = ACH_ICON_FOR[id];
+    const uri = key ? ACH_ICONS[key] : undefined;
+    if (!uri) return false;
+    const ico = document.createElement("span");
+    const colour = tone === "gold" ? "#ffd700" : tone === "on" ? "#d9a9c0" : "#8a6f80";
+    ico.style.cssText = "width:20px;height:20px;display:block;background-color:" + colour + ";"
+        + `-webkit-mask-image:url(${uri});mask-image:url(${uri});`
+        + "-webkit-mask-size:contain;mask-size:contain;"
+        + "-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;"
+        + "-webkit-mask-position:center;mask-position:center;";
+    host.appendChild(ico);
+    return true;
 }
 
 function makeDraggable(el: HTMLElement): void {
@@ -18743,81 +18770,109 @@ This cannot be undone.`,
      * renders your own name exactly as it would appear in the people lists,
      * dimmed while it is still out of reach.
      */
+    /**
+     * The header: how far along you are, and what finishing gets you.
+     *
+     * This replaced a full-width card that repeated the progress bar underneath
+     * it and took a third of the window to do so. A ring answers "how far am I"
+     * in one glance, and the reward sits beside it as a strip - still shown
+     * whether or not you have it, because a reward nobody has seen is not
+     * something anyone can want.
+     */
     private buildRewardPreview(): HTMLElement {
         const [done, total] = completionProgress();
-        const earned = done >= total && total > 0;
+        const earned = total > 0 && done >= total;
+        const pct = total > 0 ? Math.round((done / total) * 100) : 0;
         const me = (Player as { MemberNumber?: number })?.MemberNumber ?? 0;
 
-        const card = document.createElement("div");
-        card.style.cssText = "background:#1a0d16;border:1px solid " + (earned ? "#c9ab72" : "#3a1828")
-            + ";border-radius:8px;padding:9px 11px;";
+        const wrap = document.createElement("div");
+        wrap.style.cssText = "display:flex;flex-direction:column;gap:9px;";
 
-        const head = document.createElement("div");
-        head.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:7px;";
-        const trophy = document.createElement("span");
-        trophy.textContent = "🏆";
-        trophy.style.cssText = "font-size:18px;" + (earned ? "" : "filter:grayscale(0.6);opacity:0.85;");
-        const titles = document.createElement("div");
-        titles.style.cssText = "flex:1;min-width:0;";
-        const t1 = document.createElement("div");
-        t1.style.cssText = "font-family:'Trebuchet MS',serif;font-size:13px;font-weight:bold;color:"
-            + (earned ? "#f0dbe6" : "#e2cad6") + ";";
-        t1.textContent = "Completionist";
-        const t2 = document.createElement("div");
-        t2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b79aa8;margin-top:2px;line-height:1.45;";
-        t2.textContent = "Every achievement at its highest level, rare ones included.";
-        // The exception gets its own line rather than being tacked on the end.
-        // A rule with a hidden carve-out is worse than no rule: someone chasing
-        // this needs to know Met the Crew is not standing in their way.
-        const t3 = document.createElement("div");
-        t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a3859a;margin-top:3px;line-height:1.45;";
-        const optNames = optionalAchievementNames();
-        t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cfe3f4;margin-top:5px;"
-            + "line-height:1.45;padding:4px 8px;border-radius:6px;"
-            + "background:rgba(90,140,190,0.13);border-left:3px solid #6f9ec4;";
-        t3.textContent = optNames.length
-            ? "OPTIONAL: " + optNames.join(", ") + " are not needed. Everything else is."
-            : "Everything counts.";
-        titles.appendChild(t1);
-        titles.appendChild(t2);
-        titles.appendChild(t3);
-        const count = document.createElement("span");
-        count.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:10px;flex-shrink:0;"
-            + "border:1px solid " + (earned ? "#c9ab72" : "#4c2537") + ";color:" + (earned ? "#e8cf9a" : "#c0a8b4")
-            + ";border-radius:9px;padding:1px 7px;";
-        count.textContent = done + " / " + total;
-        head.appendChild(trophy);
-        head.appendChild(titles);
-        head.appendChild(count);
-        card.appendChild(head);
+        // -- hero ------------------------------------------------------------
+        const hero = document.createElement("div");
+        hero.style.cssText = "display:flex;align-items:center;gap:13px;";
 
-        const lbl = document.createElement("div");
-        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;letter-spacing:0.1em;"
-            + "text-transform:uppercase;color:#a3859a;margin-bottom:5px;";
-        lbl.textContent = earned ? "Your name in the people lists" : "What you would get";
-        card.appendChild(lbl);
+        const ring = document.createElement("div");
+        ring.style.cssText = "width:66px;height:66px;border-radius:50%;flex-shrink:0;position:relative;"
+            + `background:conic-gradient(${earned ? "#ffd700" : "#cf6f98"} 0turn ${pct / 100}turn,`
+            + " #2a1421 " + (pct / 100) + "turn 1turn);";
+        const hole = document.createElement("div");
+        hole.style.cssText = "position:absolute;inset:6px;border-radius:50%;background:#150a12;";
+        const pctEl = document.createElement("div");
+        pctEl.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"
+            + "font-family:'Trebuchet MS',serif;font-size:17px;font-weight:bold;z-index:1;color:"
+            + (earned ? "#ffd700" : "#f7dceb") + ";";
+        pctEl.textContent = pct + "%";
+        ring.appendChild(hole);
+        ring.appendChild(pctEl);
+        hero.appendChild(ring);
 
-        // The preview is built by the same function the real lists use, so it
-        // cannot drift from the thing it is previewing.
+        const txt = document.createElement("div");
+        txt.style.cssText = "flex:1;min-width:0;";
+        const big = document.createElement("div");
+        big.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12.5px;color:#f0dbe6;";
+        big.textContent = `${done} of ${total} needed for 100%`;
+        const small = document.createElement("div");
+        small.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b79aa8;"
+            + "margin-top:3px;line-height:1.45;";
+        small.textContent = earned
+            ? "Done. Your name carries the sparkle everywhere EBC can see it."
+            : "Finish them all for a gold sparkle on your name, seen by everyone running EBC.";
+        txt.appendChild(big);
+        txt.appendChild(small);
+        hero.appendChild(txt);
+        wrap.appendChild(hero);
+
+        // -- the reward, shown either way ------------------------------------
         const strip = document.createElement("div");
-        strip.style.cssText = "display:flex;align-items:center;gap:7px;padding:6px 9px;background:#12070d;"
-            + "border:1px solid " + (earned ? "#c9ab72" : "#4c2537") + ";border-radius:6px;";
+        strip.style.cssText = "display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;"
+            + "background:rgba(201,171,114,0.08);border:1px solid " + (earned ? "#c9ab72" : "#5c4a2a") + ";";
+
+        const info = document.createElement("div");
+        info.style.cssText = "flex:1;min-width:0;";
+        const t1 = document.createElement("div");
+        t1.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11.5px;font-weight:bold;color:#e8d9b8;";
+        t1.textContent = earned ? "Completionist - earned" : "Completionist";
+        info.appendChild(t1);
+
+        const optNames = optionalAchievementNames();
+        if (optNames.length) {
+            const t2 = document.createElement("div");
+            t2.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#b7a888;margin-top:1px;";
+            t2.textContent = optNames.join(" and ") + " do not count.";
+            info.appendChild(t2);
+        }
+
+        // Built by the same code the people lists use, so the preview cannot
+        // drift from the thing it is previewing.
+        const prev = document.createElement("div");
+        prev.style.cssText = "display:flex;align-items:center;gap:5px;margin-top:5px;padding:3px 8px;"
+            + "background:#12070d;border:1px solid #3a2a12;border-radius:6px;"
+            + (earned ? "" : "opacity:0.6;");
         const nameEl = document.createElement("span");
         nameEl.className = "ebc-friend-name";
         nameEl.textContent = resolveName(me) || "You";
         const decor = decorateName(nameEl, me, true);
-        for (const d of decor.before) strip.appendChild(d);
-        strip.appendChild(nameEl);
-        for (const d of decor.after) strip.appendChild(d);
-        card.appendChild(strip);
+        for (const d of decor.before) prev.appendChild(d);
+        prev.appendChild(nameEl);
+        for (const d of decor.after) prev.appendChild(d);
+        const lbl = document.createElement("span");
+        lbl.style.cssText = "margin-left:auto;font-family:'Trebuchet MS',serif;font-size:9px;color:#8a7860;";
+        lbl.textContent = earned ? "your name now" : "what you would get";
+        prev.appendChild(lbl);
+        info.appendChild(prev);
 
-        const foot = document.createElement("div");
-        foot.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b79aa8;margin-top:7px;line-height:1.5;";
-        foot.textContent = earned
-            ? "Everyone else running EBC sees this too."
-            : "Everyone else running EBC would see it too. If you already have your own name colour, you keep it and gain the sparkles.";
-        card.appendChild(foot);
-        return card;
+        strip.appendChild(info);
+
+        const count = document.createElement("span");
+        count.style.cssText = "align-self:flex-start;font-family:ui-monospace,Consolas,monospace;font-size:10px;"
+            + "border:1px solid " + (earned ? "#c9ab72" : "#5c4a2a") + ";color:"
+            + (earned ? "#e8cf9a" : "#c0aa88") + ";border-radius:9px;padding:1px 7px;flex-shrink:0;";
+        count.textContent = done + " / " + total;
+        strip.appendChild(count);
+
+        wrap.appendChild(strip);
+        return wrap;
     }
 
     private buildAchievementCards(): HTMLElement {
@@ -18893,23 +18948,9 @@ This cannot be undone.`,
             shareRow.appendChild(shareAll);
             summary.appendChild(shareRow);
 
-            const optional = optionalAchievementNames();
-            if (optional.length > 0) {
-                const note = document.createElement("div");
-                note.style.cssText = "display:flex;align-items:baseline;gap:7px;margin-top:2px;"
-                    + "padding:5px 9px;border:1px solid #6f9ec4;border-left-width:3px;border-radius:6px;"
-                    + "background:rgba(90,140,190,0.13);";
-                const tag = document.createElement("span");
-                tag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;font-weight:bold;"
-                    + "letter-spacing:0.09em;color:#a8cdea;flex-shrink:0;";
-                tag.textContent = "OPTIONAL";
-                const txt = document.createElement("span");
-                txt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cfe3f4;line-height:1.45;";
-                txt.textContent = optional.join(", ") + " are not needed for 100%. Everything else is.";
-                note.appendChild(tag);
-                note.appendChild(txt);
-                summary.appendChild(note);
-            }
+            // The optional note lived here too. It is on the Completionist
+            // strip above now, and saying it twice on one screen is noise -
+            // the cards still carry their own OPTIONAL badge.
             // Read a layout property first. That forces the browser to commit
             // the 0% width, so the change below is something it can animate
             // between rather than a single value it renders once.
@@ -18958,12 +18999,32 @@ This cannot be undone.`,
                     const card = document.createElement("div");
                     card.className = `ebc-ach-card t${plate}`;
 
-                    // Medal coin - tier numeral, ★ for rares, empty when locked
+                    // Medal coin - the achievement's own icon, painted by state.
+                    //
+                    // It used to be a bare tier numeral, which said nothing about
+                    // what the achievement was for and left every card looking
+                    // identical at a glance. The tier is still readable from the
+                    // coin's own plating and from the level chip below.
                     const medal = document.createElement("div");
                     medal.className = "ebc-ach-medal";
-                    medal.textContent = a.rare ? "★" : a.tier > 0 ? String(a.tier) : "";
+                    const tone = a.maxed ? "gold" : a.tier > 0 ? "on" : "dim";
+                    if (!paintAchievementIcon(medal, a.id, tone)) {
+                        // No icon for this one yet - keep what was there before
+                        // rather than leaving an empty circle.
+                        medal.textContent = a.rare ? "★" : a.tier > 0 ? String(a.tier) : "";
+                    } else if (a.tier > 0 && !a.maxed && a.tiers.length > 1) {
+                        // Tiny tier marker in the corner, so the icon does not
+                        // cost the information the numeral used to carry.
+                        const t = document.createElement("span");
+                        t.textContent = String(a.tier);
+                        t.style.cssText = "position:absolute;right:-1px;bottom:-2px;font-size:9px;"
+                            + "font-weight:bold;color:#f0dbe6;background:#2a1421;border:1px solid #4c2537;"
+                            + "border-radius:50%;width:13px;height:13px;line-height:11px;text-align:center;";
+                        medal.style.position = "relative";
+                        medal.appendChild(t);
+                    }
                     if (a.tiers.length > 1) {
-                        medal.title = a.tiers.map((t, ti) => `Tier ${ti + 1}: ${achievementDesc(a, t)}`).join("\n");
+                        medal.title = a.tiers.map((t, ti) => `Level ${ti + 1}: ${achievementDesc(a, t)}`).join("\n");
                     }
                     card.appendChild(medal);
 
@@ -18977,13 +19038,15 @@ This cannot be undone.`,
                     nm.textContent = a.name;
                     topRow.appendChild(nm);
                     const pr = document.createElement("span");
-                    pr.style.cssText = `flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:10.5px;color:${a.maxed ? "#ffd700" : a.tier > 0 ? "#a8d0b0" : "#9a7080"};`;
+                    pr.style.cssText = "flex-shrink:0;font-family:'Trebuchet MS',serif;font-size:11.5px;"
+                        + "font-weight:bold;font-variant-numeric:tabular-nums;color:"
+                        + (a.maxed ? "#ffd700" : a.tier > 0 ? "#b6e0be" : "#d8bcc8") + ";";
                     pr.textContent = a.maxed ? "MAX ✓" : `${a.value} / ${a.nextTarget}`;
                     topRow.appendChild(pr);
                     main.appendChild(topRow);
 
                     const ds = document.createElement("div");
-                    ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
+                    ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c9b0bd;line-height:1.4;";
                     ds.textContent = a.descNow;
                     main.appendChild(ds);
 
@@ -18993,16 +19056,34 @@ This cannot be undone.`,
                     // ladder. The remaining steps are named, because knowing the
                     // next number is 25 and not 500 changes whether you bother.
                     if (a.tiers.length > 1) {
-                        const lvl = document.createElement("div");
-                        lvl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;"
-                            + "color:#8a7080;margin-top:2px;";
+                        // A bordered chip rather than a third line of muted
+                        // text. Three lines in near-identical greys is the
+                        // problem being fixed here - a reader should be able to
+                        // tell what kind of information each line is without
+                        // having to read it first.
                         const at = Math.min(a.tier + (a.maxed ? 0 : 1), a.tiers.length);
                         const later = a.tiers.slice(a.tier + (a.maxed ? 0 : 1));
-                        lvl.textContent = a.maxed
-                            ? `Level ${a.tiers.length} of ${a.tiers.length} - all done`
-                            : `Level ${at} of ${a.tiers.length}`
-                              + (later.length ? ` - then ${later.map(n => a.fmtN ? a.fmtN(n) : n).join(", ")}` : "");
-                        main.appendChild(lvl);
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;";
+
+                        const chip = document.createElement("span");
+                        chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;font-weight:bold;"
+                            + "letter-spacing:0.05em;padding:1px 7px;border-radius:9px;flex-shrink:0;"
+                            + (a.maxed
+                                ? "background:rgba(255,215,0,0.16);border:1px solid #ffd700;color:#ffe98a;"
+                                : "background:rgba(207,111,152,0.16);border:1px solid #cf6f98;color:#f0b8d0;");
+                        chip.textContent = a.maxed
+                            ? `ALL ${a.tiers.length} LEVELS DONE`
+                            : `LEVEL ${at} OF ${a.tiers.length}`;
+                        row.appendChild(chip);
+
+                        if (!a.maxed && later.length) {
+                            const nxt = document.createElement("span");
+                            nxt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#a891a0;";
+                            nxt.textContent = "then " + later.map(n => a.fmtN ? a.fmtN(n) : n).join(", ");
+                            row.appendChild(nxt);
+                        }
+                        main.appendChild(row);
                     }
 
                     // Said on the card, not only in the Completionist summary.
@@ -19013,7 +19094,7 @@ This cannot be undone.`,
                     // to do is stop someone thinking this blocks their 100%.
                     if (isOptionalAchievement(a.id)) {
                         const opt = document.createElement("div");
-                        opt.style.cssText = "display:inline-block;margin-top:4px;padding:1px 8px;"
+                        opt.style.cssText = "display:inline-block;margin-top:5px;padding:1px 8px;"
                             + "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;"
                             + "letter-spacing:0.04em;border-radius:9px;"
                             + "background:rgba(90,140,190,0.20);border:1px solid #6f9ec4;color:#a8cdea;";
