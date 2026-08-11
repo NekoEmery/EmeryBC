@@ -18927,6 +18927,29 @@ This cannot be undone.`,
             summary.appendChild(line);
             summary.appendChild(trough);
 
+            // Said where these achievements are read, because that is where the
+            // behaviour starts. The cooldown already stops spamming from paying;
+            // this explains why, so a stalled counter reads as a request rather
+            // than a bug.
+            if (filter === "emery" || filter === "all") {
+                const rp = document.createElement("div");
+                rp.style.cssText = "display:flex;align-items:baseline;gap:7px;margin-top:6px;padding:6px 9px;"
+                    + "border:1px solid #cf6f98;border-left-width:3px;border-radius:6px;"
+                    + "background:rgba(207,111,152,0.10);";
+                const rtag = document.createElement("span");
+                rtag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;font-weight:bold;"
+                    + "letter-spacing:0.09em;color:#f0b8d0;flex-shrink:0;";
+                rtag.textContent = "PLEASE READ";
+                const rtxt = document.createElement("span");
+                rtxt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#f0dbe6;line-height:1.5;";
+                rtxt.textContent = "Emery is a person, not a vending machine. Play with her - roleplay, "
+                    + "talk, spend time together. Do not spam actions at her to farm these. Repeating the "
+                    + "same thing quickly only counts once, so there is nothing to gain by it.";
+                rp.appendChild(rtag);
+                rp.appendChild(rtxt);
+                summary.appendChild(rp);
+            }
+
             // The bar counts everything, but not everything is required. Saying
             // which ones are optional right under it stops the count reading as
             // a wall between someone and the reward.
