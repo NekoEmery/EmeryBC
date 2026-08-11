@@ -441,6 +441,24 @@ export function setToastDurationSec(value: number): void {
     } catch { /* ignore */ }
 }
 
+// -- Beep sound volume ----------------------------------------------------------
+// EBC's beep is a generated tone rather than a sound file, and it was noticeably
+// quieter than BC's own. Stored as a percentage so the slider reads plainly.
+
+export function getBeepVolume(): number {
+    try {
+        const v = getSettings().beepVolume;
+        return typeof v === "number" && v >= 0 && v <= 300 ? v : 100;
+    } catch { return 100; }
+}
+
+export function setBeepVolume(pct: number): void {
+    try {
+        getSettings().beepVolume = Math.max(0, Math.min(300, Math.round(pct)));
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- Stored-data manager -------------------------------------------------------
 // Every category of data EBC keeps on the account, so the Storage panel can show
 // what is taking up space and let the user clear any of it.

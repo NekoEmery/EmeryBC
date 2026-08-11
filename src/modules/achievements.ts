@@ -5,7 +5,7 @@
 // hugs), plus rare Emery-targeted ones. Progress lives in EBC settings (synced,
 // tiny); tier-ups pop a toast. Fed from main.ts's ChatRoomMessage hook.
 
-import { getSettings, syncSettings } from "./bcUtils";
+import { getSettings, syncSettings, settingsReady } from "./bcUtils";
 import { getRestrainedMs, getGaggedMs, getChastityMs } from "./timer";
 import { CREDITED, ACHIEVEMENT_MEMBERS, isCredited, hasCreatorAccess } from "./crew";
 
@@ -83,20 +83,43 @@ export interface AchievementDef {
 }
 
 /**
- * Completionist means everything except two.
+ * Achievements that do not count toward Completionist.
  *
- * Met the Crew needs five specific people online and in the same room at once,
- * which is not a thing you can go and do - it is luck and other people's
- * schedules. Met the Kitty replaces it as the required one: still meeting
- * someone, but one person rather than five.
- *
- * Completionist itself is excluded because it is derived from the others and
- * would otherwise be waiting on itself.
+ * - completionist: derived from the others, so it would wait on itself.
+ * - crew_met:      waits on five particular people being around.
+ * - bughunter:     requiring it would mean the only way to finish your list is
+ *                  to file bug reports, and people were already sending junk to
+ *                  farm it. Nobody should have to spam a form to reach 100%,
+ *                  and the reports it produces are worse than useless.
  */
-const COMPLETION_EXCLUDES = new Set(["completionist", "crew_met"]);
+const COMPLETION_EXCLUDES = new Set(["completionist", "crew_met", "bughunter"]);
 
 function countsTowardCompletion(a: AchievementDef): boolean {
     return !COMPLETION_EXCLUDES.has(a.id);
+}
+
+/** Whether this one is needed for the 100% reward. */
+export function isRequiredForCompletion(id: string): boolean {
+    return !COMPLETION_EXCLUDES.has(id);
+}
+
+/**
+ * Optional in the sense the badge means: not needed, and something you could
+ * choose to chase anyway.
+ *
+ * Completionist is excluded from itself for a mechanical reason - it is worked
+ * out FROM the others - so labelling it optional would read as though the
+ * reward were beside the point.
+ */
+export function isOptionalAchievement(id: string): boolean {
+    return id !== "completionist" && !isRequiredForCompletion(id);
+}
+
+/** Names of the ones that do not count, for saying so plainly in the UI. */
+export function optionalAchievementNames(): string[] {
+    return ACHIEVEMENTS
+        .filter(a => a.id !== "completionist" && !countsTowardCompletion(a))
+        .map(a => a.name);
 }
 
 /** How far along the 100% reward is: [done, total]. */
@@ -108,6 +131,15 @@ export function completionProgress(): [number, number] {
         if (tiersReached(a, value) >= a.tiers.length) done++;
     }
     return [done, list.length];
+}
+
+/**
+ * Overall completion as a whole percent, counting only what Completionist
+ * counts - so the number beside your name means the same thing as the reward.
+ */
+export function completionPercent(): number {
+    const [done, total] = completionProgress();
+    return total > 0 ? Math.round((done / total) * 100) : 0;
 }
 
 /** True once every counting achievement is at its highest tier. */
@@ -143,6 +175,10 @@ export const ACHIEVEMENT_CLASSES: Array<{ id: string; label: string; icon: strin
     { id: "given",    label: "Given",    icon: "🖐" },
     { id: "bondage",  label: "Bondage",  icon: "⛓" },
     { id: "emery",    label: "Emery",    icon: "⭐" },
+    // Its own class rather than a badge alone. Someone scanning the list should
+    // be able to see at once which achievements are and are not in the way of
+    // the reward, without reading every card.
+    { id: "optional", label: "Optional", icon: "○" },
 ];
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -157,7 +193,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     { id: "patgiver",  icon: "🖐", name: "Pat Dispenser",  desc: "Headpat others {n} times",  counter: "pet_give",    tiers: [10, 50, 250], cls: "given" },
     { id: "huggiver",  icon: "💞", name: "Hug Dealer",     desc: "Give {n} hugs",             counter: "hug_give",    tiers: [10, 50, 250], cls: "given" },
     { id: "kissgiver", icon: "😘", name: "Kiss Bandit",    desc: "Kiss others {n} times",     counter: "kiss_give",   tiers: [10, 50, 250], cls: "given" },
-    { id: "bughunter", icon: "🐛", name: "Bug Hunter",     desc: "Send {n} bug reports or suggestions", counter: "feedback_sent", tiers: [1, 5, 15], cls: "given" },
+    { id: "bughunter", icon: "🐛", name: "Bug Hunter",     desc: "Send {n} bug reports or suggestions", counter: "feedback_sent", tiers: [1, 5, 15], cls: "optional" },
     { id: "spanker",   icon: "🍑", name: "Heavy Hand",     desc: "Spank others {n} times",    counter: "spank_give",  tiers: [10, 50, 250], cls: "given" },
     { id: "tickler",   icon: "🪶", name: "Tickle Monster", desc: "Tickle others {n} times",   counter: "tickle_give", tiers: [10, 50, 250], cls: "given" },
     // ⛓ Bondage
@@ -190,7 +226,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     // are credited yourself you count toward your own total - you already know
     // who you are - so everyone needs the same number.
     { id: "met_emery", icon: "⭐", name: "Met the Kitty", desc: "Share a room with Emery",                        counter: "met_emery", tiers: [1], cls: "emery", rare: true },
-    { id: "crew_met",  icon: "⭐", name: "Met the Crew",  desc: "Share a room with each of the {n} credited EBC people, in any order", counter: "crew_met",  tiers: [CREDITED.length], cls: "emery", rare: true },
+    { id: "crew_met",  icon: "⭐", name: "Met the Crew",  desc: "Share a room with each of the {n} credited EBC people, in any order", counter: "crew_met",  tiers: [CREDITED.length], cls: "optional", rare: true },
 
     // Completionist is not tracked like the others - its progress is derived
     // from everything else, in completionProgress() below. It is listed last so
@@ -215,6 +251,20 @@ function getState(): AchState {
             if (!v.u || typeof v.u !== "object") v.u = {};
             return v;
         }
+
+        // Nothing is written until the account settings have actually arrived.
+        //
+        // This is what was wiping people's achievements. Anything asking for
+        // progress before the settings had loaded got an empty state that was
+        // then STORED - and reinitFromExtensionSettings only fills keys that are
+        // still undefined, so the real progress coming back from the server was
+        // skipped over as "already set". The next sync then wrote the empty one
+        // out over it.
+        //
+        // Returning a throwaway means an early reader sees zero, which is
+        // harmless, instead of zero becoming the truth.
+        if (!settingsReady()) return { c: {}, u: {} };
+
         const fresh: AchState = { c: {}, u: {} };
         store.achievements = fresh;
         return fresh;
@@ -259,16 +309,28 @@ export function achievementBackupAge(): string | null {
 }
 
 /**
- * Clears all progress, keeping a copy. The copy is only taken when there is not
- * already one - so resetting twice in a row still restores the state you had
- * before you started testing, not the empty one from the first reset.
+ * Clears all progress, keeping a copy of what was there.
+ *
+ * The copy used to be written only when no copy already existed, so that
+ * resetting twice in a row still restored the state from before testing began.
+ * That reasoning is fine for a testing session and terrible for everything
+ * else: anyone who had reset once months ago, restored nothing, and then hit
+ * this again lost real progress to a backup slot already occupied by something
+ * ancient.
+ *
+ * Now the copy is always written, EXCEPT when the thing being wiped is already
+ * empty - which is the double-reset case the old rule was worried about, and
+ * the only case where overwriting would destroy the useful copy.
  */
 export function resetAchievementsForTesting(): boolean {
     if (!canResetAchievements()) return false;
     try {
         const store = getSettings() as Record<string, unknown>;
-        if (!hasAchievementBackup()) {
-            const snapshot = JSON.stringify({ ts: Date.now(), state: store.achievements ?? {} });
+        const current = store.achievements as AchState | undefined;
+        const hasProgress = !!current && typeof current === "object"
+            && Object.keys((current.c ?? {}) as Record<string, unknown>).length > 0;
+        if (hasProgress) {
+            const snapshot = JSON.stringify({ ts: Date.now(), state: current });
             localStorage.setItem(ACH_BACKUP_LS, snapshot);
         }
         store.achievements = { c: {}, u: {} } as AchState;
@@ -737,6 +799,31 @@ const _plaqueLastBySender = new Map<number, number>();
 
 /** Detects an incoming achievement share. Renders the plaque and returns true
  *  so the caller suppresses the plain whisper. Works for EVERY EBC user. */
+/**
+ * Shares your overall progress as a room emote.
+ *
+ * Sharing was per achievement only, so "how far along am I" could not be said
+ * at all without listing them one by one. Uses the same cooldown as a single
+ * share - it is the same room and the same politeness.
+ */
+export function shareOverallProgress(): "ok" | "noRoom" | "cooldown" {
+    const w = window as unknown as Record<string, unknown>;
+    if (w.CurrentScreen !== "ChatRoom") return "noRoom";
+    if (getShareCooldownMs() > 0) return "cooldown";
+    const [done, total] = completionProgress();
+    const pct = completionPercent();
+    const content = `shares their achievement progress: 🏆 ${pct}% (${done} of ${total})`;
+    try {
+        ServerSend("ChatRoomChat", {
+            Content: content,
+            Type: "Emote",
+            Dictionary: [{ Tag: "EBCACHPCT", Text: JSON.stringify({ pct, done, total }) }],
+        } as never);
+    } catch { return "noRoom"; }
+    _lastShareTs = Date.now();
+    return "ok";
+}
+
 export function handleAchievementShareMessage(data: Record<string, unknown> | null | undefined): boolean {
     try {
         if (!data || (data.Type !== "Emote" && data.Type !== "Chat" && data.Type !== "Whisper")) return false;

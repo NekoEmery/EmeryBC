@@ -339,6 +339,20 @@ export function isEBCComplete(memberNumber: number): boolean {
     return ebcCompleteCache.has(memberNumber);
 }
 
+// Overall achievement percentage, as broadcast with their presence. Memory only
+// for the same reason as the completion flag - it is theirs, and it changes.
+const ebcAchPct = new Map<number, number>();
+
+export function cacheEBCAchPct(memberNumber: number, pct: number | null): void {
+    if (pct === null || !Number.isFinite(pct)) ebcAchPct.delete(memberNumber);
+    else ebcAchPct.set(memberNumber, Math.max(0, Math.min(100, Math.round(pct))));
+}
+
+/** Their achievement percentage, or null if they have not told us. */
+export function getEBCAchPct(memberNumber: number): number | null {
+    return ebcAchPct.get(memberNumber) ?? null;
+}
+
 export function updateOnlineFriends(entries: Array<Record<string, unknown>>): void {
     const prevOnline = new Set(onlineSet);
     onlineSet.clear();

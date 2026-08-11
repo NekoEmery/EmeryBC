@@ -59,6 +59,7 @@ import {
     setOutfitStorage,
     setRestraintStorage,
     getOutfitStorageUsage,
+    ALLOWED_INTERACTION_LABELS,
     reloadLocalLists,
     setAllOutfitsStorage,
     setAllRestraintsStorage,
@@ -107,15 +108,15 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, getBeepVolume, setBeepVolume, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { getFriendList, getFriendStatus, isEBCComplete, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, getPendingMessagesCleaned, cancelPendingMessage, isBeepBlocked, deleteBeepEntry, setQueueDeliveredCallback, type EBCGroup, type GroupBeepEntry } from "./friends";
+import { getFriendList, getFriendStatus, isEBCComplete, getEBCAchPct, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, getPendingMessagesCleaned, cancelPendingMessage, isBeepBlocked, deleteBeepEntry, setQueueDeliveredCallback, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
 import { registerOpenBeepCallback } from "./macros";
-import { isAchievementUser, hasCompletedEverything, completionProgress, setAchievementsChangedCallback, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
+import { isAchievementUser, hasCompletedEverything, completionProgress, shareOverallProgress, isOptionalAchievement, optionalAchievementNames, setAchievementsChangedCallback, isAchievementsOptedOut, setAchievementsOptedOut, getAchievementProgress, ACHIEVEMENT_CLASSES, shareAchievement, getShareCooldownMs, achievementOnFeedbackSent, getShowSharedPlaques, setShowSharedPlaques, achievementDesc, crewRosterStatus, canResetAchievements, hasAchievementBackup, achievementBackupAge, resetAchievementsForTesting, restoreAchievements, type ShareMode } from "./achievements";
 import { callBC, syncSettings, getSettings, getCurrentRoomName, isInCurrentRoom, getSettingsBlobSize, SETTINGS_FLUSH_CAP } from "./bcUtils";
 import { getSafewordConfig, setSafewordConfig, isGraceActive, getGraceRemaining, endGrace } from "./safeword";
 import {
@@ -2106,6 +2107,42 @@ const CSS = `
     gap: 6px;
     margin: 4px 0;
 }
+
+/* Sliders, themed. A bare range input renders in the browser's own blue and
+   sits badly against everything else in the panel. */
+.ebc-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #cf6f98 var(--fill, 33%), #2a1421 var(--fill, 33%));
+    outline: none;
+    cursor: pointer;
+    border: 1px solid #3a1c2c;
+}
+.ebc-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #f7b8d2, #cf6f98 60%, #91405f);
+    border: 1px solid #f8dce8;
+    box-shadow: 0 0 5px rgba(207,111,152,0.55);
+    cursor: grab;
+}
+.ebc-slider::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.12); }
+.ebc-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #cf6f98;
+    border: 1px solid #f8dce8;
+    box-shadow: 0 0 5px rgba(207,111,152,0.55);
+    cursor: grab;
+}
+.ebc-slider::-moz-range-track { height: 4px; border-radius: 3px; background: #2a1421; }
+.ebc-slider:focus-visible { box-shadow: 0 0 0 2px rgba(207,111,152,0.45); }
 
 .ebc-delay-row input[type="range"] {
     flex: 1;
@@ -4168,6 +4205,32 @@ for (const _p of CREDITED) {
  * Anything that is itself interactive is ignored as a drag handle, so dragging
  * cannot start on a button, a text box or a link and steal the click from it.
  */
+/**
+ * Plays the beep at the current volume, so the slider can be judged by ear.
+ *
+ * Deliberately a copy of the tone in main.ts rather than an import - drawer is
+ * imported BY main, and reaching back the other way for one oscillator would
+ * add a cycle for no benefit. If the tone itself ever changes, this is the
+ * other place to change.
+ */
+function playBeepPreview(): void {
+    try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(Math.max(0.0001, 0.18 * (getBeepVolume() / 100)), ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.25);
+        osc.onended = () => ctx.close();
+    } catch { /* AudioContext may be unavailable */ }
+}
+
 function makeDraggable(el: HTMLElement): void {
     el.addEventListener("mousedown", (e: MouseEvent) => {
         const tgt = e.target as HTMLElement | null;
@@ -10277,11 +10340,28 @@ This cannot be undone.`,
         const eTitleSel = this.makeTitleSelect(o.title ?? "");
         const eExprSel  = this.makeExprPresetSelect(o.expressionPresetId ?? null);
 
+        // Who may put things on you, set by what you are wearing. Defaults to
+        // leaving it alone - getting dressed must never widen this by accident,
+        // so it only moves for an outfit you deliberately gave a level to.
+        const ePermSel = document.createElement("select");
+        ePermSel.className = "ebc-form-input";
+        ePermSel.style.cssText = "width:100%;font-size:11px;";
+        const permOpts: Array<[string, string]> = [["", "No change (leave as is)"]];
+        for (let i = 0; i <= 5; i++) permOpts.push([String(i), ALLOWED_INTERACTION_LABELS[i]]);
+        for (const [v, label] of permOpts) {
+            const op = document.createElement("option");
+            op.value = v;
+            op.textContent = label;
+            if (String(o.allowedInteractions ?? "") === v) op.selected = true;
+            ePermSel.appendChild(op);
+        }
+
         editPanel.appendChild(makeEditRow("Command", eCmdInput));
         editPanel.appendChild(makeEditRow("Name", eNameInput));
         editPanel.appendChild(makeEditRow("Announce", eAnnounceInput));
         editPanel.appendChild(makeEditRow("Nickname", eNicknameInput));
         editPanel.appendChild(makeEditRow("Title", eTitleSel));
+        editPanel.appendChild(makeEditRow("Interactions", ePermSel));
         editPanel.appendChild(makeEditRow("Face preset", eExprSel));
 
         // Tag assignment
@@ -10468,6 +10548,7 @@ This cannot be undone.`,
                 eNicknameInput.value,
                 eTitleSel.value,
                 eExprSel.value || null,
+                ePermSel.value === "" ? null : parseInt(ePermSel.value, 10),
             );
             if (ok) this.rerender();
         });
@@ -16008,6 +16089,51 @@ This cannot be undone.`,
             (v) => setOnlineSoundEnabled(v),
         ));
 
+        // EBC's beep is a generated tone, not a sound file, and its loudness was
+        // fixed - so it sat under BC's own with no way to even it up.
+        {
+            const volRow = document.createElement("div");
+            volRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:4px 7px;";
+            const volLbl = document.createElement("span");
+            volLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#c8a0b4;flex-shrink:0;";
+            volLbl.textContent = "Beep volume";
+            const slider = document.createElement("input");
+            slider.type = "range";
+            slider.min = "0";
+            slider.max = "300";
+            slider.step = "10";
+            slider.value = String(getBeepVolume());
+            slider.className = "ebc-slider";
+            slider.style.cssText = "flex:1;min-width:80px;";
+            // The filled part of the track is drawn by a gradient, so it has to
+            // be told where the handle is - CSS cannot read the value itself.
+            const paintFill = (): void => {
+                const pct = (parseInt(slider.value, 10) / 300) * 100;
+                slider.style.setProperty("--fill", pct + "%");
+            };
+            paintFill();
+            const val = document.createElement("span");
+            val.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:#9a8290;"
+                + "flex-shrink:0;min-width:38px;text-align:right;";
+            val.textContent = getBeepVolume() + "%";
+            slider.addEventListener("input", () => { val.textContent = slider.value + "%"; paintFill(); });
+            // Saved and previewed on release rather than per pixel of drag, so a
+            // sweep does not fire a hundred sounds or a hundred writes.
+            slider.addEventListener("change", () => {
+                setBeepVolume(parseInt(slider.value, 10));
+                try { playBeepPreview(); } catch { /* ignore */ }
+            });
+            volRow.appendChild(volLbl);
+            volRow.appendChild(slider);
+            volRow.appendChild(val);
+            chatSettingsBody.appendChild(volRow);
+
+            const volHint = document.createElement("div");
+            volHint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#7a5a6a;padding:0 7px 4px;";
+            volHint.textContent = "100% is the original level. Plays a sample when you let go.";
+            chatSettingsBody.appendChild(volHint);
+        }
+
         chatSettingsBody.appendChild(mkToggleRow(
             "LianChat compatibility",
             getLianChatCompat,
@@ -17485,6 +17611,20 @@ This cannot be undone.`,
                 nameRow.appendChild(nameEl);
                 for (const d of decorFriend.after) nameRow.appendChild(d);
 
+                // Only for people running EBC who have some progress - an empty
+                // or zero badge on everyone else would be noise, not information.
+                const achPct = getEBCAchPct(num);
+                if (achPct !== null && achPct > 0) {
+                    const pctEl = document.createElement("span");
+                    pctEl.textContent = achPct + "%";
+                    pctEl.title = "Achievement progress";
+                    pctEl.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:9px;flex-shrink:0;"
+                        + "border:1px solid " + (achPct >= 100 ? "#c9ab72" : "#4c2537")
+                        + ";color:" + (achPct >= 100 ? "#e8cf9a" : "#9a8290")
+                        + ";border-radius:8px;padding:0 5px;";
+                    nameRow.appendChild(pctEl);
+                }
+
                 // If this person has a nickname, show their account name in muted text
                 // so you can tell "Lucy" is actually "Lucas" on their account.
                 const acctName = getAccountName(num);
@@ -18631,8 +18771,13 @@ This cannot be undone.`,
         // this needs to know Met the Crew is not standing in their way.
         const t3 = document.createElement("div");
         t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a3859a;margin-top:3px;line-height:1.45;";
-        t3.textContent = "Met the Crew does not count - it waits on five particular people being around, "
-            + "however long that takes. Met the Kitty is the meeting one that counts.";
+        const optNames = optionalAchievementNames();
+        t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cfe3f4;margin-top:5px;"
+            + "line-height:1.45;padding:4px 8px;border-radius:6px;"
+            + "background:rgba(90,140,190,0.13);border-left:3px solid #6f9ec4;";
+        t3.textContent = optNames.length
+            ? "OPTIONAL: " + optNames.join(", ") + " are not needed. Everything else is."
+            : "Everything counts.";
         titles.appendChild(t1);
         titles.appendChild(t2);
         titles.appendChild(t3);
@@ -18726,6 +18871,45 @@ This cannot be undone.`,
             trough.appendChild(fill);
             summary.appendChild(line);
             summary.appendChild(trough);
+
+            // The bar counts everything, but not everything is required. Saying
+            // which ones are optional right under it stops the count reading as
+            // a wall between someone and the reward.
+            // Share the whole thing, not one at a time. Placed with the bar it
+            // describes rather than among the individual achievements.
+            const shareRow = document.createElement("div");
+            shareRow.style.cssText = "display:flex;justify-content:flex-end;margin-top:2px;";
+            const shareAll = document.createElement("button");
+            shareAll.textContent = "Share my progress";
+            shareAll.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;padding:1px 9px;"
+                + "border-radius:9px;border:1px solid #4c2537;background:transparent;color:#b98aa0;cursor:pointer;";
+            shareAll.addEventListener("click", () => {
+                const r = shareOverallProgress();
+                shareAll.textContent = r === "ok" ? "Shared ✓"
+                    : r === "cooldown" ? "Wait a moment"
+                    : "Only in a room";
+                window.setTimeout(() => { shareAll.textContent = "Share my progress"; }, 2000);
+            });
+            shareRow.appendChild(shareAll);
+            summary.appendChild(shareRow);
+
+            const optional = optionalAchievementNames();
+            if (optional.length > 0) {
+                const note = document.createElement("div");
+                note.style.cssText = "display:flex;align-items:baseline;gap:7px;margin-top:2px;"
+                    + "padding:5px 9px;border:1px solid #6f9ec4;border-left-width:3px;border-radius:6px;"
+                    + "background:rgba(90,140,190,0.13);";
+                const tag = document.createElement("span");
+                tag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;font-weight:bold;"
+                    + "letter-spacing:0.09em;color:#a8cdea;flex-shrink:0;";
+                tag.textContent = "OPTIONAL";
+                const txt = document.createElement("span");
+                txt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cfe3f4;line-height:1.45;";
+                txt.textContent = optional.join(", ") + " are not needed for 100%. Everything else is.";
+                note.appendChild(tag);
+                note.appendChild(txt);
+                summary.appendChild(note);
+            }
             // Read a layout property first. That forces the browser to commit
             // the 0% width, so the change below is something it can animate
             // between rather than a single value it renders once.
@@ -18802,6 +18986,22 @@ This cannot be undone.`,
                     ds.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;color:#9a8290;";
                     ds.textContent = a.descNow;
                     main.appendChild(ds);
+
+                    // Said on the card, not only in the Completionist summary.
+                    // Someone looking at an unfinished achievement wants to know
+                    // right there whether it is blocking their 100%.
+                    // Deliberately loud. This was a faint line under the
+                    // description and read as decoration - the one thing it has
+                    // to do is stop someone thinking this blocks their 100%.
+                    if (isOptionalAchievement(a.id)) {
+                        const opt = document.createElement("div");
+                        opt.style.cssText = "display:inline-block;margin-top:4px;padding:1px 8px;"
+                            + "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;"
+                            + "letter-spacing:0.04em;border-radius:9px;"
+                            + "background:rgba(90,140,190,0.20);border:1px solid #6f9ec4;color:#a8cdea;";
+                        opt.textContent = "OPTIONAL - not needed for 100%";
+                        main.appendChild(opt);
+                    }
 
                     // Roster achievements name who is done and who is left. Both
                     // on screen rather than one behind a hover: seeing a name
@@ -19051,7 +19251,7 @@ This cannot be undone.`,
             const plaqueBtn = document.createElement("button");
             const paintPlaque = (): void => {
                 const on = getShowSharedPlaques();
-                plaqueBtn.textContent = on ? "Shared achievements: shown" : "Shared achievements: hidden";
+                plaqueBtn.textContent = on ? "Others unlocks in chat: shown" : "Others unlocks in chat: hidden";
                 plaqueBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;cursor:pointer;transition:color 0.12s,border-color 0.12s;" +
                     (on ? "border:1px solid #4c2537;background:transparent;color:#b088a0;"
                         : "border:1px solid #33283c;background:transparent;color:#7a6a86;");
@@ -19061,7 +19261,26 @@ This cannot be undone.`,
             };
             paintPlaque();
             plaqueBtn.addEventListener("click", () => { setShowSharedPlaques(!getShowSharedPlaques()); paintPlaque(); });
+
+            // Under a heading that says what it is about.
+            //
+            // Sitting loose at the foot of the list, this button read as though
+            // it filtered the achievements above it - which is exactly how it
+            // was reported. Naming the group is what fixes that; renaming the
+            // button alone still left it floating under a list of achievements.
+            const shareHead = document.createElement("div");
+            shareHead.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:9px;"
+                + "letter-spacing:0.12em;text-transform:uppercase;color:#7a5a6a;margin-top:4px;";
+            shareHead.textContent = "Sharing";
+            panel.appendChild(shareHead);
             panel.appendChild(plaqueBtn);
+
+            const shareHint = document.createElement("div");
+            shareHint.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:9.5px;"
+                + "color:#7a5a6a;text-align:center;max-width:300px;line-height:1.4;";
+            shareHint.textContent = "This is about other people's unlocks appearing in your chat. "
+                + "It does not hide anything from the list above.";
+            panel.appendChild(shareHint);
 
             const optOutBtn = document.createElement("button");
             optOutBtn.style.cssText = "align-self:center;font-family:'Trebuchet MS',serif;font-size:10px;padding:2px 10px;border-radius:8px;border:1px solid #33283c;background:transparent;color:#7a6a86;cursor:pointer;transition:color 0.12s,border-color 0.12s;";
@@ -19093,10 +19312,22 @@ This cannot be undone.`,
                 const resetBtn = mkTestBtn("Reset for testing", "#a8606c");
                 resetBtn.title = "Clears all progress so unlocks can be watched again. A copy is kept - nothing is lost.";
                 resetBtn.addEventListener("click", () => {
+                    // The old wording promised that when a copy already existed
+                    // it was "NOT replaced - Restore still brings back your real
+                    // progress". That was false. The copy was never replaced, so
+                    // resetting after months of play wrote nothing and left the
+                    // slot holding something ancient - the dialog said it was
+                    // safe at the exact moment it was not. It now states what is
+                    // actually kept, how old the previous copy was, and where it
+                    // lives.
                     showConfirmOverlay(
-                        hasAchievementBackup()
-                            ? "Clear achievement progress again?\n\nThe copy already held is from before your first reset, and is NOT replaced - Restore still brings back your real progress."
-                            : "Clear all achievement progress?\n\nA copy is taken first and Restore puts it straight back, so nothing is actually lost.",
+                        "Clear ALL achievement progress?\n\n"
+                        + "A copy of what you have right now is saved first, and Restore puts it back.\n\n"
+                        + (backupAge
+                            ? `This replaces the copy currently held from ${backupAge}.\n\n`
+                            : "")
+                        + "The copy is kept in this browser only. Clearing site data, or moving to "
+                        + "another device, loses it.",
                         "Cancel", "Reset",
                         () => {
                             resetAchievementsForTesting();
@@ -28312,6 +28543,7 @@ This cannot be undone.`,
     private buildAutoEscapeSection(body: HTMLElement): void {
         // ── Auto-Escape card ─────────────────────────────────────────────────
         const aeCard = document.createElement("div");
+        aeCard.dataset.domGroup = "escape";
         aeCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
 
         const aeLbl = document.createElement("div");
@@ -28411,6 +28643,7 @@ This cannot be undone.`,
             body.appendChild(msg);
             return;
         }
+
 
         // ── Dom Settings (announce) - floated into setsCard header below ─────
         const dsSel = document.createElement("select");
@@ -30025,10 +30258,76 @@ This cannot be undone.`,
         posPanel.appendChild(releaseBtn);
 
         // Order: Restraint Sets → Target → Actions → Release Tools
+        setsCard.dataset.domGroup = "sets";
+        targetCard.dataset.domGroup = "control";
+        actionsCard.dataset.domGroup = "control";
+        releaseCard.dataset.domGroup = "control";
         body.appendChild(setsCard);
         body.appendChild(targetCard);
         body.appendChild(actionsCard);
         body.appendChild(releaseCard);
+
+        this._domPills(body);
+    }
+
+    /**
+     * Pills for the DOM tab.
+     *
+     * Written for this tab rather than reusing _pillifyTab, which keys off a
+     * section class the DOM tab's hand-built cards do not use. Converting them
+     * would touch every card here for a cosmetic grouping; tagging each card
+     * with the group it belongs to does the same job in a few lines and cannot
+     * misclassify anything, because nothing is being guessed from text.
+     */
+    private _domPills(body: HTMLElement): void {
+        const GROUPS: Array<{ id: string; label: string }> = [
+            { id: "escape",     label: "Auto-escape" },
+            { id: "sets",       label: "Sets" },
+            { id: "control",    label: "Control" },
+            { id: "management", label: "Management" },
+        ];
+
+        const cards = (Array.from(body.children) as HTMLElement[])
+            .filter(el => !!el.dataset.domGroup);
+        if (cards.length === 0) return;
+
+        const present = GROUPS.filter(g => cards.some(c => c.dataset.domGroup === g.id));
+        if (present.length < 2) return;   // nothing to switch between
+
+        const KEY = "EBC_domView";
+        let active = "escape";
+        try { active = localStorage.getItem(KEY) ?? "escape"; } catch { /* ignore */ }
+        if (!present.some(g => g.id === active)) active = present[0].id;
+
+        const bar = document.createElement("div");
+        bar.style.cssText = "display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;";
+
+        const paint = (): void => {
+            for (const c of cards) c.style.display = c.dataset.domGroup === active ? "" : "none";
+            for (const b of Array.from(bar.children) as HTMLElement[]) {
+                const on = b.dataset.pill === active;
+                b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;"
+                    + "padding:3px 12px;border-radius:11px;cursor:pointer;transition:background .12s,color .12s;"
+                    + (on
+                        ? "background:#6b3048;border:1px solid #cf6f98;color:#f7e6ee;"
+                        : "background:transparent;border:1px solid #4c2537;color:#9a7080;");
+            }
+        };
+
+        for (const g of present) {
+            const b = document.createElement("button");
+            b.dataset.pill = g.id;
+            b.textContent = g.label;
+            b.addEventListener("click", () => {
+                active = g.id;
+                try { localStorage.setItem(KEY, active); } catch { /* ignore */ }
+                paint();
+            });
+            bar.appendChild(b);
+        }
+
+        body.insertBefore(bar, body.firstChild);
+        paint();
     }
 
     // -- Open / Close / Toggle -------------------------------------------------
