@@ -850,14 +850,22 @@ function renderProgressPlaque(byline: string, pct: number, done: number, total: 
         ensureShineStyle();
         const metal = pct >= 100 ? "#ffd700" : "#cf6f98";
 
+        // Same frame as every other EBC line in chat - dark card, accent bar down
+        // the left - rather than a shape of its own. The ring inside is what
+        // makes it an achievement; the frame is what makes it recognisably EBC.
         const plaque = document.createElement("div");
         plaque.style.cssText = [
-            "margin:4px 4px", "padding:8px 11px", "border-radius:9px",
-            `border:1px solid ${metal}`,
-            "background:linear-gradient(160deg, rgba(40,19,32,0.92), rgba(16,7,13,0.96))",
+            "margin:3px 0", "padding:7px 10px", "border-radius:4px",
+            `border-left:3px solid ${metal}`,
+            "background:#190b13",
             "display:flex", "align-items:center", "gap:11px",
             "font-family:'Trebuchet MS', serif", "position:relative", "overflow:hidden",
         ].join(";");
+
+        const tag = document.createElement("span");
+        tag.style.cssText = "position:absolute;top:4px;right:8px;font-size:8.5px;letter-spacing:0.1em;color:#5e4452;";
+        tag.textContent = "EBC";
+        plaque.appendChild(tag);
 
         const ring = document.createElement("div");
         ring.style.cssText = "width:42px;height:42px;border-radius:50%;flex-shrink:0;position:relative;"
