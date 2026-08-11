@@ -42890,7 +42890,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "9.0.8";
+    const MOD_VERSION = "9.0.9";
     const SAL_VERSION = 322; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
@@ -42906,7 +42906,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "9.0.8",
+            version: "9.0.9",
             changes: [
                 "Every achievement has its own icon now, hug included - 13 in all.",
                 "Sharing an achievement or your progress to the room is now invisible to people without EBC. Only EBC can draw the plaque, so the old room emote put a line of text about an addon in front of everyone who does not have it - noise they could not act on. It goes out as a hidden message instead: EBC users get the plaque, everyone else sees nothing at all. Sharing privately to one person still whispers, because a hidden message reaches the whole room and using it there would broadcast something you chose to send to one person.",
@@ -42916,6 +42916,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "The Achievements window is redesigned. Every achievement has its own icon on its medal - rope, gag, feather, paddle and the rest - and the icon is painted by how far you have got: grey untouched, pink in progress, gold when finished. Progress is one ring at the top instead of a bar, a count, a gold tally and a notice all saying pieces of the same thing. The Completionist reward sits beside it as a strip that still shows your name the way it would look, rather than a card taking a third of the window.",
                 "Card text is readable. The count is brighter and bold, descriptions are no longer a whisper, and the level is a bordered chip rather than a third line of the same grey - so you can tell what each line is without reading it first.",
                 "Achievements with more than one level now say so. A card showed only the target of the level you were on, so Tied Down read as 0 / 5 and looked finished at five - when five is the first of three rungs. Each one now says which level you are on, how many there are, and what the later targets are, because knowing the next number is 25 rather than 500 changes whether it is worth chasing.",
+            ],
+        },
+        {
+            version: "9.0.8",
+            changes: [
                 "IMPORTANT fix: achievements were being blanked on login. Anything that asked for your progress before the account settings had finished loading got an empty record - and that empty record was then SAVED. When your real progress arrived a moment later it was skipped over as already present, and the next sync wrote the empty one out over it. 9.0.4 added a check on your progress to the presence broadcast, which made this fire on almost every login instead of hardly ever. Nothing is written now until the settings have actually arrived, and a copy from your account always beats an empty one held in memory.",
                 "Fix: Reset for testing keeps a copy of what you have now. It only saved a copy when no copy existed, so anyone who had reset once long ago wiped their real progress against a backup slot holding something ancient - and the confirm told them Restore would still bring their progress back, which was untrue. It now saves the current state every time, unless what it is clearing is already empty, and the confirm says how old the copy it replaces is.",
                 "Achievements that are not needed for 100% now have their own Optional category, so you can see which ones are and are not in the way of the reward without reading every card. Bug Hunter and Met the Crew live there. The OPTIONAL badges stay.",
