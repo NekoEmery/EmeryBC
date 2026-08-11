@@ -40621,8 +40621,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             card.appendChild(lbl);
             const hint = document.createElement("div");
             hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#b79aa8;margin-bottom:7px;line-height:1.45;";
-            hint.textContent = "Sends one private beep to someone who sent a junk report. "
-                + "The member number is on the report in the sheet.";
+            hint.textContent = "Sends one private notice to someone who sent a junk report. "
+                + "The member number is on the report in the sheet. BC only delivers beeps to "
+                + "friends, so for anyone else this whispers instead - they have to be in the room.";
             card.appendChild(hint);
             const row = document.createElement("div");
             row.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap;";
@@ -40677,20 +40678,52 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     + "Joke and empty submissions take that time away from real bugs.\n\n"
                     + "Please only use it for genuine bugs and suggestions.\n\n"
                     + "-- Sent by the EmeryBC addon. Replying reaches Emery directly.";
-                showConfirmOverlay(`Send a warning beep to ${who} (#${num})?\n\n`
-                    + "It is written as an EmeryBC Management notice, but BC always shows the "
-                    + "sender as you - a beep carries no sender field to set. It cannot be unsent."
-                    + againNote, "Cancel", "Send", () => {
+                // How this person can actually be reached.
+                //
+                // A beep only lands reliably on someone who has you as a friend -
+                // EBC removed a "message any member number" feature years ago for
+                // exactly this reason, and the people misusing the form are the
+                // least likely to be on your list. Working that out BEFORE sending
+                // beats a button that silently does nothing.
+                const friends = Array.isArray(Player === null || Player === void 0 ? void 0 : Player.FriendList) ? Player.FriendList : [];
+                const isFriend = friends.includes(num);
+                const inRoom = (() => {
                     try {
-                        sendBeep(num, message);
+                        const room = window.ChatRoomCharacter;
+                        return Array.isArray(room) && room.some(c => c.MemberNumber === num);
+                    }
+                    catch (_a) {
+                        return false;
+                    }
+                })();
+                if (!isFriend && !inRoom) {
+                    say(`${who} is not on your friends list and is not in this room, so there is `
+                        + "no way to reach them. BC only delivers beeps to friends. Wait until they "
+                        + "are in a room with you, and this will whisper instead.", false);
+                    return;
+                }
+                const how = isFriend ? "beep" : "whisper";
+                const reachNote = isFriend
+                    ? "It is written as an EmeryBC Management notice, but BC always shows the sender "
+                        + "as you - a beep carries no sender field to set."
+                    : `${who} is not on your friends list, so a beep would not arrive. They are in `
+                        + "this room, so it will be whispered instead - only they will see it.";
+                showConfirmOverlay(`Send a warning ${how} to ${who} (#${num})?\n\n${reachNote} It cannot be unsent.${againNote}`, "Cancel", "Send", () => {
+                    try {
+                        if (isFriend) {
+                            sendBeep(num, message);
+                        }
+                        else {
+                            ChatRoomSendWhisper(num, message);
+                        }
                         addWarnEntry(num, who, note);
-                        say(`Warning sent to ${who}.`);
+                        say(`Warning ${isFriend ? "beeped" : "whispered"} to ${who}.`);
                         numIn.value = "";
                         noteIn.value = "";
                         paintLog();
                     }
                     catch (_a) {
-                        say("Could not send - are they on your friends list?", false);
+                        say("Could not send - they may have gone offline or left the room.", false);
                     }
                 });
             });
@@ -42733,7 +42766,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.7";
-    const SAL_VERSION = 311; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 312; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42759,6 +42792,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "New (requested by Mika): friends running EBC show their achievement percentage beside their name. Only for people who have some progress - a 0% badge on everyone would be noise. It reaches 100% at the same point the sparkle does, so the two always agree.",
                 "Fix (reported by Julia): the shared-achievements toggle now reads \"Others unlocks in chat\". It said \"Shared achievements\", which reads just as easily as a filter on the list below it - something that does not exist.",
                 "New (requested by Lola): a beep volume slider in Chat & Notifications. EBC's beep is a generated tone rather than a sound file and its loudness was fixed, so it sat noticeably under the game's own with nothing to do about it. 0 to 300%, and it plays a sample when you let go of the slider.",
+                "Fix: the misuse warning checks it can actually reach the person first. BC only delivers beeps to friends, and someone sending junk through the form is the least likely person to be on your list - so the button would mostly have done nothing. It now beeps friends, whispers anyone else who is in the room with you, and says plainly when neither is possible instead of failing quietly.",
                 "The misuse warning is written as an EmeryBC Management notice rather than a personal message. It still arrives showing Emery as the sender - BC gives a beep no sender field, so that cannot be changed and should not be faked - but it now reads as an automated notice about a submission, and says it came from the addon.",
                 "New (creator only): a Report misuse box on the DOM tab. Reports carry a member number so the sender is identifiable, but the form is one-way and there was no way to say anything back. Enter the number, optionally note what they sent, and it beeps them once. It confirms first, because that is a real message to a real person and it cannot be unsent.",
                 "Changed: Bug Hunter no longer counts toward 100%. Requiring it meant the only way to finish your list was to file bug reports, and people had already started sending junk to farm it - which is worse for everyone than the achievement is worth. It is still there to earn.",

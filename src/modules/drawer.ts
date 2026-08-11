@@ -28617,8 +28617,9 @@ This cannot be undone.`,
 
         const hint = document.createElement("div");
         hint.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#b79aa8;margin-bottom:7px;line-height:1.45;";
-        hint.textContent = "Sends one private beep to someone who sent a junk report. "
-            + "The member number is on the report in the sheet.";
+        hint.textContent = "Sends one private notice to someone who sent a junk report. "
+            + "The member number is on the report in the sheet. BC only delivers beeps to "
+            + "friends, so for anyone else this whispers instead - they have to be in the room.";
         card.appendChild(hint);
 
         const row = document.createElement("div");
@@ -28677,22 +28678,54 @@ This cannot be undone.`,
                 + "Please only use it for genuine bugs and suggestions.\n\n"
                 + "-- Sent by the EmeryBC addon. Replying reaches Emery directly.";
 
+            // How this person can actually be reached.
+            //
+            // A beep only lands reliably on someone who has you as a friend -
+            // EBC removed a "message any member number" feature years ago for
+            // exactly this reason, and the people misusing the form are the
+            // least likely to be on your list. Working that out BEFORE sending
+            // beats a button that silently does nothing.
+            const friends = Array.isArray(Player?.FriendList) ? Player.FriendList as number[] : [];
+            const isFriend = friends.includes(num);
+            const inRoom = (() => {
+                try {
+                    const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
+                        Array<{ MemberNumber?: number }> | undefined;
+                    return Array.isArray(room) && room.some(c => c.MemberNumber === num);
+                } catch { return false; }
+            })();
+
+            if (!isFriend && !inRoom) {
+                say(`${who} is not on your friends list and is not in this room, so there is `
+                    + "no way to reach them. BC only delivers beeps to friends. Wait until they "
+                    + "are in a room with you, and this will whisper instead.", false);
+                return;
+            }
+
+            const how = isFriend ? "beep" : "whisper";
+            const reachNote = isFriend
+                ? "It is written as an EmeryBC Management notice, but BC always shows the sender "
+                  + "as you - a beep carries no sender field to set."
+                : `${who} is not on your friends list, so a beep would not arrive. They are in `
+                  + "this room, so it will be whispered instead - only they will see it.";
+
             showConfirmOverlay(
-                `Send a warning beep to ${who} (#${num})?\n\n`
-                + "It is written as an EmeryBC Management notice, but BC always shows the "
-                + "sender as you - a beep carries no sender field to set. It cannot be unsent."
-                + againNote,
+                `Send a warning ${how} to ${who} (#${num})?\n\n${reachNote} It cannot be unsent.${againNote}`,
                 "Cancel", "Send",
                 () => {
                     try {
-                        sendBeep(num, message);
+                        if (isFriend) {
+                            sendBeep(num, message);
+                        } else {
+                            (ChatRoomSendWhisper as unknown as (t: number, m: string) => void)(num, message);
+                        }
                         addWarnEntry(num, who, note);
-                        say(`Warning sent to ${who}.`);
+                        say(`Warning ${isFriend ? "beeped" : "whispered"} to ${who}.`);
                         numIn.value = "";
                         noteIn.value = "";
                         paintLog();
                     } catch {
-                        say("Could not send - are they on your friends list?", false);
+                        say("Could not send - they may have gone offline or left the room.", false);
                     }
                 },
             );
