@@ -19312,10 +19312,22 @@ This cannot be undone.`,
                 const resetBtn = mkTestBtn("Reset for testing", "#a8606c");
                 resetBtn.title = "Clears all progress so unlocks can be watched again. A copy is kept - nothing is lost.";
                 resetBtn.addEventListener("click", () => {
+                    // The old wording promised that when a copy already existed
+                    // it was "NOT replaced - Restore still brings back your real
+                    // progress". That was false. The copy was never replaced, so
+                    // resetting after months of play wrote nothing and left the
+                    // slot holding something ancient - the dialog said it was
+                    // safe at the exact moment it was not. It now states what is
+                    // actually kept, how old the previous copy was, and where it
+                    // lives.
                     showConfirmOverlay(
-                        hasAchievementBackup()
-                            ? "Clear achievement progress again?\n\nThe copy already held is from before your first reset, and is NOT replaced - Restore still brings back your real progress."
-                            : "Clear all achievement progress?\n\nA copy is taken first and Restore puts it straight back, so nothing is actually lost.",
+                        "Clear ALL achievement progress?\n\n"
+                        + "A copy of what you have right now is saved first, and Restore puts it back.\n\n"
+                        + (backupAge
+                            ? `This replaces the copy currently held from ${backupAge}.\n\n`
+                            : "")
+                        + "The copy is kept in this browser only. Clearing site data, or moving to "
+                        + "another device, loses it.",
                         "Cancel", "Reset",
                         () => {
                             resetAchievementsForTesting();

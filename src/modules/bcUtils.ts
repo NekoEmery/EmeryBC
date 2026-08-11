@@ -7,6 +7,19 @@ import { appendLocalLogBlock } from "./notify";
 let _mem: Record<string, unknown> = {};
 let _initialized = false;
 
+/** True once the account settings have actually been read. */
+export function settingsReady(): boolean {
+    return _initialized;
+}
+
+/** An object or array holding nothing - not the same as absent. */
+function isEmptyish(v: unknown): boolean {
+    if (v === null || v === undefined) return true;
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === "object") return Object.keys(v as Record<string, unknown>).length === 0;
+    return false;
+}
+
 export function initSettings(): void {
     if (_initialized) return;
     // If BC hasn't populated Player.ExtensionSettings yet, bail out.
@@ -130,6 +143,12 @@ export function reinitFromExtensionSettings(ebcData?: Record<string, unknown>): 
                     _mem[k] = v;
                 }
             } else if (_mem[k] === undefined) {
+                _mem[k] = v;
+            } else if (isEmptyish(_mem[k]) && !isEmptyish(v)) {
+                // Something in memory that holds nothing must never win over
+                // real data from the account. Belt and braces for the wipe
+                // above: even if an empty object gets in early, the server's
+                // copy still takes precedence rather than being skipped.
                 _mem[k] = v;
             }
         }

@@ -29,8 +29,8 @@ import bcModSdk from "bondage-club-mod-sdk";
 import { isAchievementUser, hasCompletedEverything, completionPercent, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.0.7";
-const SAL_VERSION  = 313;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.0.8";
+const SAL_VERSION  = 314;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -48,8 +48,10 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "9.0.7",
+        version: "9.0.8",
         changes: [
+            "IMPORTANT fix: achievements were being blanked on login. Anything that asked for your progress before the account settings had finished loading got an empty record - and that empty record was then SAVED. When your real progress arrived a moment later it was skipped over as already present, and the next sync wrote the empty one out over it. 9.0.4 added a check on your progress to the presence broadcast, which made this fire on almost every login instead of hardly ever. Nothing is written now until the settings have actually arrived, and a copy from your account always beats an empty one held in memory.",
+            "Fix: Reset for testing keeps a copy of what you have now. It only saved a copy when no copy existed, so anyone who had reset once long ago wiped their real progress against a backup slot holding something ancient - and the confirm told them Restore would still bring their progress back, which was untrue. It now saves the current state every time, unless what it is clearing is already empty, and the confirm says how old the copy it replaces is.",
             "Achievements that are not needed for 100% now have their own Optional category, so you can see which ones are and are not in the way of the reward without reading every card. Bug Hunter and Met the Crew live there. The OPTIONAL badges stay.",
             "Removed: the Report misuse tool. BC only delivers beeps to friends, and the people it existed for are the least likely to be on that list - so it would mostly have sent nothing. Removing Bug Hunter from the 100% requirement is what actually stops the junk, since it removes the reason for it.",
             "The sharing controls in the Achievements window sit under a Sharing heading now, with a line saying what they do. The toggle was reported as reading like a filter on the list above it, and renaming it alone still left it floating loose under a list of achievements.",
@@ -57,16 +59,17 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "The DOM tab is split into pills - Auto-escape, Sets, Control and Management - instead of one long scroll. Report misuse lives under Management. Which pill you were on is remembered.",
             "The beep volume slider matches the rest of the panel instead of rendering in the browser default blue.",
             "Achievements that are not needed for 100% now say so loudly rather than in small grey text. A blue OPTIONAL badge on the achievement itself, and a bordered notice at the top listing them by name. The whole point of that line is to stop someone thinking an achievement blocks their reward, and it was quiet enough to read as decoration.",
-            "New (creator only): every warning sent is logged - who, when, and the note you added - and the confirm tells you if you have warned that person before. Warning someone twice for the same thing lands very differently from warning them once, and there was no way to know.",
             "New (requested by Julia): share your overall achievement progress, not only one achievement at a time. There is a Share my progress button under the bar.",
             "New (requested by Mika): friends running EBC show their achievement percentage beside their name. Only for people who have some progress - a 0% badge on everyone would be noise. It reaches 100% at the same point the sparkle does, so the two always agree.",
             "Fix (reported by Julia): the shared-achievements toggle now reads \"Others unlocks in chat\". It said \"Shared achievements\", which reads just as easily as a filter on the list below it - something that does not exist.",
             "New (requested by Lola): a beep volume slider in Chat & Notifications. EBC's beep is a generated tone rather than a sound file and its loudness was fixed, so it sat noticeably under the game's own with nothing to do about it. 0 to 300%, and it plays a sample when you let go of the slider.",
-            "Fix: the misuse warning checks it can actually reach the person first. BC only delivers beeps to friends, and someone sending junk through the form is the least likely person to be on your list - so the button would mostly have done nothing. It now beeps friends, whispers anyone else who is in the room with you, and says plainly when neither is possible instead of failing quietly.",
-            "The misuse warning is written as an EmeryBC Management notice rather than a personal message. It still arrives showing Emery as the sender - BC gives a beep no sender field, so that cannot be changed and should not be faked - but it now reads as an automated notice about a submission, and says it came from the addon.",
-            "New (creator only): a Report misuse box on the DOM tab. Reports carry a member number so the sender is identifiable, but the form is one-way and there was no way to say anything back. Enter the number, optionally note what they sent, and it beeps them once. It confirms first, because that is a real message to a real person and it cannot be unsent.",
             "Changed: Bug Hunter no longer counts toward 100%. Requiring it meant the only way to finish your list was to file bug reports, and people had already started sending junk to farm it - which is worse for everyone than the achievement is worth. It is still there to earn.",
             "Achievements that are not needed for 100% now say so on the card itself, and are listed by name under the progress bar and on the Completionist card. The bar counts everything, so without that the number reads as a wall between you and the reward when some of it is optional.",
+        ],
+    },
+    {
+version: "9.0.7",
+        changes: [
             "Fix: dragging the scrollbar in the Achievements window scrolls it, rather than dragging the window. A scrollbar belongs to its element rather than sitting inside it, so it could not be excluded the way buttons and text boxes are - the drag handler ran first and cancelled the browser's own scrollbar drag. It now recognises a press on the bar and leaves it alone. Same for the Suggestions & Bugs window and the Tutorial.",
             "Fix: Met the Crew is described correctly. Both it and the Completionist card implied you needed all six credited people in a room at the same moment. You do not - it is a list that fills up over time, one person here, another somewhere else weeks later, and it is remembered. The wording said something harder than the achievement actually asks for.",
             "The Completionist card now says which achievement does not count. It stated the rule - every achievement at its highest level - without mentioning the one carve-out, and a rule with a hidden exception is worse than no rule: anyone chasing it needs to know Met the Crew is not standing in their way. It is on its own line, along with why.",
@@ -84,7 +87,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         ],
     },
     {
-        version: "9.0.5",
+    version: "9.0.5",
         changes: [
             "Fix: you are in your own room list now, at the top, marked YOU. Your own card listed one fewer person than the count beside it claimed, because the count came from the real room roster while the rows were built from a copy with you removed. It also meant you could never see your own row - your name, your colours, your paw - which is the one thing you would most want to look at.",
             "Fix: Completionist needs EVERY achievement, the crew and Emery ones included. Yesterday's version let you off those, which was my misreading rather than a decision - they are the hardest ones precisely because they need other people, and a reward for finishing the whole list should mean the whole list.",

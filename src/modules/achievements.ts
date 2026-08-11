@@ -5,7 +5,7 @@
 // hugs), plus rare Emery-targeted ones. Progress lives in EBC settings (synced,
 // tiny); tier-ups pop a toast. Fed from main.ts's ChatRoomMessage hook.
 
-import { getSettings, syncSettings } from "./bcUtils";
+import { getSettings, syncSettings, settingsReady } from "./bcUtils";
 import { getRestrainedMs, getGaggedMs, getChastityMs } from "./timer";
 import { CREDITED, ACHIEVEMENT_MEMBERS, isCredited, hasCreatorAccess } from "./crew";
 
@@ -251,6 +251,20 @@ function getState(): AchState {
             if (!v.u || typeof v.u !== "object") v.u = {};
             return v;
         }
+
+        // Nothing is written until the account settings have actually arrived.
+        //
+        // This is what was wiping people's achievements. Anything asking for
+        // progress before the settings had loaded got an empty state that was
+        // then STORED - and reinitFromExtensionSettings only fills keys that are
+        // still undefined, so the real progress coming back from the server was
+        // skipped over as "already set". The next sync then wrote the empty one
+        // out over it.
+        //
+        // Returning a throwaway means an early reader sees zero, which is
+        // harmless, instead of zero becoming the truth.
+        if (!settingsReady()) return { c: {}, u: {} };
+
         const fresh: AchState = { c: {}, u: {} };
         store.achievements = fresh;
         return fresh;
@@ -295,16 +309,28 @@ export function achievementBackupAge(): string | null {
 }
 
 /**
- * Clears all progress, keeping a copy. The copy is only taken when there is not
- * already one - so resetting twice in a row still restores the state you had
- * before you started testing, not the empty one from the first reset.
+ * Clears all progress, keeping a copy of what was there.
+ *
+ * The copy used to be written only when no copy already existed, so that
+ * resetting twice in a row still restored the state from before testing began.
+ * That reasoning is fine for a testing session and terrible for everything
+ * else: anyone who had reset once months ago, restored nothing, and then hit
+ * this again lost real progress to a backup slot already occupied by something
+ * ancient.
+ *
+ * Now the copy is always written, EXCEPT when the thing being wiped is already
+ * empty - which is the double-reset case the old rule was worried about, and
+ * the only case where overwriting would destroy the useful copy.
  */
 export function resetAchievementsForTesting(): boolean {
     if (!canResetAchievements()) return false;
     try {
         const store = getSettings() as Record<string, unknown>;
-        if (!hasAchievementBackup()) {
-            const snapshot = JSON.stringify({ ts: Date.now(), state: store.achievements ?? {} });
+        const current = store.achievements as AchState | undefined;
+        const hasProgress = !!current && typeof current === "object"
+            && Object.keys((current.c ?? {}) as Record<string, unknown>).length > 0;
+        if (hasProgress) {
+            const snapshot = JSON.stringify({ ts: Date.now(), state: current });
             localStorage.setItem(ACH_BACKUP_LS, snapshot);
         }
         store.achievements = { c: {}, u: {} } as AchState;
