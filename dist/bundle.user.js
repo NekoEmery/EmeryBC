@@ -2922,7 +2922,182 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         saveCurseItemMap({});
         saveCursePauses({});
         saveCurseExpiry(null);
+        // Drop the kept copies too, or the keeper would put back an item the
+        // safeword just released.
+        heldItems.clear();
+        try {
+            localStorage.removeItem(bundleKey());
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
         return n;
+    }
+    // -- Keeping the cursed item on ------------------------------------------------
+    //
+    // A curse used to be a claim on a SLOT: the hooks refused removals for a cursed
+    // group and never looked at what was in it. Two things went wrong with that.
+    //
+    // A curse could be escaped. The hooks only see per-item traffic, and an outfit
+    // change does not send per-item traffic - it replaces the whole appearance in
+    // one go, so the cursed item simply vanished, owner lock and all.
+    //
+    // And a curse could latch onto the wrong thing. Once the slot was empty, the
+    // next item anyone put there inherited the curse and could not be taken off -
+    // so losing a cursed collar meant being stuck in whatever replaced it.
+    //
+    // A curse is now a claim on an ITEM. We keep a copy of it, check every couple
+    // of seconds that it is still on, and put it back if it is not. Nothing else in
+    // that slot is protected, so a replacement is always removable.
+    const bundleKey = () => { var _a; return `EBC_curseBundles_${(_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : ""}`; };
+    /** Exact items, kept live so a restore is the real thing and not a lookalike. */
+    const heldItems = new Map();
+    function getCurseBundles() {
+        try {
+            const raw = localStorage.getItem(bundleKey());
+            return raw ? JSON.parse(raw) : {};
+        }
+        catch (_a) {
+            return {};
+        }
+    }
+    function saveCurseBundles(b) {
+        try {
+            localStorage.setItem(bundleKey(), JSON.stringify(b));
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /** Stores the item so it can be rebuilt after a refresh, colour and lock included. */
+    function snapshot(group, item) {
+        heldItems.set(group, item);
+        try {
+            const raw = item;
+            const b = { Name: item.Asset.Name };
+            if (raw.Color !== undefined)
+                b.Color = raw.Color;
+            if (raw.Craft !== undefined)
+                b.Craft = raw.Craft;
+            if (raw.Property !== undefined)
+                b.Property = raw.Property;
+            if (typeof raw.Difficulty === "number")
+                b.Difficulty = raw.Difficulty;
+            const all = getCurseBundles();
+            all[group] = b;
+            saveCurseBundles(all);
+        }
+        catch ( /* a missing snapshot only costs us the restore, not the curse */_a) { /* a missing snapshot only costs us the restore, not the curse */ }
+    }
+    /** The exact item if we still hold it, otherwise one rebuilt from the bundle. */
+    function rebuild(group) {
+        const held = heldItems.get(group);
+        if (held)
+            return held;
+        try {
+            const b = getCurseBundles()[group];
+            if (!b || typeof b.Name !== "string")
+                return null;
+            const w = window;
+            const assetGet = w.AssetGet;
+            const asset = assetGet === null || assetGet === void 0 ? void 0 : assetGet(Player.AssetFamily, group, b.Name);
+            if (!asset)
+                return null;
+            const item = { Asset: asset };
+            if (b.Color !== undefined)
+                item.Color = b.Color;
+            if (b.Craft !== undefined)
+                item.Craft = b.Craft;
+            if (b.Property !== undefined)
+                item.Property = b.Property;
+            if (b.Difficulty !== undefined)
+                item.Difficulty = b.Difficulty;
+            return item;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    /** The asset name a curse is holding, or null when it is not holding anything. */
+    function cursedItemName(group) {
+        const map = getCurseItemMap();
+        const v = map[group];
+        return typeof v === "string" && v ? v : null;
+    }
+    /**
+     * True when this exact item is the one the curse is on.
+     *
+     * Everything that blocks a removal asks this first, so a curse can only ever
+     * refuse to release the item it was placed on - never the slot, and never
+     * whatever happens to be sitting there instead.
+     */
+    function isCursedItem(group, assetName) {
+        if (!getCursedGroups().has(group) || isCursePaused(group))
+            return false;
+        const want = cursedItemName(group);
+        if (!want)
+            return true; // pre-item-binding curse; bound on the next sweep
+        return !!assetName && assetName === want;
+    }
+    /**
+     * Checks every curse and puts back anything that got taken off.
+     *
+     * Run on a timer rather than from the item hooks, because the ways a cursed
+     * item goes missing are exactly the ways that produce no item hook - an outfit
+     * change, a wardrobe load, a full appearance sync. Polling the result catches
+     * all of them without having to guess which BC function did it.
+     *
+     * Returns the groups it had to repair, so the caller can say so.
+     */
+    function enforceCurses() {
+        var _a, _b, _c, _d, _e, _f;
+        const cursed = getCursedGroups();
+        if (cursed.size === 0)
+            return [];
+        const map = getCurseItemMap();
+        const repaired = [];
+        let mapDirty = false;
+        for (const group of cursed) {
+            if (isCursePaused(group))
+                continue;
+            const worn = ((_a = Player.Appearance) !== null && _a !== void 0 ? _a : []).find(a => { var _a, _b; return ((_b = (_a = a.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) === group; });
+            // A curse from before items were tracked binds to what is on right now,
+            // so it stops being a claim on the slot from here on.
+            if (!map[group]) {
+                if ((_b = worn === null || worn === void 0 ? void 0 : worn.Asset) === null || _b === void 0 ? void 0 : _b.Name) {
+                    map[group] = worn.Asset.Name;
+                    mapDirty = true;
+                    snapshot(group, worn);
+                }
+                continue;
+            }
+            if (worn && ((_c = worn.Asset) === null || _c === void 0 ? void 0 : _c.Name) === map[group]) {
+                snapshot(group, worn);
+                continue;
+            }
+            // The cursed item is gone, or something else is in its place.
+            const original = rebuild(group);
+            if (!original) {
+                // Nothing to put back. Holding the slot from here would only trap
+                // whatever lands in it next, which is the trap this is meant to stop.
+                cursed.delete(group);
+                delete map[group];
+                mapDirty = true;
+                repaired.push(`${group}:lost`);
+                continue;
+            }
+            try {
+                const app = Player.Appearance;
+                for (let i = app.length - 1; i >= 0; i--) {
+                    if (((_f = (_e = (_d = app[i]) === null || _d === void 0 ? void 0 : _d.Asset) === null || _e === void 0 ? void 0 : _e.Group) === null || _f === void 0 ? void 0 : _f.Name) === group)
+                        app.splice(i, 1);
+                }
+                app.push(original);
+                repaired.push(group);
+            }
+            catch ( /* ignore */_g) { /* ignore */ }
+        }
+        if (mapDirty) {
+            saveCursedGroups(cursed);
+            saveCurseItemMap(map);
+        }
+        return repaired;
     }
     /** Human-readable slot names for the release notice, e.g. "Legs, ArmsLeft". */
     function describeCursedGroups() {
@@ -2967,12 +3142,17 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         else if (inner.startsWith("clear:")) {
             const itemMap = getCurseItemMap();
+            const bundles = getCurseBundles();
             for (const g of inner.slice("clear:".length).split(",").filter(Boolean)) {
                 current.delete(g);
                 delete itemMap[g];
+                // Forget the copy as well, or the keeper would put it straight back.
+                delete bundles[g];
+                heldItems.delete(g);
             }
             saveCursedGroups(current);
             saveCurseItemMap(itemMap);
+            saveCurseBundles(bundles);
         }
     }
 
@@ -42989,7 +43169,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.0";
-    const SAL_VERSION = 326; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 327; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -43008,6 +43188,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             changes: [
                 "IMPORTANT: spamming actions at Emery no longer earns anything. People started firing the same action at her over and over to farm the rare achievements, which is exactly what a reward for interacting with someone should not cause. Repeating the same action counts once a minute at most - five spanks across a scene still count, twenty in ten seconds count once. The unlocks are unchanged, only the pace. There is a note on those achievements asking people to actually play with her rather than treat her as a vending machine.",
                 "Changed: Met the Kitty needs five minutes in a room with Emery, not five seconds. It unlocked the instant she appeared in the roster, so people joined, collected it and left. The clock restarts if she leaves, so it has to be one continuous stay.",
+                "Fix: curses hold the ITEM, not the slot. A curse used to be a claim on a slot, so if the cursed collar came off for any reason the next thing anyone put on your neck inherited the curse and could not be removed - you were stuck in a replacement nobody meant to lock. The curse now knows which item it was placed on. Anything else in that slot comes off normally.",
+                "Fix: cursed items can no longer be lost to an outfit change. The curse hooks only ever saw per-item traffic, and changing outfit replaces the whole appearance in one go - so a wardrobe change could wipe a cursed item with its owner lock still on it and neither hook fired. EBC now keeps a copy of each cursed item and checks every two seconds that it is still on, putting it back with its colour, crafting and lock if it is not. That catches every route it can go missing by, not just the ones we knew about.",
+                "Fix: swapping something onto a cursed item is blocked as well as removing it. Dropping a different item into a cursed slot took the cursed one off just as surely as removing it, and that was the way around the curse.",
                 "Fix: a room whose map data went missing no longer crashes everyone in it. BC checks 'ChatRoomData?.MapData.Type' - the ?. covers the room but not the map, so once a room lost its map state every client in it threw 'Cannot read properties of undefined (reading Type)' on every settings sync, not just whoever changed something. EBC now fills the gap in before BC reads it, treating a room with no map data as a room with no map. This is a guard against BC's bug, so it protects anyone running EBC even when another addon caused it.",
             ],
         },
@@ -51350,26 +51533,61 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             }
             catch ( /* ignore */_c) { /* ignore */ }
         }, 30000);
+        // Keep cursed items on, whatever took them off.
+        //
+        // The item hooks only see per-item traffic. Changing outfit does not produce
+        // any - it replaces the whole appearance at once - so a cursed item could be
+        // wiped by a wardrobe change with its owner lock still on it, and neither
+        // hook ever fired. Checking the result on a timer catches every route in,
+        // including the ones nobody has found yet.
+        window.setInterval(() => {
+            try {
+                if (getCursedGroups().size === 0)
+                    return;
+                const repaired = enforceCurses();
+                if (repaired.length === 0)
+                    return;
+                const lost = repaired.filter(g => g.endsWith(":lost")).map(g => g.slice(0, -5).replace("Item", ""));
+                const back = repaired.filter(g => !g.endsWith(":lost")).map(g => g.replace("Item", ""));
+                if (back.length > 0) {
+                    callBC(() => CharacterRefresh(Player, false));
+                    callBC(() => ChatRoomCharacterUpdate(Player));
+                    callBC(() => ServerPlayerAppearanceSync());
+                    appendLocalLogLine(`[EBC] ⛓ Cursed item put back: ${back.join(", ")}`, UI.accent);
+                }
+                if (lost.length > 0) {
+                    // Said out loud rather than silently re-locking the slot: a curse
+                    // with nothing to hold is over, and the wearer should know it is.
+                    appendLocalLogLine(`[EBC] ⛓ Curse lifted on ${lost.join(", ")} — the cursed item is gone and could not be restored.`, UI.textMuted);
+                }
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+        }, 2000);
         // Hook InventoryRemove: block LOCAL removal of cursed item groups (self-removal via BC menu).
         tryHookFunction(modAPI, "InventoryRemove", 1, (args, next) => {
+            var _a, _b;
             try {
                 const [char, group] = args;
                 if (char === Player && typeof group === "string") {
-                    const cursed = getCursedGroups();
-                    if (cursed.has(group) && !isCursePaused(group)) {
+                    // Only the cursed item itself is held. A different item that ended
+                    // up in the same slot is not the curse's business and comes off
+                    // normally - protecting the slot is what left people stuck in
+                    // whatever replaced a collar they had lost.
+                    const worn = ((_a = Player.Appearance) !== null && _a !== void 0 ? _a : []).find(a => { var _a, _b; return ((_b = (_a = a.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) === group; });
+                    if (isCursedItem(group, (_b = worn === null || worn === void 0 ? void 0 : worn.Asset) === null || _b === void 0 ? void 0 : _b.Name)) {
                         appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — it cannot be removed.`, UI.accent);
                         return; // block self-removal of cursed item
                     }
                 }
             }
-            catch ( /* ignore */_a) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             return next(args);
         });
         // Hook ChatRoomSyncItem: block EXTERNAL removal of cursed items (another player removing via BC UI).
         // This fires BEFORE InventoryRemove, so returning early keeps the item in Player.Appearance.
         // We then immediately send a correction sync so the server and other clients restore the item.
         tryHookFunction(modAPI, "ChatRoomSyncItem", 1, (args, next) => {
-            var _a;
+            var _a, _b;
             try {
                 const [data] = args;
                 const item = data.Item;
@@ -51378,15 +51596,18 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 const targetNum = typeof item.Target === "number" ? item.Target : 0;
                 const group = typeof item.Group === "string" ? item.Group : "";
                 const nameVal = item.Name; // undefined = removal
-                if (targetNum === Player.MemberNumber && group && nameVal === undefined) {
-                    const cursed = getCursedGroups();
-                    if (cursed.has(group) && !isCursePaused(group)) {
-                        appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — removal blocked.`, UI.accent);
+                if (targetNum === Player.MemberNumber && group) {
+                    const worn = ((_a = Player.Appearance) !== null && _a !== void 0 ? _a : []).find(a => { var _a, _b; return ((_b = (_a = a.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) === group; });
+                    // A removal blocks; so does a swap. Dropping a different item onto
+                    // the cursed one takes it off just as surely as removing it, and
+                    // that was the way round the curse.
+                    const isSwap = typeof nameVal === "string" && nameVal !== cursedItemName(group);
+                    if ((nameVal === undefined || isSwap) && isCursedItem(group, (_b = worn === null || worn === void 0 ? void 0 : worn.Asset) === null || _b === void 0 ? void 0 : _b.Name)) {
+                        appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — ${isSwap ? "it cannot be swapped." : "removal blocked."}`, UI.accent);
                         // Send correction only if the item is actually present in our appearance;
                         // calling ChatRoomCharacterItemUpdate on an empty slot sends Name:undefined
                         // which would itself become a removal broadcast.
-                        const slotItem = ((_a = Player.Appearance) !== null && _a !== void 0 ? _a : []).find(a => { var _a, _b; return ((_b = (_a = a.Asset) === null || _a === void 0 ? void 0 : _a.Group) === null || _b === void 0 ? void 0 : _b.Name) === group; });
-                        if (slotItem) {
+                        if (worn) {
                             const itemUpdateFn = window.ChatRoomCharacterItemUpdate;
                             window.setTimeout(() => {
                                 try {
@@ -51400,7 +51621,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     }
                 }
             }
-            catch ( /* ignore */_b) { /* ignore */ }
+            catch ( /* ignore */_c) { /* ignore */ }
             return next(args);
         });
         // Hook ChatRoomMessage: intercept ECHO addon activity messages and replace BC's

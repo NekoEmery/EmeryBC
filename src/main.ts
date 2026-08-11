@@ -16,7 +16,7 @@ import { timerOnRoomEnter, timerOnRoomLeave, timerCheckRestraints } from "./modu
 import { logMessage } from "./modules/devLog";
 import { UI } from "./modules/ui";
 import { appendLocalLogLine, appendChangelogBlock } from "./modules/notify";
-import { getCursedGroups, isCursePaused, getCurseExpiry, handleCurseCommand, releaseAllCurses, describeCursedGroups } from "./modules/curse";
+import { getCursedGroups, isCursePaused, getCurseExpiry, handleCurseCommand, releaseAllCurses, describeCursedGroups, enforceCurses, isCursedItem, cursedItemName } from "./modules/curse";
 import { broadcastRoom, parseShareMessage, noteSharedRoom } from "./modules/privateRooms";
 import { sendBeep, addBeepEntry, dedupeSentBeeps, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, cacheEBCComplete, cacheEBCAchPct, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
@@ -30,7 +30,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.0";
-const SAL_VERSION  = 326;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 327;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -52,6 +52,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
         changes: [
             "IMPORTANT: spamming actions at Emery no longer earns anything. People started firing the same action at her over and over to farm the rare achievements, which is exactly what a reward for interacting with someone should not cause. Repeating the same action counts once a minute at most - five spanks across a scene still count, twenty in ten seconds count once. The unlocks are unchanged, only the pace. There is a note on those achievements asking people to actually play with her rather than treat her as a vending machine.",
             "Changed: Met the Kitty needs five minutes in a room with Emery, not five seconds. It unlocked the instant she appeared in the roster, so people joined, collected it and left. The clock restarts if she leaves, so it has to be one continuous stay.",
+            "Fix: curses hold the ITEM, not the slot. A curse used to be a claim on a slot, so if the cursed collar came off for any reason the next thing anyone put on your neck inherited the curse and could not be removed - you were stuck in a replacement nobody meant to lock. The curse now knows which item it was placed on. Anything else in that slot comes off normally.",
+            "Fix: cursed items can no longer be lost to an outfit change. The curse hooks only ever saw per-item traffic, and changing outfit replaces the whole appearance in one go - so a wardrobe change could wipe a cursed item with its owner lock still on it and neither hook fired. EBC now keeps a copy of each cursed item and checks every two seconds that it is still on, putting it back with its colour, crafting and lock if it is not. That catches every route it can go missing by, not just the ones we knew about.",
+            "Fix: swapping something onto a cursed item is blocked as well as removing it. Dropping a different item into a cursed slot took the cursed one off just as surely as removing it, and that was the way around the curse.",
             "Fix: a room whose map data went missing no longer crashes everyone in it. BC checks 'ChatRoomData?.MapData.Type' - the ?. covers the room but not the map, so once a room lost its map state every client in it threw 'Cannot read properties of undefined (reading Type)' on every settings sync, not just whoever changed something. EBC now fills the gap in before BC reads it, treating a room with no map data as a room with no map. This is a guard against BC's bug, so it protects anyone running EBC even when another addon caused it.",
         ],
     },
@@ -8272,13 +8275,48 @@ function init(): void {
         } catch { /* ignore */ }
     }, 30_000);
 
+    // Keep cursed items on, whatever took them off.
+    //
+    // The item hooks only see per-item traffic. Changing outfit does not produce
+    // any - it replaces the whole appearance at once - so a cursed item could be
+    // wiped by a wardrobe change with its owner lock still on it, and neither
+    // hook ever fired. Checking the result on a timer catches every route in,
+    // including the ones nobody has found yet.
+    window.setInterval(() => {
+        try {
+            if (getCursedGroups().size === 0) return;
+            const repaired = enforceCurses();
+            if (repaired.length === 0) return;
+
+            const lost = repaired.filter(g => g.endsWith(":lost")).map(g => g.slice(0, -5).replace("Item", ""));
+            const back = repaired.filter(g => !g.endsWith(":lost")).map(g => g.replace("Item", ""));
+            if (back.length > 0) {
+                callBC(() => CharacterRefresh(Player, false));
+                callBC(() => ChatRoomCharacterUpdate(Player));
+                callBC(() => ServerPlayerAppearanceSync());
+                appendLocalLogLine(`[EBC] ⛓ Cursed item put back: ${back.join(", ")}`, UI.accent);
+            }
+            if (lost.length > 0) {
+                // Said out loud rather than silently re-locking the slot: a curse
+                // with nothing to hold is over, and the wearer should know it is.
+                appendLocalLogLine(
+                    `[EBC] ⛓ Curse lifted on ${lost.join(", ")} — the cursed item is gone and could not be restored.`,
+                    UI.textMuted);
+            }
+        } catch { /* ignore */ }
+    }, 2_000);
+
     // Hook InventoryRemove: block LOCAL removal of cursed item groups (self-removal via BC menu).
     tryHookFunction(modAPI, "InventoryRemove", 1, (args, next) => {
         try {
             const [char, group] = args as [Character, string, boolean?];
             if (char === Player && typeof group === "string") {
-                const cursed = getCursedGroups();
-                if (cursed.has(group) && !isCursePaused(group)) {
+                // Only the cursed item itself is held. A different item that ended
+                // up in the same slot is not the curse's business and comes off
+                // normally - protecting the slot is what left people stuck in
+                // whatever replaced a collar they had lost.
+                const worn = (Player.Appearance ?? []).find(a => a.Asset?.Group?.Name === group);
+                if (isCursedItem(group, worn?.Asset?.Name)) {
                     appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — it cannot be removed.`, UI.accent);
                     return; // block self-removal of cursed item
                 }
@@ -8298,15 +8336,20 @@ function init(): void {
             const targetNum = typeof item.Target === "number" ? item.Target : 0;
             const group = typeof item.Group === "string" ? item.Group : "";
             const nameVal = item.Name; // undefined = removal
-            if (targetNum === Player.MemberNumber && group && nameVal === undefined) {
-                const cursed = getCursedGroups();
-                if (cursed.has(group) && !isCursePaused(group)) {
-                    appendLocalLogLine(`[EBC] ⛓ ${group.replace("Item", "")} is cursed — removal blocked.`, UI.accent);
+            if (targetNum === Player.MemberNumber && group) {
+                const worn = (Player.Appearance ?? []).find(a => a.Asset?.Group?.Name === group);
+                // A removal blocks; so does a swap. Dropping a different item onto
+                // the cursed one takes it off just as surely as removing it, and
+                // that was the way round the curse.
+                const isSwap = typeof nameVal === "string" && nameVal !== cursedItemName(group);
+                if ((nameVal === undefined || isSwap) && isCursedItem(group, worn?.Asset?.Name)) {
+                    appendLocalLogLine(
+                        `[EBC] ⛓ ${group.replace("Item", "")} is cursed — ${isSwap ? "it cannot be swapped." : "removal blocked."}`,
+                        UI.accent);
                     // Send correction only if the item is actually present in our appearance;
                     // calling ChatRoomCharacterItemUpdate on an empty slot sends Name:undefined
                     // which would itself become a removal broadcast.
-                    const slotItem = (Player.Appearance ?? []).find(a => a.Asset?.Group?.Name === group);
-                    if (slotItem) {
+                    if (worn) {
                         const itemUpdateFn = (window as unknown as Record<string, unknown>).ChatRoomCharacterItemUpdate as
                             ((c: Character, g: string) => void) | undefined;
                         window.setTimeout(() => {
