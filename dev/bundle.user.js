@@ -13420,6 +13420,42 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     margin: 4px 0;
 }
 
+/* Sliders, themed. A bare range input renders in the browser's own blue and
+   sits badly against everything else in the panel. */
+.ebc-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #cf6f98 var(--fill, 33%), #2a1421 var(--fill, 33%));
+    outline: none;
+    cursor: pointer;
+    border: 1px solid #3a1c2c;
+}
+.ebc-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #f7b8d2, #cf6f98 60%, #91405f);
+    border: 1px solid #f8dce8;
+    box-shadow: 0 0 5px rgba(207,111,152,0.55);
+    cursor: grab;
+}
+.ebc-slider::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.12); }
+.ebc-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #cf6f98;
+    border: 1px solid #f8dce8;
+    box-shadow: 0 0 5px rgba(207,111,152,0.55);
+    cursor: grab;
+}
+.ebc-slider::-moz-range-track { height: 4px; border-radius: 3px; background: #2a1421; }
+.ebc-slider:focus-visible { box-shadow: 0 0 0 2px rgba(207,111,152,0.45); }
+
 .ebc-delay-row input[type="range"] {
     flex: 1;
     accent-color: #cf6f98;
@@ -26983,12 +27019,20 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 slider.max = "300";
                 slider.step = "10";
                 slider.value = String(getBeepVolume());
+                slider.className = "ebc-slider";
                 slider.style.cssText = "flex:1;min-width:80px;";
+                // The filled part of the track is drawn by a gradient, so it has to
+                // be told where the handle is - CSS cannot read the value itself.
+                const paintFill = () => {
+                    const pct = (parseInt(slider.value, 10) / 300) * 100;
+                    slider.style.setProperty("--fill", pct + "%");
+                };
+                paintFill();
                 const val = document.createElement("span");
                 val.style.cssText = "font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:#9a8290;"
                     + "flex-shrink:0;min-width:38px;text-align:right;";
                 val.textContent = getBeepVolume() + "%";
-                slider.addEventListener("input", () => { val.textContent = slider.value + "%"; });
+                slider.addEventListener("input", () => { val.textContent = slider.value + "%"; paintFill(); });
                 // Saved and previewed on release rather than per pixel of drag, so a
                 // sweep does not fire a hundred sounds or a hundred writes.
                 slider.addEventListener("change", () => {
@@ -29739,8 +29783,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             const t3 = document.createElement("div");
             t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10.5px;color:#a3859a;margin-top:3px;line-height:1.45;";
             const optNames = optionalAchievementNames();
+            t3.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cfe3f4;margin-top:5px;"
+                + "line-height:1.45;padding:4px 8px;border-radius:6px;"
+                + "background:rgba(90,140,190,0.13);border-left:3px solid #6f9ec4;";
             t3.textContent = optNames.length
-                ? "Not needed: " + optNames.join(", ") + ". Everything else counts, rare ones included."
+                ? "OPTIONAL: " + optNames.join(", ") + " are not needed. Everything else is."
                 : "Everything counts.";
             titles.appendChild(t1);
             titles.appendChild(t2);
@@ -29856,9 +29903,18 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 const optional = optionalAchievementNames();
                 if (optional.length > 0) {
                     const note = document.createElement("div");
-                    note.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#8fa8bd;line-height:1.4;";
-                    note.textContent = "○ Not needed for 100%: " + optional.join(", ")
-                        + ". Everything else counts.";
+                    note.style.cssText = "display:flex;align-items:baseline;gap:7px;margin-top:2px;"
+                        + "padding:5px 9px;border:1px solid #6f9ec4;border-left-width:3px;border-radius:6px;"
+                        + "background:rgba(90,140,190,0.13);";
+                    const tag = document.createElement("span");
+                    tag.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;font-weight:bold;"
+                        + "letter-spacing:0.09em;color:#a8cdea;flex-shrink:0;";
+                    tag.textContent = "OPTIONAL";
+                    const txt = document.createElement("span");
+                    txt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cfe3f4;line-height:1.45;";
+                    txt.textContent = optional.join(", ") + " are not needed for 100%. Everything else is.";
+                    note.appendChild(tag);
+                    note.appendChild(txt);
                     summary.appendChild(note);
                 }
                 // Read a layout property first. That forces the browser to commit
@@ -29937,11 +29993,16 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         // Said on the card, not only in the Completionist summary.
                         // Someone looking at an unfinished achievement wants to know
                         // right there whether it is blocking their 100%.
+                        // Deliberately loud. This was a faint line under the
+                        // description and read as decoration - the one thing it has
+                        // to do is stop someone thinking this blocks their 100%.
                         if (!isRequiredForCompletion(a.id)) {
                             const opt = document.createElement("div");
-                            opt.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;color:#8fa8bd;"
-                                + "margin-top:2px;letter-spacing:0.03em;";
-                            opt.textContent = "○ Not needed for 100%";
+                            opt.style.cssText = "display:inline-block;margin-top:4px;padding:1px 8px;"
+                                + "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;"
+                                + "letter-spacing:0.04em;border-radius:9px;"
+                                + "background:rgba(90,140,190,0.20);border:1px solid #6f9ec4;color:#a8cdea;";
+                            opt.textContent = "OPTIONAL - not needed for 100%";
                             main.appendChild(opt);
                         }
                         // Roster achievements name who is done and who is left. Both
@@ -40442,6 +40503,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         buildAutoEscapeSection(body) {
             // ── Auto-Escape card ─────────────────────────────────────────────────
             const aeCard = document.createElement("div");
+            aeCard.dataset.domGroup = "escape";
             aeCard.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
             const aeLbl = document.createElement("div");
             aeLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:8px;";
@@ -40537,6 +40599,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
          */
         buildReportWarningSection(body) {
             const card = document.createElement("div");
+            card.dataset.domGroup = "management";
             card.style.cssText = "background:#1a0d16;border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
             const lbl = document.createElement("div");
             lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#a06878;text-transform:uppercase;margin-bottom:6px;";
@@ -42367,10 +42430,78 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             });
             posPanel.appendChild(releaseBtn);
             // Order: Restraint Sets → Target → Actions → Release Tools
+            setsCard.dataset.domGroup = "sets";
+            targetCard.dataset.domGroup = "control";
+            actionsCard.dataset.domGroup = "control";
+            releaseCard.dataset.domGroup = "control";
             body.appendChild(setsCard);
             body.appendChild(targetCard);
             body.appendChild(actionsCard);
             body.appendChild(releaseCard);
+            this._domPills(body);
+        }
+        /**
+         * Pills for the DOM tab.
+         *
+         * Written for this tab rather than reusing _pillifyTab, which keys off a
+         * section class the DOM tab's hand-built cards do not use. Converting them
+         * would touch every card here for a cosmetic grouping; tagging each card
+         * with the group it belongs to does the same job in a few lines and cannot
+         * misclassify anything, because nothing is being guessed from text.
+         */
+        _domPills(body) {
+            var _a;
+            const GROUPS = [
+                { id: "escape", label: "Auto-escape" },
+                { id: "sets", label: "Sets" },
+                { id: "control", label: "Control" },
+                { id: "management", label: "Management" },
+            ];
+            const cards = Array.from(body.children)
+                .filter(el => !!el.dataset.domGroup);
+            if (cards.length === 0)
+                return;
+            const present = GROUPS.filter(g => cards.some(c => c.dataset.domGroup === g.id));
+            if (present.length < 2)
+                return; // nothing to switch between
+            const KEY = "EBC_domView";
+            let active = "escape";
+            try {
+                active = (_a = localStorage.getItem(KEY)) !== null && _a !== void 0 ? _a : "escape";
+            }
+            catch ( /* ignore */_b) { /* ignore */ }
+            if (!present.some(g => g.id === active))
+                active = present[0].id;
+            const bar = document.createElement("div");
+            bar.style.cssText = "display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;";
+            const paint = () => {
+                for (const c of cards)
+                    c.style.display = c.dataset.domGroup === active ? "" : "none";
+                for (const b of Array.from(bar.children)) {
+                    const on = b.dataset.pill === active;
+                    b.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;"
+                        + "padding:3px 12px;border-radius:11px;cursor:pointer;transition:background .12s,color .12s;"
+                        + (on
+                            ? "background:#6b3048;border:1px solid #cf6f98;color:#f7e6ee;"
+                            : "background:transparent;border:1px solid #4c2537;color:#9a7080;");
+                }
+            };
+            for (const g of present) {
+                const b = document.createElement("button");
+                b.dataset.pill = g.id;
+                b.textContent = g.label;
+                b.addEventListener("click", () => {
+                    active = g.id;
+                    try {
+                        localStorage.setItem(KEY, active);
+                    }
+                    catch ( /* ignore */_a) { /* ignore */ }
+                    paint();
+                });
+                bar.appendChild(b);
+            }
+            body.insertBefore(bar, body.firstChild);
+            paint();
         }
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
@@ -42576,7 +42707,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.0.7";
-    const SAL_VERSION = 307; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 309; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -42593,6 +42724,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.0.7",
             changes: [
+                "The DOM tab is split into pills - Auto-escape, Sets, Control and Management - instead of one long scroll. Report misuse lives under Management. Which pill you were on is remembered.",
+                "The beep volume slider matches the rest of the panel instead of rendering in the browser default blue.",
+                "Achievements that are not needed for 100% now say so loudly rather than in small grey text. A blue OPTIONAL badge on the achievement itself, and a bordered notice at the top listing them by name. The whole point of that line is to stop someone thinking an achievement blocks their reward, and it was quiet enough to read as decoration.",
                 "New (creator only): every warning sent is logged - who, when, and the note you added - and the confirm tells you if you have warned that person before. Warning someone twice for the same thing lands very differently from warning them once, and there was no way to know.",
                 "New (requested by Julia): share your overall achievement progress, not only one achievement at a time. There is a Share my progress button under the bar.",
                 "New (requested by Mika): friends running EBC show their achievement percentage beside their name. Only for people who have some progress - a 0% badge on everyone would be noise. It reaches 100% at the same point the sparkle does, so the two always agree.",
