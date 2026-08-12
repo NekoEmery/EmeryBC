@@ -43893,7 +43893,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "9.1.1";
+    const MOD_VERSION = "9.1.2";
     const SAL_VERSION = 333; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
@@ -43909,7 +43909,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "9.1.1",
+            version: "9.1.2",
             changes: [
                 "New: auto-escape can let named people through (SAFETY -> Who may tie me). The whitelist only ever covered ITEMS, so auto-escape was all-or-nothing: protecting your owner's collar did not help, because with it switched on they could not put the collar on you in the first place. Add someone from the room and their restraints are accepted normally while everyone else still bounces off.",
                 "New: 'Why am I stuck?' on the SAFETY tab. When something will not come off, the reason can be a lock, a curse, or auto-escape refusing new items - and each one is looked up somewhere different, if it is visible at all. This says all of them in one place: which slot, which lock, who holds it, when a curse lifts, and that the safeword always releases one. It only explains - releasing is still the safeword's job.",
@@ -43920,6 +43920,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 "Fix (report 80, Julia): dragging the achievements scrollbar no longer drags the window with it. The previous fix compared the press against the target's padding box, which shifts as the list scrolls and depends on which row was under the cursor, so it caught one case and missed others. It now measures the press against each scrollable box in screen coordinates, which does not care how far the list is scrolled or what was hit.",
                 "Fix (report 83, Julia): the 'EBC loaded successfully' line no longer goes missing when you autojoin a room on login. It was posted from the room sync, which on autojoin can happen before the chat log exists, and it was marked as shown either way - so it was dropped, and only turned up on the next room you entered. It is now only marked shown once it has actually posted.",
                 "New (report 81, Julia): 'Share my progress' asks before posting. The button writes to the room and the label did not say so, and finding that out by having already done it is not a fair way to learn.",
+            ],
+        },
+        {
+            version: "9.1.1",
+            changes: [
                 "Fix: the DOM tab's TARGET picker is no longer trapped inside the Control pill. Sets, Actions and Release Tools all act on whoever is chosen there, so filing it under Control meant opening Sets with no way to see or change who it would apply to. It now sits at the top of the tab, above the pills, and stays put whichever pill you are on.",
                 "New: EBC can live in BC's own chat room top bar. DEV -> Drawer -> 'Open EBC from the chat top bar' puts a paw next to Exit / Kneel / Icons and hides the side tab while you are in a room. Off by default. The tab always comes back outside a room, where there is no top bar to replace it - turning this on can never leave you without a way to open EBC.",
                 "Fix: curses hold the ITEM, not the slot. A curse used to be a claim on a slot, so if the cursed collar came off for any reason the next thing anyone put on your neck inherited the curse and could not be removed - you were stuck in a replacement nobody meant to lock. The curse now knows which item it was placed on. Anything else in that slot comes off normally.",
