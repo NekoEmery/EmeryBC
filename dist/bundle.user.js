@@ -711,6 +711,48 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     const SETTINGS_FLUSH_CAP = 150000;
     /** Warn about the cap once a session - it is hit on every sync, not once. */
     let _flushCapWarned = false;
+    /**
+     * Where the early warning fires, as a fraction of the cap.
+     *
+     * The existing warning only speaks once saving has already stopped, which is
+     * the point at which it is too late to be useful - the first sign of trouble
+     * was a save that silently did not happen. This one arrives while there is
+     * still room to do something about it.
+     */
+    const STORAGE_WARN_AT = 0.85;
+    let _flushNearCapWarned = false;
+    /**
+     * Friendly names for the storage keys, registered by settings.ts.
+     *
+     * Kept as a registration rather than an import because settings.ts already
+     * imports this module; importing it back would be a cycle. The labels live
+     * with the categories they belong to, so the warning names things exactly as
+     * the Storage panel does.
+     */
+    let _storageLabels = {};
+    function registerStorageLabels(map) {
+        _storageLabels = map;
+    }
+    /** The single largest thing EBC is storing, for the warning to point at. */
+    function largestStoredItem() {
+        var _a;
+        try {
+            let bestKey = "", bestLen = 0;
+            for (const [k, v] of Object.entries(_mem)) {
+                const len = JSON.stringify(v !== null && v !== void 0 ? v : null).length;
+                if (len > bestLen) {
+                    bestLen = len;
+                    bestKey = k;
+                }
+            }
+            if (!bestKey)
+                return null;
+            return { label: (_a = _storageLabels[bestKey]) !== null && _a !== void 0 ? _a : bestKey, kb: Math.round(bestLen / 1000) };
+        }
+        catch (_b) {
+            return null;
+        }
+    }
     /** Serialized size (in characters ~ bytes) of EBC's whole settings blob. */
     function getSettingsBlobSize() {
         try {
@@ -748,6 +790,21 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                         ], "#ff8a8a");
                     }
                     return false;
+                }
+                // Still saving, but not for much longer. Said once, with the biggest
+                // item named, because "you are nearly full" is not actionable on its
+                // own - the useful part is knowing what to move.
+                if (!_flushNearCapWarned && size > SETTINGS_FLUSH_CAP * STORAGE_WARN_AT) {
+                    _flushNearCapWarned = true;
+                    const pct = Math.round((size / SETTINGS_FLUSH_CAP) * 100);
+                    const big = largestStoredItem();
+                    appendLocalLogBlock(`EBC storage is ${pct}% full`, [
+                        `Everything EBC saves to your account adds up to ${Math.round(size / 1000)} KB of the ${SETTINGS_FLUSH_CAP / 1000} KB the game allows.`,
+                        big ? `The biggest single thing is ${big.label}, at about ${big.kb} KB.` :
+                            "Outfits are usually the biggest thing, especially crafted items.",
+                        "Nothing is wrong yet and nothing is lost. This is a heads-up while there is still room to act.",
+                        "Open SETTINGS, then Storage, and move something to This device - it stays usable, it just stops counting against the account.",
+                    ], "#e0b36a");
                 }
             }
             catch ( /* size check best-effort */_a) { /* size check best-effort */ }
@@ -3508,6 +3565,64 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Limit repeated actions aimed at you ---------------------------------------
+    // The achievement cooldown stopped spamming from PAYING. It did not stop the
+    // spamming - people kept firing the same action over and over, it just earned
+    // nothing. This drops the repeats before they reach the chat log.
+    //
+    // Off by default: silently dropping other people's actions is a real change to
+    // what you see, and nobody should get it without asking.
+    function getActionLimitEnabled() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.actionLimitEnabled) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setActionLimitEnabled(value) {
+        try {
+            getSettings().actionLimitEnabled = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /** Seconds the same action from the same person has to wait to show again. */
+    function getActionLimitSeconds() {
+        var _a;
+        try {
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.actionLimitSeconds;
+            return typeof v === "number" && v >= 3 && v <= 120 ? v : 10;
+        }
+        catch (_b) {
+            return 10;
+        }
+    }
+    function setActionLimitSeconds(sec) {
+        try {
+            getSettings().actionLimitSeconds = Math.max(3, Math.min(120, Math.round(sec)));
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /** Starred people are never limited. On by default - they are who you play with. */
+    function getActionLimitExemptStars() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.actionLimitExemptStars) !== false;
+        }
+        catch (_b) {
+            return true;
+        }
+    }
+    function setActionLimitExemptStars(value) {
+        try {
+            getSettings().actionLimitExemptStars = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- EBC button in the chat room top bar ---------------------------------------
     // Puts a paw next to BC's own Exit / Kneel / Icons buttons and hides the side
     // tab while you are in a room. Only while you are in a room - the top bar does
@@ -3803,6 +3918,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         { label: "Restraint timers", keys: ["restraintTimers"], help: "How long each item you are wearing has been on. Feeds the bound timer." },
         { label: "Dom config", keys: ["domConfig"], help: "Your dom tool setup - targets and saved restraint sets for them." },
     ];
+    // The storage warning lives in bcUtils, which cannot import this module without
+    // a cycle, so the labels are handed over instead. Built from the categories
+    // above so the warning names things exactly as the Storage panel does.
+    registerStorageLabels((() => {
+        const out = {};
+        for (const cat of EBC_DATA_CATEGORIES)
+            for (const k of cat.keys)
+                out[k] = cat.label;
+        return out;
+    })());
     /** Every localStorage key any category declares - the import whitelist. */
     function knownLocalKeys() {
         var _a;
@@ -7435,6 +7560,86 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             pendingTimer = null;
         }
         pendingApplier = null;
+    }
+
+    // Drops repeated actions aimed at you before they reach the chat log.
+    //
+    // The achievement cooldown removed the REWARD for spamming. It did not remove
+    // the spamming - people kept firing the same action over and over, it just
+    // stopped counting. This is the other half: the twentieth identical boop in ten
+    // seconds does not get shown at all.
+    //
+    // Deliberately narrow. It only ever drops:
+    //   - an activity aimed at YOU,
+    //   - by someone else,
+    //   - that is the SAME activity that person just did,
+    //   - inside the window you set.
+    //
+    // A different action always lands. A different person always lands. The first
+    // one always lands. So a scene reads normally and only the machine-gun repeat
+    // is lost - which is the thing that was never adding anything anyway.
+    /** Last time each (person, action) pair was allowed through. */
+    const _lastSeen = new Map();
+    /** Who we have already mentioned this session, so the note is not itself spam. */
+    const _mentioned = new Set();
+    /** How many we have dropped per person, for the note. */
+    const _dropped = new Map();
+    function pairKey(from, actName, actGroup) {
+        return from + " " + actName.toLowerCase() + " " + (actGroup !== null && actGroup !== void 0 ? actGroup : "").toLowerCase();
+    }
+    /**
+     * Decides whether an incoming activity should be shown.
+     *
+     * Called for messages already known to target the player. Returns a plain
+     * result rather than doing the logging itself, so the caller owns anything
+     * user-visible and this stays testable.
+     */
+    function limitIncomingAction(sourceNum, actName, actGroup) {
+        var _a, _b, _c;
+        if (!getActionLimitEnabled())
+            return { drop: false };
+        if (typeof sourceNum !== "number" || !actName)
+            return { drop: false };
+        if (sourceNum === ((_a = Player === null || Player === void 0 ? void 0 : Player.MemberNumber) !== null && _a !== void 0 ? _a : 0))
+            return { drop: false };
+        // Starred people are who you actually play with. Rate limiting them would
+        // break the scenes this is meant to protect.
+        if (getActionLimitExemptStars()) {
+            try {
+                if (isSpecialFriend(sourceNum))
+                    return { drop: false };
+            }
+            catch ( /* ignore */_d) { /* ignore */ }
+        }
+        const key = pairKey(sourceNum, actName, actGroup);
+        const now = Date.now();
+        const last = (_b = _lastSeen.get(key)) !== null && _b !== void 0 ? _b : 0;
+        if (now - last >= getActionLimitSeconds() * 1000) {
+            _lastSeen.set(key, now);
+            return { drop: false };
+        }
+        // Deliberately does NOT extend the window. Otherwise someone hammering the
+        // button would hold their own action shut out indefinitely, and the next
+        // genuine one - minutes later - would still be swallowed.
+        const n = ((_c = _dropped.get(sourceNum)) !== null && _c !== void 0 ? _c : 0) + 1;
+        _dropped.set(sourceNum, n);
+        if (!_mentioned.has(sourceNum)) {
+            _mentioned.add(sourceNum);
+            return { drop: true, firstDropFrom: sourceNum, count: n };
+        }
+        return { drop: true, count: n };
+    }
+    /** Everyone who has had something dropped this session, busiest first. */
+    function droppedSummary() {
+        return [..._dropped.entries()]
+            .map(([n, count]) => ({ n, count }))
+            .sort((a, b) => b.count - a.count);
+    }
+    /** Clears the session's memory - used when the setting is turned off. */
+    function resetActionLimiter() {
+        _lastSeen.clear();
+        _mentioned.clear();
+        _dropped.clear();
     }
 
     // Friends system — tags, beep history, name cache.
@@ -18940,6 +19145,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             this.renderRestraintInfo(body); // ACTIVE RESTRAINTS (+ timers)
             this.renderOutfitWhitelist(body); // PROTECTED ITEMS
+            this.renderActionLimiter(body); // REPEATED ACTIONS
             this.attachStripSection(body, t("grouped.safewords"), this.safewordRowEl, true);
             // Auto-escape deliberately does NOT live here. It lives on the DOM tab,
             // which is creator-gated in both layouts - the grouped layout used to
@@ -18947,8 +19153,99 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._pillifyTab(body, "EBC_safetyView", [
                 { pill: "Restraints", match: [t("grouped.releaseUnlock"), t("dev.activeRestraints")] },
                 { pill: "Protected", match: [t("outfits.protectedItems")] },
+                { pill: "Actions", match: ["Repeated actions"] },
                 { pill: "Safewords", match: [t("grouped.safewords")] },
             ]);
+        }
+        /**
+         * Hold back repeated actions aimed at you.
+         *
+         * On SAFETY rather than with the achievements, because it is not about
+         * scoring - it is about what other people are allowed to do to your screen.
+         * Someone firing the same action twenty times is the problem whether or not
+         * anything was ever being counted for it.
+         */
+        renderActionLimiter(body) {
+            const card = document.createElement("div");
+            card.style.cssText = "display:flex;flex-direction:column;gap:8px;";
+            const blurb = document.createElement("div");
+            blurb.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;line-height:1.55;";
+            blurb.textContent = "When someone does the same thing to you over and over, only the first "
+                + "one is shown. A different action, or a different person, always comes through.";
+            card.appendChild(blurb);
+            const row = (label, control, hint) => {
+                const r = document.createElement("div");
+                r.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
+                const l = document.createElement("span");
+                l.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;user-select:none;";
+                l.textContent = label;
+                if (hint)
+                    l.title = hint;
+                r.appendChild(l);
+                r.appendChild(control);
+                return r;
+            };
+            const pill = (get, set, after) => {
+                const b = document.createElement("button");
+                const paint = () => {
+                    const on = get();
+                    b.textContent = on ? t("core.on") : t("core.off");
+                    b.style.cssText = [
+                        "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
+                        "padding:4px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                        "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                        "background:" + (on ? "#4a1f30" : "#100508"),
+                        "color:" + (on ? "#f7e6ee" : "#7a5070"),
+                    ].join(";");
+                };
+                paint();
+                b.addEventListener("click", () => { set(!get()); paint(); });
+                return b;
+            };
+            const secsVal = document.createElement("span");
+            secsVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:34px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;";
+            const secs = document.createElement("input");
+            secs.type = "range";
+            secs.min = "3";
+            secs.max = "120";
+            secs.step = "1";
+            secs.value = String(getActionLimitSeconds());
+            secs.className = "ebc-slider";
+            secs.style.cssText = "flex:1;min-width:70px;";
+            const paintSecs = () => { secsVal.textContent = secs.value + "s"; };
+            paintSecs();
+            secs.addEventListener("input", () => { paintSecs(); setActionLimitSeconds(parseInt(secs.value, 10)); });
+            const secsWrap = document.createElement("div");
+            secsWrap.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;min-width:0;";
+            secsWrap.appendChild(secs);
+            secsWrap.appendChild(secsVal);
+            // Held back this session, so it is possible to find out who and say
+            // something. Silently swallowing it would trade one problem for another.
+            const held = document.createElement("div");
+            held.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b98aa0;line-height:1.6;";
+            const paintHeld = () => {
+                const rows = droppedSummary();
+                if (rows.length === 0) {
+                    held.textContent = "Nothing held back this session.";
+                    return;
+                }
+                held.textContent = "Held back this session: " + rows
+                    .map(r => `${resolveName(r.n)} (${r.count})`)
+                    .join(", ");
+            };
+            paintHeld();
+            card.appendChild(row("Hold back repeated actions", pill(getActionLimitEnabled, (v) => {
+                setActionLimitEnabled(v);
+                // Turning it off forgets who was being held, so re-enabling it
+                // later starts clean rather than resuming an old grudge.
+                if (!v)
+                    resetActionLimiter();
+                paintHeld();
+            })));
+            card.appendChild(row("Wait between repeats", secsWrap, "How long the same action from the same person has to wait before it shows again."));
+            card.appendChild(row("Never limit starred people", pill(getActionLimitExemptStars, setActionLimitExemptStars), "Starred people are who you actually play with, so their scenes are never cut."));
+            card.appendChild(held);
+            this.addLabelledSection(body, "Repeated actions", card);
         }
         /** Splits the Toys page into pills: IRL setup, in-game toys, triggers and
          *  sharing. Sections tag themselves via data-toy-group; anything untagged is
@@ -43319,7 +43616,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.1";
-    const SAL_VERSION = 331; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 332; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -43336,6 +43633,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.1.1",
             changes: [
+                "New: hold back repeated actions aimed at you (SAFETY -> Repeated actions). The achievement cooldown stopped spamming from PAYING, but it did not stop the spamming - people kept firing the same action over and over, it just earned nothing. This drops the repeats before anything renders them. Only the same action, from the same person, inside the window you set: a different action lands, a different person lands, the first one always lands. Off by default, starred people are exempt, and anyone being held back is named once so you can actually ask them to stop.",
+                "New: EBC warns before your account storage fills up, not after. The old warning only spoke once saving had already stopped, which is the point at which it is too late - the first sign of trouble was a save that silently did not happen. At 85% full you now get a heads-up naming the single biggest thing you are storing, while there is still room to move something to This device.",
                 "Fix (report 79, Julia): 'Pick restraints to remove' now updates while it is open. It only rebuilt when you opened it or used EBC's own release buttons, so anything applied or struggled out of in the meantime left it listing things that were no longer there - and because the list stays open, closing and reopening the drawer did not rebuild it either. It now refreshes when what you are wearing actually changes, and only then, so a tick you just made is not cleared out from under you.",
                 "Fix (report 80, Julia): dragging the achievements scrollbar no longer drags the window with it. The previous fix compared the press against the target's padding box, which shifts as the list scrolls and depends on which row was under the cursor, so it caught one case and missed others. It now measures the press against each scrollable box in screen coordinates, which does not care how far the list is scrolled or what was hit.",
                 "Fix (report 83, Julia): the 'EBC loaded successfully' line no longer goes missing when you autojoin a room on login. It was posted from the room sync, which on autojoin can happen before the chat log exists, and it was marked as shown either way - so it was dropped, and only turned up on the next room you entered. It is now only marked shown once it has actually posted.",
@@ -52525,6 +52824,42 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             }
             catch ( /* ignore */_a) { /* ignore */ }
             return _r;
+        });
+        // Repeated actions aimed at you, dropped before anything renders them.
+        //
+        // Priority 50 puts this ahead of EBC's own achievement feed and every other
+        // mod's hook, so a dropped action is not merely hidden - nothing downstream
+        // ever sees it. Hiding it later would leave it counted, logged and reacted
+        // to by everything else, which is not what "limit" should mean.
+        modAPI.hookFunction("ChatRoomMessage", 50, (args, next) => {
+            var _a, _b;
+            try {
+                const data = args[0];
+                if ((data === null || data === void 0 ? void 0 : data.Type) === "Activity" || (data === null || data === void 0 ? void 0 : data.Type) === "Action") {
+                    const dict = Array.isArray(data.Dictionary)
+                        ? data.Dictionary
+                        : [];
+                    const { targetNum, sourceNum, actGroup, actName } = parseXToysActivity(dict);
+                    if (targetNum === Player.MemberNumber && actName) {
+                        const r = limitIncomingAction(sourceNum, actName, actGroup);
+                        if (r.drop) {
+                            // Said once per person, not once per message - a note for
+                            // every dropped action would just be the spam again in a
+                            // different colour. Naming them is the point: you cannot
+                            // ask someone to stop if you never find out who it was.
+                            if (r.firstDropFrom !== undefined) {
+                                const room = (_a = window.ChatRoomCharacter) !== null && _a !== void 0 ? _a : [];
+                                const who = room.find(c => c.MemberNumber === r.firstDropFrom);
+                                const name = who ? (((_b = who.Nickname) !== null && _b !== void 0 ? _b : "").trim() || who.Name) : `#${r.firstDropFrom}`;
+                                appendLocalLogLine(`[EBC] ⏸ Repeated actions from ${name} are being held back.`, UI.textMuted);
+                            }
+                            return; // never reaches BC or any other addon
+                        }
+                    }
+                }
+            }
+            catch ( /* a fault here must never eat a message */_c) { /* a fault here must never eat a message */ }
+            return next(args);
         });
         // Achievements feed (credits crew only): watch activities done to/by the
         // player and item applies. Independent of the XToys gates above.
