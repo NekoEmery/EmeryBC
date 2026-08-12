@@ -11554,9 +11554,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
-    function getWhisperLog() {
-        return _log;
-    }
     /**
      * The session's whispers as a plain text transcript.
      *
@@ -19256,9 +19253,6 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             }
             this.renderRestraintInfo(body); // ACTIVE RESTRAINTS (+ timers)
             this.renderOutfitWhitelist(body); // PROTECTED ITEMS
-            this.renderWhyStuck(body); // WHY AM I STUCK
-            this.renderEscapeAllowList(body); // WHO MAY TIE ME
-            this.renderWhisperSave(body); // KEEP WHISPERS
             this.renderActionLimiter(body); // REPEATED ACTIONS
             this.attachStripSection(body, t("grouped.safewords"), this.safewordRowEl, true);
             // Auto-escape deliberately does NOT live here. It lives on the DOM tab,
@@ -19267,101 +19261,9 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             this._pillifyTab(body, "EBC_safetyView", [
                 { pill: "Restraints", match: [t("grouped.releaseUnlock"), t("dev.activeRestraints")] },
                 { pill: "Protected", match: [t("outfits.protectedItems")] },
-                { pill: "Why stuck", match: ["Why am I stuck?"] },
-                { pill: "Actions", match: ["Repeated actions", "Who may tie me"] },
-                { pill: "Whispers", match: ["Keep this session's whispers"] },
+                { pill: "Actions", match: ["Repeated actions"] },
                 { pill: "Safewords", match: [t("grouped.safewords")] },
             ]);
-        }
-        /**
-         * Answers the question the game never answers.
-         *
-         * When something will not come off, the reason can be a lock, a curse,
-         * auto-escape refusing new items, or nothing at all - and each one is
-         * looked up somewhere different, if it is visible anywhere. EBC already
-         * holds every piece of this. It just never said them in one place.
-         *
-         * Reads only. It explains, it does not release - the safeword does that,
-         * and mixing "tell me why" with "undo it" is how people press the wrong one.
-         */
-        renderWhyStuck(body) {
-            const card = document.createElement("div");
-            card.style.cssText = "display:flex;flex-direction:column;gap:7px;";
-            const list = document.createElement("div");
-            list.style.cssText = "display:flex;flex-direction:column;gap:5px;";
-            const line = (text, tone) => {
-                const d = document.createElement("div");
-                const colour = tone === "block" ? "#e08090" : tone === "info" ? "#d8a86a" : "#8ec48f";
-                d.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;line-height:1.55;"
-                    + "padding:5px 8px;border-radius:5px;background:rgba(20,8,16,0.5);"
-                    + `border-left:3px solid ${colour};color:#e8d4de;`;
-                d.textContent = text;
-                return d;
-            };
-            const refresh = () => {
-                var _a, _b, _c;
-                while (list.firstChild)
-                    list.removeChild(list.firstChild);
-                const found = [];
-                // Locks, named by who holds them - the part BC hides behind a menu.
-                try {
-                    for (const item of (_a = Player.Appearance) !== null && _a !== void 0 ? _a : []) {
-                        const group = (_c = (_b = item.Asset) === null || _b === void 0 ? void 0 : _b.Group) === null || _c === void 0 ? void 0 : _c.Name;
-                        if (!group || !RESTRAINT_GROUPS.has(group))
-                            continue;
-                        const prop = item.Property;
-                        const lockedBy = typeof (prop === null || prop === void 0 ? void 0 : prop.LockedBy) === "string" ? prop.LockedBy : "";
-                        if (!lockedBy)
-                            continue;
-                        const by = typeof (prop === null || prop === void 0 ? void 0 : prop.LockMemberNumber) === "number"
-                            ? ` - held by ${resolveName(prop.LockMemberNumber)}` : "";
-                        found.push(line(`${group.replace("Item", "")}: ${lockedBy.replace(/([A-Z])/g, " $1").trim()}${by}`, "block"));
-                    }
-                }
-                catch ( /* ignore */_d) { /* ignore */ }
-                // Curses, with the way out stated rather than implied.
-                try {
-                    const cursed = [...getCursedGroups()];
-                    if (cursed.length > 0) {
-                        const exp = getCurseExpiry();
-                        const when = exp
-                            ? ` Lifts in ${Math.max(0, Math.round((exp - Date.now()) / 60000))} min.`
-                            : " No end time set.";
-                        found.push(line(`Cursed: ${cursed.map(g => g.replace("Item", "")).join(", ")}.${when}`
-                            + " Your safeword always releases a curse.", "block"));
-                    }
-                }
-                catch ( /* ignore */_e) { /* ignore */ }
-                // Auto-escape, which blocks things going ON rather than coming off -
-                // the one people misread as "the game is broken".
-                try {
-                    if (getAntiRestraintEnabled()) {
-                        const allowed = getAntiRestraintAllowList();
-                        found.push(line("Auto-escape is ON, so new restraints from other people are removed"
-                            + (allowed.length > 0
-                                ? ` - except from ${allowed.map(n => resolveName(n)).join(", ")}.`
-                                : ". Nobody is on your allow list, so nobody can tie you."), "info"));
-                    }
-                }
-                catch ( /* ignore */_f) { /* ignore */ }
-                if (found.length === 0) {
-                    list.appendChild(line("Nothing is holding you. No locks, no curses, auto-escape off.", "clear"));
-                }
-                else {
-                    for (const f of found)
-                        list.appendChild(f);
-                }
-            };
-            const btn = document.createElement("button");
-            btn.textContent = "Check again";
-            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;"
-                + "padding:5px 10px;border-radius:5px;cursor:pointer;align-self:flex-start;"
-                + "border:1px solid #4c2537;background:#100508;color:#b98aa0;";
-            btn.addEventListener("click", refresh);
-            refresh();
-            card.appendChild(list);
-            card.appendChild(btn);
-            this.addLabelledSection(body, "Why am I stuck?", card);
         }
         /**
          * Hold back repeated actions aimed at you.
@@ -19465,8 +19367,19 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
          * you rather than by typing member numbers.
          */
         renderEscapeAllowList(body) {
+            // Built as a DOM-tab card and tagged "escape" so it sits under the
+            // Auto-escape pill with the toggle it modifies. It was on SAFETY, away
+            // from the switch it belongs to, which made it read as a separate
+            // feature rather than the other half of one setting.
             const card = document.createElement("div");
-            card.style.cssText = "display:flex;flex-direction:column;gap:7px;";
+            card.dataset.domGroup = "escape";
+            card.style.cssText = "display:flex;flex-direction:column;gap:7px;background:#1a0d16;"
+                + "border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+            const hdr = document.createElement("div");
+            hdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;"
+                + "letter-spacing:0.12em;color:#a06878;text-transform:uppercase;";
+            hdr.textContent = "Who may tie me";
+            card.appendChild(hdr);
             const blurb = document.createElement("div");
             blurb.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;line-height:1.55;";
             blurb.textContent = "Auto-escape ignores these people. They can tie you normally while it is on. "
@@ -19476,7 +19389,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             chips.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
             card.appendChild(chips);
             const picker = document.createElement("select");
-            picker.className = "ebc-select";
+            picker.className = "ebc-form-input";
             picker.style.cssText = "flex:1;min-width:0;";
             const refresh = () => {
                 const allowed = getAntiRestraintAllowList();
@@ -19524,41 +19437,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
             pickRow.appendChild(picker);
             card.appendChild(pickRow);
             refresh();
-            this.addLabelledSection(body, "Who may tie me", card);
-        }
-        /**
-         * Saves the session's whispers to a text file.
-         *
-         * The whisper log is memory only and dies with the tab. That is fine for
-         * looking something up mid-scene and no good at all for keeping what you
-         * wrote, which is usually the part worth keeping.
-         */
-        renderWhisperSave(body) {
-            const card = document.createElement("div");
-            card.style.cssText = "display:flex;align-items:center;gap:8px;";
-            const lbl = document.createElement("span");
-            lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;line-height:1.5;";
-            const count = getWhisperLog().length;
-            lbl.textContent = count === 0
-                ? "No whispers this session. They are only kept until you reload."
-                : `${count} whisper${count === 1 ? "" : "s"} this session. They are lost on reload.`;
-            const btn = document.createElement("button");
-            btn.textContent = "Save to file";
-            btn.disabled = count === 0;
-            btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;"
-                + "padding:5px 11px;border-radius:5px;flex-shrink:0;"
-                + (count === 0
-                    ? "border:1px solid #2a1421;background:#100508;color:#4c2537;cursor:default;"
-                    : "border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;cursor:pointer;");
-            btn.addEventListener("click", () => {
-                if (saveWhisperTranscript()) {
-                    btn.textContent = "Saved ✓";
-                    window.setTimeout(() => { btn.textContent = "Save to file"; }, 2000);
-                }
-            });
-            card.appendChild(lbl);
-            card.appendChild(btn);
-            this.addLabelledSection(body, "Keep this session's whispers", card);
+            body.appendChild(card);
         }
         /** Splits the Toys page into pills: IRL setup, in-game toys, triggers and
          *  sharing. Sections tag themselves via data-toy-group; anything untagged is
@@ -32666,9 +32545,24 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                         cnt.appendChild(empty);
                         return;
                     }
-                    // Clear button row
+                    // Save / Clear row. Save sits next to Clear because this is the
+                    // only place the log is actually read - and because the two are
+                    // the same decision from opposite ends: keep it, or lose it.
                     const whClearRow = document.createElement("div");
-                    whClearRow.style.cssText = "display:flex;align-items:center;justify-content:flex-end;margin-bottom:4px;";
+                    whClearRow.style.cssText = "display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-bottom:4px;";
+                    const whSaveBtn = document.createElement("button");
+                    whSaveBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;"
+                        + "padding:2px 9px;border-radius:4px;cursor:pointer;"
+                        + "border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;";
+                    whSaveBtn.textContent = "Save to file";
+                    whSaveBtn.title = "Whispers are only kept until you reload - this writes them to a text file";
+                    whSaveBtn.addEventListener("click", () => {
+                        if (saveWhisperTranscript()) {
+                            whSaveBtn.textContent = "Saved ✓";
+                            window.setTimeout(() => { whSaveBtn.textContent = "Save to file"; }, 2000);
+                        }
+                    });
+                    whClearRow.appendChild(whSaveBtn);
                     const whClearBtn = document.createElement("button");
                     whClearBtn.className = "ebc-outfit-del";
                     whClearBtn.style.cssText = "font-size:11px;padding:2px 7px;border-radius:4px;";
@@ -41931,6 +41825,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             while (body.firstChild)
                 body.removeChild(body.firstChild);
             this.buildAutoEscapeSection(body);
+            this.renderEscapeAllowList(body); // the other half of that toggle
             // ── DOM Tools (creator-only below this point) ─────────────────────────
             if (!isDomEnabled()) {
                 const msg = document.createElement("div");
@@ -43929,7 +43824,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.2";
-    const SAL_VERSION = 334; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 335; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -43946,9 +43841,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.1.2",
             changes: [
-                "New: auto-escape can let named people through (SAFETY -> Who may tie me). The whitelist only ever covered ITEMS, so auto-escape was all-or-nothing: protecting your owner's collar did not help, because with it switched on they could not put the collar on you in the first place. Add someone from the room and their restraints are accepted normally while everyone else still bounces off.",
-                "New: 'Why am I stuck?' on the SAFETY tab. When something will not come off, the reason can be a lock, a curse, or auto-escape refusing new items - and each one is looked up somewhere different, if it is visible at all. This says all of them in one place: which slot, which lock, who holds it, when a curse lifts, and that the safeword always releases one. It only explains - releasing is still the safeword's job.",
-                "New: save this session's whispers to a text file (SAFETY -> Keep this session's whispers). The whisper log only ever lived in memory and died with the tab, which is fine for looking something up mid-scene and no use for keeping what you wrote.",
+                "Removed: the 'Why am I stuck?' panel added moments earlier. It restated things that are already visible elsewhere, and a tab earns its space or it goes.",
+                "Moved: 'Who may tie me' now sits on the DOM tab directly under the auto-escape toggle it belongs to, rather than on SAFETY away from the switch it modifies. Saving whispers moved next to the Clear button in DEV -> Logs, where the log is actually read.",
+                "Fix: the 'Who may tie me' picker was styled by a class that does not exist, so it rendered as a raw white browser dropdown in the middle of the panel.",
+                "New: auto-escape can let named people through (DOM -> Auto-escape -> Who may tie me). The whitelist only ever covered ITEMS, so auto-escape was all-or-nothing: protecting your owner's collar did not help, because with it switched on they could not put the collar on you in the first place. Add someone from the room and their restraints are accepted normally while everyone else still bounces off.",
+                "New: save this session's whispers to a text file - the Save button next to Clear in DEV -> Logs -> Whisper Log. The whisper log only ever lived in memory and died with the tab, which is fine for looking something up mid-scene and no use for keeping what you wrote.",
                 "New: hold back repeated actions aimed at you (SAFETY -> Repeated actions). The achievement cooldown stopped spamming from PAYING, but it did not stop the spamming - people kept firing the same action over and over, it just earned nothing. This drops the repeats before anything renders them. Only the same action, from the same person, inside the window you set: a different action lands, a different person lands, the first one always lands. Off by default, starred people are exempt, and anyone being held back is named once so you can actually ask them to stop.",
                 "New: EBC warns before your account storage fills up, not after. The old warning only spoke once saving had already stopped, which is the point at which it is too late - the first sign of trouble was a save that silently did not happen. At 85% full you now get a heads-up naming the single biggest thing you are storing, while there is still room to move something to This device.",
                 "Fix (report 79, Julia): 'Pick restraints to remove' now updates while it is open. It only rebuilt when you opened it or used EBC's own release buttons, so anything applied or struggled out of in the meantime left it listing things that were no longer there - and because the list stays open, closing and reopening the drawer did not rebuild it either. It now refreshes when what you are wearing actually changes, and only then, so a tick you just made is not cleared out from under you.",
