@@ -288,6 +288,43 @@ export const SETTINGS_FLUSH_CAP = 150_000;
 /** Warn about the cap once a session - it is hit on every sync, not once. */
 let _flushCapWarned = false;
 
+/**
+ * Where the early warning fires, as a fraction of the cap.
+ *
+ * The existing warning only speaks once saving has already stopped, which is
+ * the point at which it is too late to be useful - the first sign of trouble
+ * was a save that silently did not happen. This one arrives while there is
+ * still room to do something about it.
+ */
+const STORAGE_WARN_AT = 0.85;
+let _flushNearCapWarned = false;
+
+/**
+ * Friendly names for the storage keys, registered by settings.ts.
+ *
+ * Kept as a registration rather than an import because settings.ts already
+ * imports this module; importing it back would be a cycle. The labels live
+ * with the categories they belong to, so the warning names things exactly as
+ * the Storage panel does.
+ */
+let _storageLabels: Record<string, string> = {};
+export function registerStorageLabels(map: Record<string, string>): void {
+    _storageLabels = map;
+}
+
+/** The single largest thing EBC is storing, for the warning to point at. */
+function largestStoredItem(): { label: string; kb: number } | null {
+    try {
+        let bestKey = "", bestLen = 0;
+        for (const [k, v] of Object.entries(_mem)) {
+            const len = JSON.stringify(v ?? null).length;
+            if (len > bestLen) { bestLen = len; bestKey = k; }
+        }
+        if (!bestKey) return null;
+        return { label: _storageLabels[bestKey] ?? bestKey, kb: Math.round(bestLen / 1000) };
+    } catch { return null; }
+}
+
 /** Serialized size (in characters ~ bytes) of EBC's whole settings blob. */
 export function getSettingsBlobSize(): number {
     try {
@@ -319,6 +356,21 @@ export function flushToExtensionSettings(): boolean {
                     ], "#ff8a8a");
                 }
                 return false;
+            }
+            // Still saving, but not for much longer. Said once, with the biggest
+            // item named, because "you are nearly full" is not actionable on its
+            // own - the useful part is knowing what to move.
+            if (!_flushNearCapWarned && size > SETTINGS_FLUSH_CAP * STORAGE_WARN_AT) {
+                _flushNearCapWarned = true;
+                const pct = Math.round((size / SETTINGS_FLUSH_CAP) * 100);
+                const big = largestStoredItem();
+                appendLocalLogBlock(`EBC storage is ${pct}% full`, [
+                    `Everything EBC saves to your account adds up to ${Math.round(size / 1000)} KB of the ${SETTINGS_FLUSH_CAP / 1000} KB the game allows.`,
+                    big ? `The biggest single thing is ${big.label}, at about ${big.kb} KB.` :
+                          "Outfits are usually the biggest thing, especially crafted items.",
+                    "Nothing is wrong yet and nothing is lost. This is a heads-up while there is still room to act.",
+                    "Open SETTINGS, then Storage, and move something to This device - it stays usable, it just stops counting against the account.",
+                ], "#e0b36a");
             }
         } catch { /* size check best-effort */ }
         if (!Player.ExtensionSettings.EmeryBC ||

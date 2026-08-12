@@ -1,6 +1,6 @@
 ﻿// General EmeryBC settings — lightweight key/value flags stored in ExtensionSettings.
 
-import { callBC, getSettings, syncSettings, getDeviceKeys, setDeviceKeys, readDeviceValue, writeDeviceValue, LOCAL_OUTFITS_KEY, LOCAL_RESTRAINTS_KEY, PER_ITEM_SETTINGS_KEYS } from "./bcUtils";
+import { callBC, getSettings, syncSettings, getDeviceKeys, setDeviceKeys, readDeviceValue, writeDeviceValue, LOCAL_OUTFITS_KEY, LOCAL_RESTRAINTS_KEY, PER_ITEM_SETTINGS_KEYS, registerStorageLabels } from "./bcUtils";
 
 
 // -- Emery Versioning (SAL sub-version display) --------------------------------
@@ -170,6 +170,32 @@ export function removeFromAntiRestraintWhitelist(group: string): void {
     setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
 }
 
+// -- Auto-escape allow list ----------------------------------------------------
+// People auto-escape ignores. The item whitelist answers "what may stay on me";
+// this answers "who may put it there", which is the axis that was missing -
+// auto-escape was all-or-nothing, so protecting your owner's collar did not
+// help because they could not put it on you in the first place.
+
+export function getAntiRestraintAllowList(): number[] {
+    try {
+        const list = getSettings()?.antiRestraintAllowList;
+        return Array.isArray(list) ? (list as number[]) : [];
+    } catch { return []; }
+}
+
+export function setAntiRestraintAllowList(members: number[]): void {
+    try {
+        getSettings().antiRestraintAllowList = members;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+export function toggleAntiRestraintAllowed(memberNumber: number): void {
+    const list = getAntiRestraintAllowList();
+    setAntiRestraintAllowList(
+        list.includes(memberNumber) ? list.filter(n => n !== memberNumber) : [...list, memberNumber]);
+}
+
 // -- Starred people -----------------------------------------------------------
 // Member numbers highlighted with a golden star in the People in Room and
 // Friends lists. This is EBC's own marker and is deliberately independent of
@@ -268,6 +294,46 @@ export function setShowMemberNumbers(value: boolean): void {
         store.showMemberNumbers = value;
         syncSettings();
     } catch { /* ignore */ }
+}
+
+// -- Limit repeated actions aimed at you ---------------------------------------
+// The achievement cooldown stopped spamming from PAYING. It did not stop the
+// spamming - people kept firing the same action over and over, it just earned
+// nothing. This drops the repeats before they reach the chat log.
+//
+// Off by default: silently dropping other people's actions is a real change to
+// what you see, and nobody should get it without asking.
+
+export function getActionLimitEnabled(): boolean {
+    try { return getSettings()?.actionLimitEnabled === true; } catch { return false; }
+}
+
+export function setActionLimitEnabled(value: boolean): void {
+    try { getSettings().actionLimitEnabled = value; syncSettings(); } catch { /* ignore */ }
+}
+
+/** Seconds the same action from the same person has to wait to show again. */
+export function getActionLimitSeconds(): number {
+    try {
+        const v = getSettings()?.actionLimitSeconds;
+        return typeof v === "number" && v >= 3 && v <= 120 ? v : 10;
+    } catch { return 10; }
+}
+
+export function setActionLimitSeconds(sec: number): void {
+    try {
+        getSettings().actionLimitSeconds = Math.max(3, Math.min(120, Math.round(sec)));
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+/** Starred people are never limited. On by default - they are who you play with. */
+export function getActionLimitExemptStars(): boolean {
+    try { return getSettings()?.actionLimitExemptStars !== false; } catch { return true; }
+}
+
+export function setActionLimitExemptStars(value: boolean): void {
+    try { getSettings().actionLimitExemptStars = value; syncSettings(); } catch { /* ignore */ }
 }
 
 // -- EBC button in the chat room top bar ---------------------------------------
@@ -520,6 +586,15 @@ export const EBC_DATA_CATEGORIES: DataCategory[] = [
     { label: "Restraint timers",     keys: ["restraintTimers"], help: "How long each item you are wearing has been on. Feeds the bound timer." },
     { label: "Dom config",           keys: ["domConfig"], help: "Your dom tool setup - targets and saved restraint sets for them." },
 ];
+
+// The storage warning lives in bcUtils, which cannot import this module without
+// a cycle, so the labels are handed over instead. Built from the categories
+// above so the warning names things exactly as the Storage panel does.
+registerStorageLabels((() => {
+    const out: Record<string, string> = {};
+    for (const cat of EBC_DATA_CATEGORIES) for (const k of cat.keys) out[k] = cat.label;
+    return out;
+})());
 
 // ── Backup: export / import ──────────────────────────────────────────────────
 // Storage-agnostic on purpose. Export reads the in-memory store, which already
