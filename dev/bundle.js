@@ -43558,7 +43558,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "9.1.3";
+    const MOD_VERSION = "9.1.4";
     const SAL_VERSION = 337; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
@@ -43574,9 +43574,14 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "9.1.3",
+            version: "9.1.4",
             changes: [
                 "Removed: 'Hold back repeated actions' from 9.1.2, along with its settings and the message hook behind it. Spamming already earns nothing - the achievement cooldown in 9.1.0 handles that - and hiding the messages on top of it was solving a problem that had already been solved. Repeated actions show in chat again like anything else.",
+            ],
+        },
+        {
+            version: "9.1.3",
+            changes: [
                 "Removed: the 'Why am I stuck?' panel from 9.1.2. It restated things already visible elsewhere, and a section earns its space or it goes.",
                 "Moved: 'Who may tie me' sits on the DOM tab directly under the auto-escape toggle it belongs to. It was on SAFETY, away from the switch it modifies, which made it read as a separate feature instead of the other half of one setting.",
                 "Fix: the 'Who may tie me' picker was styled by a class that does not exist, so it rendered as a raw white browser dropdown in the middle of the panel.",
