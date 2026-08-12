@@ -109,7 +109,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, getBeepVolume, setBeepVolume, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED, getTopBarButton, setTopBarButton, getActionLimitEnabled, setActionLimitEnabled, getActionLimitSeconds, setActionLimitSeconds, getActionLimitExemptStars, setActionLimitExemptStars } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, getBeepVolume, setBeepVolume, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED, getTopBarButton, setTopBarButton, getActionLimitEnabled, setActionLimitEnabled, getActionLimitSeconds, setActionLimitSeconds, getActionLimitExemptStars, setActionLimitExemptStars, getAntiRestraintAllowList, toggleAntiRestraintAllowed } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -184,7 +184,7 @@ import {
 } from "./expressions";
 import {
     getWhisperLog, getWhisperConversation, getWhisperPartners,
-    clearWhisperLog, setWhisperUpdateCallback,
+    clearWhisperLog, setWhisperUpdateCallback, saveWhisperTranscript,
     type WhisperEntry,
 } from "./whisperLog";
 import { t, getLanguage, setLanguage, onLangChange, LANG_CODES, LANG_NAMES, LANG_LABELS } from "./i18n";
@@ -7339,6 +7339,9 @@ export class EBCDrawer {
 
         this.renderRestraintInfo(body);    // ACTIVE RESTRAINTS (+ timers)
         this.renderOutfitWhitelist(body);  // PROTECTED ITEMS
+        this.renderWhyStuck(body);         // WHY AM I STUCK
+        this.renderEscapeAllowList(body); // WHO MAY TIE ME
+        this.renderWhisperSave(body);     // KEEP WHISPERS
         this.renderActionLimiter(body);    // REPEATED ACTIONS
         this.attachStripSection(body, t("grouped.safewords"), this.safewordRowEl, true);
         // Auto-escape deliberately does NOT live here. It lives on the DOM tab,
@@ -7348,9 +7351,107 @@ export class EBCDrawer {
         this._pillifyTab(body, "EBC_safetyView", [
             { pill: "Restraints", match: [t("grouped.releaseUnlock"), t("dev.activeRestraints")] },
             { pill: "Protected", match: [t("outfits.protectedItems")] },
-            { pill: "Actions", match: ["Repeated actions"] },
+            { pill: "Why stuck", match: ["Why am I stuck?"] },
+            { pill: "Actions", match: ["Repeated actions", "Who may tie me"] },
+            { pill: "Whispers", match: ["Keep this session's whispers"] },
             { pill: "Safewords", match: [t("grouped.safewords")] },
         ]);
+    }
+
+    /**
+     * Answers the question the game never answers.
+     *
+     * When something will not come off, the reason can be a lock, a curse,
+     * auto-escape refusing new items, or nothing at all - and each one is
+     * looked up somewhere different, if it is visible anywhere. EBC already
+     * holds every piece of this. It just never said them in one place.
+     *
+     * Reads only. It explains, it does not release - the safeword does that,
+     * and mixing "tell me why" with "undo it" is how people press the wrong one.
+     */
+    private renderWhyStuck(body: HTMLElement): void {
+        const card = document.createElement("div");
+        card.style.cssText = "display:flex;flex-direction:column;gap:7px;";
+
+        const list = document.createElement("div");
+        list.style.cssText = "display:flex;flex-direction:column;gap:5px;";
+
+        const line = (text: string, tone: "block" | "info" | "clear"): HTMLElement => {
+            const d = document.createElement("div");
+            const colour = tone === "block" ? "#e08090" : tone === "info" ? "#d8a86a" : "#8ec48f";
+            d.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;line-height:1.55;"
+                + "padding:5px 8px;border-radius:5px;background:rgba(20,8,16,0.5);"
+                + `border-left:3px solid ${colour};color:#e8d4de;`;
+            d.textContent = text;
+            return d;
+        };
+
+        const refresh = (): void => {
+            while (list.firstChild) list.removeChild(list.firstChild);
+            const found: HTMLElement[] = [];
+
+            // Locks, named by who holds them - the part BC hides behind a menu.
+            try {
+                for (const item of Player.Appearance ?? []) {
+                    const group = item.Asset?.Group?.Name;
+                    if (!group || !RESTRAINT_GROUPS.has(group)) continue;
+                    const prop = item.Property as Record<string, unknown> | undefined;
+                    const lockedBy = typeof prop?.LockedBy === "string" ? prop.LockedBy : "";
+                    if (!lockedBy) continue;
+                    const by = typeof prop?.LockMemberNumber === "number"
+                        ? ` - held by ${resolveName(prop.LockMemberNumber as number)}` : "";
+                    found.push(line(
+                        `${group.replace("Item", "")}: ${lockedBy.replace(/([A-Z])/g, " $1").trim()}${by}`,
+                        "block"));
+                }
+            } catch { /* ignore */ }
+
+            // Curses, with the way out stated rather than implied.
+            try {
+                const cursed = [...getCursedGroups()];
+                if (cursed.length > 0) {
+                    const exp = getCurseExpiry();
+                    const when = exp
+                        ? ` Lifts in ${Math.max(0, Math.round((exp - Date.now()) / 60000))} min.`
+                        : " No end time set.";
+                    found.push(line(
+                        `Cursed: ${cursed.map(g => g.replace("Item", "")).join(", ")}.${when}`
+                        + " Your safeword always releases a curse.", "block"));
+                }
+            } catch { /* ignore */ }
+
+            // Auto-escape, which blocks things going ON rather than coming off -
+            // the one people misread as "the game is broken".
+            try {
+                if (getAntiRestraintEnabled()) {
+                    const allowed = getAntiRestraintAllowList();
+                    found.push(line(
+                        "Auto-escape is ON, so new restraints from other people are removed"
+                        + (allowed.length > 0
+                            ? ` - except from ${allowed.map(n => resolveName(n)).join(", ")}.`
+                            : ". Nobody is on your allow list, so nobody can tie you."),
+                        "info"));
+                }
+            } catch { /* ignore */ }
+
+            if (found.length === 0) {
+                list.appendChild(line("Nothing is holding you. No locks, no curses, auto-escape off.", "clear"));
+            } else {
+                for (const f of found) list.appendChild(f);
+            }
+        };
+
+        const btn = document.createElement("button");
+        btn.textContent = "Check again";
+        btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;"
+            + "padding:5px 10px;border-radius:5px;cursor:pointer;align-self:flex-start;"
+            + "border:1px solid #4c2537;background:#100508;color:#b98aa0;";
+        btn.addEventListener("click", refresh);
+
+        refresh();
+        card.appendChild(list);
+        card.appendChild(btn);
+        this.addLabelledSection(body, "Why am I stuck?", card);
     }
 
     /**
@@ -7450,6 +7551,122 @@ export class EBCDrawer {
         card.appendChild(held);
 
         this.addLabelledSection(body, "Repeated actions", card);
+    }
+
+    /**
+     * Who auto-escape lets through.
+     *
+     * The item whitelist answers "what may stay on me". This answers "who may
+     * put it there" - the axis that was missing, which made auto-escape
+     * all-or-nothing: protecting your owner's collar did not help, because with
+     * it switched on they could not put the collar on you in the first place.
+     *
+     * Names come from the room, so this is filled in while the person is with
+     * you rather than by typing member numbers.
+     */
+    private renderEscapeAllowList(body: HTMLElement): void {
+        const card = document.createElement("div");
+        card.style.cssText = "display:flex;flex-direction:column;gap:7px;";
+
+        const blurb = document.createElement("div");
+        blurb.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;line-height:1.55;";
+        blurb.textContent = "Auto-escape ignores these people. They can tie you normally while it is on. "
+            + "Everyone else still bounces off.";
+        card.appendChild(blurb);
+
+        const chips = document.createElement("div");
+        chips.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
+        card.appendChild(chips);
+
+        const picker = document.createElement("select");
+        picker.className = "ebc-select";
+        picker.style.cssText = "flex:1;min-width:0;";
+
+        const refresh = (): void => {
+            const allowed = getAntiRestraintAllowList();
+
+            while (chips.firstChild) chips.removeChild(chips.firstChild);
+            if (allowed.length === 0) {
+                const none = document.createElement("div");
+                none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
+                none.textContent = "Nobody yet - with auto-escape on, nobody can tie you.";
+                chips.appendChild(none);
+            }
+            for (const n of allowed) {
+                const chip = document.createElement("button");
+                chip.textContent = `${resolveName(n)} ×`;
+                chip.title = "Remove from the allow list";
+                chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;"
+                    + "border-radius:10px;cursor:pointer;border:1px solid #cf6f98;"
+                    + "background:#4a1f30;color:#f7e6ee;";
+                chip.addEventListener("click", () => { toggleAntiRestraintAllowed(n); refresh(); });
+                chips.appendChild(chip);
+            }
+
+            while (picker.firstChild) picker.removeChild(picker.firstChild);
+            const head = document.createElement("option");
+            head.value = ""; head.textContent = "- add someone in the room -";
+            picker.appendChild(head);
+            for (const m of getRoomMembers()) {
+                if (m.id === Player.MemberNumber || allowed.includes(m.id)) continue;
+                const o = document.createElement("option");
+                o.value = String(m.id);
+                o.textContent = m.name;
+                picker.appendChild(o);
+            }
+        };
+
+        picker.addEventListener("change", () => {
+            const id = parseInt(picker.value, 10);
+            if (id) toggleAntiRestraintAllowed(id);
+            refresh();
+        });
+
+        const pickRow = document.createElement("div");
+        pickRow.style.cssText = "display:flex;align-items:center;gap:6px;";
+        pickRow.appendChild(picker);
+        card.appendChild(pickRow);
+
+        refresh();
+        this.addLabelledSection(body, "Who may tie me", card);
+    }
+
+    /**
+     * Saves the session's whispers to a text file.
+     *
+     * The whisper log is memory only and dies with the tab. That is fine for
+     * looking something up mid-scene and no good at all for keeping what you
+     * wrote, which is usually the part worth keeping.
+     */
+    private renderWhisperSave(body: HTMLElement): void {
+        const card = document.createElement("div");
+        card.style.cssText = "display:flex;align-items:center;gap:8px;";
+
+        const lbl = document.createElement("span");
+        lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;line-height:1.5;";
+        const count = getWhisperLog().length;
+        lbl.textContent = count === 0
+            ? "No whispers this session. They are only kept until you reload."
+            : `${count} whisper${count === 1 ? "" : "s"} this session. They are lost on reload.`;
+
+        const btn = document.createElement("button");
+        btn.textContent = "Save to file";
+        btn.disabled = count === 0;
+        btn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;"
+            + "padding:5px 11px;border-radius:5px;flex-shrink:0;"
+            + (count === 0
+                ? "border:1px solid #2a1421;background:#100508;color:#4c2537;cursor:default;"
+                : "border:1px solid #cf6f98;background:#4a1f30;color:#f7e6ee;cursor:pointer;");
+        btn.addEventListener("click", () => {
+            if (saveWhisperTranscript()) {
+                btn.textContent = "Saved ✓";
+                window.setTimeout(() => { btn.textContent = "Save to file"; }, 2000);
+            }
+        });
+
+        card.appendChild(lbl);
+        card.appendChild(btn);
+        this.addLabelledSection(body, "Keep this session's whispers", card);
     }
 
     /** Splits the Toys page into pills: IRL setup, in-game toys, triggers and

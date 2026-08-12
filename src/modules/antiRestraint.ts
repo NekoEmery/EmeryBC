@@ -4,7 +4,7 @@
 // Whitelist entries are item keys: "AssetName" or "AssetName|CraftName".
 // Removal is attempted up to 2 times per group before giving up (locked items).
 
-import { getAntiRestraintEnabled, getAntiRestraintWhitelist, getAntiRestraintAnnounce, getEscapeEmoteText } from "./settings";
+import { getAntiRestraintEnabled, getAntiRestraintWhitelist, getAntiRestraintAnnounce, getEscapeEmoteText, getAntiRestraintAllowList } from "./settings";
 import { callBC } from "./bcUtils";
 import { RESTRAINT_GROUPS } from "./outfitManager";
 
@@ -74,7 +74,33 @@ let lastRestrainerName: string | null = null;
 
 export function getLastRestrainerName(): string | null { return lastRestrainerName; }
 
+/**
+ * Until when anything new is accepted rather than escaped.
+ *
+ * Auto-escape works by comparing what you are wearing against what it has
+ * already accepted. It never learns who put each item on - that only arrives as
+ * a separate chat message, often after the appearance already changed. So the
+ * exemption cannot be decided per item; it is decided per moment.
+ *
+ * When an exempt person applies something, a short window opens in which new
+ * restraints are taken into the accepted set instead of removed. Long enough
+ * for the appearance change to land, short enough that whoever acts next gets
+ * no benefit from it.
+ */
+let _allowUntil = 0;
+const ALLOW_WINDOW_MS = 8000;
+
+/** True while an exempt person's restraints are being let through. */
+export function isAllowingRestraints(): boolean {
+    return Date.now() < _allowUntil;
+}
+
 export function recordRestrainer(sourceMemberNumber: number): void {
+    try {
+        if (getAntiRestraintAllowList().includes(sourceMemberNumber)) {
+            _allowUntil = Date.now() + ALLOW_WINDOW_MS;
+        }
+    } catch { /* ignore */ }
     try {
         const room = (window as unknown as Record<string, unknown>).ChatRoomCharacter as
             Array<Record<string, unknown>> | undefined;
@@ -232,6 +258,14 @@ export function antiRestraintOnPlayerRefresh(): void {
             .map(([, i]) => i);
 
         if (newItems.length === 0) return;
+
+        // Someone on your allow list just tied you. Their work is accepted, not
+        // removed - and accepted permanently, so it survives after the window
+        // closes and does not get escaped on the next scan.
+        if (isAllowingRestraints()) {
+            for (const [key] of candidates) knownRestraints.add(key);
+            return;
+        }
 
         escaping = true;
 

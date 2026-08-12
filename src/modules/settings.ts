@@ -170,6 +170,32 @@ export function removeFromAntiRestraintWhitelist(group: string): void {
     setAntiRestraintWhitelist(getAntiRestraintWhitelist().filter(g => g !== group));
 }
 
+// -- Auto-escape allow list ----------------------------------------------------
+// People auto-escape ignores. The item whitelist answers "what may stay on me";
+// this answers "who may put it there", which is the axis that was missing -
+// auto-escape was all-or-nothing, so protecting your owner's collar did not
+// help because they could not put it on you in the first place.
+
+export function getAntiRestraintAllowList(): number[] {
+    try {
+        const list = getSettings()?.antiRestraintAllowList;
+        return Array.isArray(list) ? (list as number[]) : [];
+    } catch { return []; }
+}
+
+export function setAntiRestraintAllowList(members: number[]): void {
+    try {
+        getSettings().antiRestraintAllowList = members;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
+export function toggleAntiRestraintAllowed(memberNumber: number): void {
+    const list = getAntiRestraintAllowList();
+    setAntiRestraintAllowList(
+        list.includes(memberNumber) ? list.filter(n => n !== memberNumber) : [...list, memberNumber]);
+}
+
 // -- Starred people -----------------------------------------------------------
 // Member numbers highlighted with a golden star in the People in Room and
 // Friends lists. This is EBC's own marker and is deliberately independent of
