@@ -9,7 +9,7 @@ import { handleExprSequenceCommand, getAutoApplyDefaultFace, getDefaultExprPrese
 import { handleSceneCommand } from "./modules/scenes";
 import { handleDomCommand, applyPositions, clearAllPositions } from "./modules/domTools";
 import { releaseRestraints, unlockItems } from "./modules/restraints";
-import { getBeepVolume, getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat, getTopBarButton } from "./modules/settings";
+import { getBeepVolume, getBadgeEnabled, getShowVersionBadge, getShowOthersVersionBadge, getShowOthersBadge, getActionButtonsVisible, getBeepMuted, getSuppressNativeBeep, getUseNativeBeepSound, getOnlineSoundEnabled, getUpdateNotify, setUpdateNotify, getAfkEnabled, getAfkThreshold, getAfkMessage, getOocEnabled, recordPersonMet, migratePeopleMetToLocal, getBadgeStyle, getOthersBadgeStyle, getBadgeScale, getTextBadgeScale, getCatBadgeScale, getBadgeBgOpacity, getBadgeTextOpacity, getBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetX, setBadgeOffsetY, getCatBadgeOffsetX, getCatBadgeOffsetY, setCatBadgeOffsetX, setCatBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, getVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetX, setVersionTextOffsetY, isBeepMemberMuted, getShowSalVersion, getLianChatCompat, getTopBarButton, getLastChangelogSeen, setLastChangelogSeen } from "./modules/settings";
 import { antiRestraintOnPlayerRefresh, snapshotPlayerRestraints, recordRestrainer, getLastRestrainerName } from "./modules/antiRestraint";
 import { onRoomSync, onRoomLeave, onMemberJoin, detectNewJoins } from "./modules/roomHistory";
 import { snapshotForLog, checkRestraintChanges, setPendingLogApplier } from "./modules/restraintLog";
@@ -31,7 +31,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.4";
-const SAL_VERSION  = 338;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 339;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -51,6 +51,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.1.4",
         changes: [
+            "Fix (report 84, Julia): '/ebc changelog' shows everything since the version you last read, not just the newest release. With several releases a day, most people skip versions - someone on 9.1.0 opening 9.1.4 was shown one line about a feature being removed that they had never had, while the curse fixes and the room crash guard they actually received went unmentioned. It now lists each version since you last looked, up to five of them, and says how much is left over.",
             "Removed: 'Hold back repeated actions' from 9.1.2, along with its settings and the message hook behind it. Spamming already earns nothing - the achievement cooldown in 9.1.0 handles that - and hiding the messages on top of it was solving a problem that had already been solved. Repeated actions show in chat again like anything else.",
         ],
     },
@@ -6306,23 +6307,69 @@ function showVersionInfo(): void {
     appendLocalLogLine(`[EBC] Version ${MOD_VERSION}${salStr}`, UI.gold);
 }
 
+/** "9.1.4" -> 9001004, so versions sort as numbers rather than as text. */
+function versionRank(v: string): number {
+    const p = v.split(".").map(n => parseInt(n, 10) || 0);
+    return (p[0] ?? 0) * 1_000_000 + (p[1] ?? 0) * 1_000 + (p[2] ?? 0);
+}
+
 function showChangelog(): void {
     const latest = CHANGELOG[0];
     if (!latest) {
         appendLocalLogLine(`[EBC] v${MOD_VERSION} — no changelog.`, UI.gold);
         return;
     }
-    // One block with a close button, not one line per entry. The current
-    // version has well over a hundred entries behind it, so posting them
-    // individually buried the conversation with no way to clear it.
-    const MAX_SHOWN = 15;
-    const shown = latest.changes.slice(0, MAX_SHOWN);
-    const hidden = latest.changes.length - shown.length;
+
+    // Everything since the version you last read, not just the newest one.
+    //
+    // Releases have been going out several times a day, so showing only
+    // CHANGELOG[0] meant most people saw a fraction of what changed for them.
+    // Someone on 9.1.0 opening 9.1.4 was shown a single line about a feature
+    // being removed - a feature they had never had - while the curse fixes and
+    // the room crash guard they actually received went unmentioned.
+    const seen = getLastChangelogSeen();
+    const blocks = seen
+        ? CHANGELOG.filter(c => versionRank(c.version) > versionRank(seen))
+        : [latest];
+    const use = blocks.length > 0 ? blocks : [latest];
+
+    // Capped by VERSIONS as well as by lines. Coming back after a long break
+    // would otherwise spend the whole budget on headings - fourteen version
+    // titles and almost no actual changes, which is worse than showing fewer
+    // releases properly.
+    const MAX_VERSIONS = 5;
+    const MAX_SHOWN = 20;
+    const recent = use.slice(0, MAX_VERSIONS);
+    const olderVersions = use.length - recent.length;
+
+    const lines: string[] = [];
+    let hidden = 0;
+    for (const block of recent) {
+        const room = MAX_SHOWN - lines.length - (recent.length > 1 ? 1 : 0);
+        if (room <= 0) { hidden += block.changes.length; continue; }
+        if (recent.length > 1) lines.push(`— v${block.version} —`);
+        lines.push(...block.changes.slice(0, room));
+        hidden += Math.max(0, block.changes.length - room);
+    }
+
+    const notes: string[] = [];
+    if (hidden > 0) notes.push(`${hidden} more change${hidden === 1 ? "" : "s"}`);
+    if (olderVersions > 0) notes.push(`${olderVersions} older version${olderVersions === 1 ? "" : "s"}`);
+
+    const title = recent.length > 1
+        ? `EBC v${MOD_VERSION} - what's new since v${seen}`
+        : `EBC v${recent[0].version} - what's new`;
     appendChangelogBlock(
-        `EBC v${latest.version} - what's new`,
-        shown,
-        hidden > 0 ? `+ ${hidden} more - the full list is in SETTINGS -> Credits.` : undefined,
+        title,
+        lines,
+        notes.length > 0
+            ? `+ ${notes.join(" and ")} - the full list is in SETTINGS -> Credits.`
+            : undefined,
     );
+
+    // Recorded only after it has been shown, so a version is never marked read
+    // on the strength of having been installed.
+    setLastChangelogSeen(MOD_VERSION);
 }
 
 // Last metered arousal level, so toggling the meter back on restores it.

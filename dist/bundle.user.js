@@ -3591,6 +3591,27 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Last changelog version read -----------------------------------------------
+    // Which version's notes have already been shown, so "/ebc changelog" can show
+    // everything since then rather than only the newest release. Empty means it has
+    // never been opened, in which case the newest release alone is the honest answer.
+    function getLastChangelogSeen() {
+        var _a;
+        try {
+            const v = (_a = getSettings()) === null || _a === void 0 ? void 0 : _a.lastChangelogSeen;
+            return typeof v === "string" ? v : "";
+        }
+        catch (_b) {
+            return "";
+        }
+    }
+    function setLastChangelogSeen(version) {
+        try {
+            getSettings().lastChangelogSeen = version;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- EBC button in the chat room top bar ---------------------------------------
     // Puts a paw next to BC's own Exit / Kneel / Icons buttons and hides the side
     // tab while you are in a room. Only while you are in a room - the top bar does
@@ -43594,7 +43615,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.4";
-    const SAL_VERSION = 338; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 339; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -43611,6 +43632,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.1.4",
             changes: [
+                "Fix (report 84, Julia): '/ebc changelog' shows everything since the version you last read, not just the newest release. With several releases a day, most people skip versions - someone on 9.1.0 opening 9.1.4 was shown one line about a feature being removed that they had never had, while the curse fixes and the room crash guard they actually received went unmentioned. It now lists each version since you last looked, up to five of them, and says how much is left over.",
                 "Removed: 'Hold back repeated actions' from 9.1.2, along with its settings and the message hook behind it. Spamming already earns nothing - the achievement cooldown in 9.1.0 handles that - and hiding the messages on top of it was solving a problem that had already been solved. Repeated actions show in chat again like anything else.",
             ],
         },
@@ -49870,19 +49892,65 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         const salStr = getShowSalVersion() ? ` (${SAL_VERSION})` : "";
         appendLocalLogLine(`[EBC] Version ${MOD_VERSION}${salStr}`, UI.gold);
     }
+    /** "9.1.4" -> 9001004, so versions sort as numbers rather than as text. */
+    function versionRank(v) {
+        var _a, _b, _c;
+        const p = v.split(".").map(n => parseInt(n, 10) || 0);
+        return ((_a = p[0]) !== null && _a !== void 0 ? _a : 0) * 1000000 + ((_b = p[1]) !== null && _b !== void 0 ? _b : 0) * 1000 + ((_c = p[2]) !== null && _c !== void 0 ? _c : 0);
+    }
     function showChangelog() {
         const latest = CHANGELOG[0];
         if (!latest) {
             appendLocalLogLine(`[EBC] v${MOD_VERSION} — no changelog.`, UI.gold);
             return;
         }
-        // One block with a close button, not one line per entry. The current
-        // version has well over a hundred entries behind it, so posting them
-        // individually buried the conversation with no way to clear it.
-        const MAX_SHOWN = 15;
-        const shown = latest.changes.slice(0, MAX_SHOWN);
-        const hidden = latest.changes.length - shown.length;
-        appendChangelogBlock(`EBC v${latest.version} - what's new`, shown, hidden > 0 ? `+ ${hidden} more - the full list is in SETTINGS -> Credits.` : undefined);
+        // Everything since the version you last read, not just the newest one.
+        //
+        // Releases have been going out several times a day, so showing only
+        // CHANGELOG[0] meant most people saw a fraction of what changed for them.
+        // Someone on 9.1.0 opening 9.1.4 was shown a single line about a feature
+        // being removed - a feature they had never had - while the curse fixes and
+        // the room crash guard they actually received went unmentioned.
+        const seen = getLastChangelogSeen();
+        const blocks = seen
+            ? CHANGELOG.filter(c => versionRank(c.version) > versionRank(seen))
+            : [latest];
+        const use = blocks.length > 0 ? blocks : [latest];
+        // Capped by VERSIONS as well as by lines. Coming back after a long break
+        // would otherwise spend the whole budget on headings - fourteen version
+        // titles and almost no actual changes, which is worse than showing fewer
+        // releases properly.
+        const MAX_VERSIONS = 5;
+        const MAX_SHOWN = 20;
+        const recent = use.slice(0, MAX_VERSIONS);
+        const olderVersions = use.length - recent.length;
+        const lines = [];
+        let hidden = 0;
+        for (const block of recent) {
+            const room = MAX_SHOWN - lines.length - (recent.length > 1 ? 1 : 0);
+            if (room <= 0) {
+                hidden += block.changes.length;
+                continue;
+            }
+            if (recent.length > 1)
+                lines.push(`— v${block.version} —`);
+            lines.push(...block.changes.slice(0, room));
+            hidden += Math.max(0, block.changes.length - room);
+        }
+        const notes = [];
+        if (hidden > 0)
+            notes.push(`${hidden} more change${hidden === 1 ? "" : "s"}`);
+        if (olderVersions > 0)
+            notes.push(`${olderVersions} older version${olderVersions === 1 ? "" : "s"}`);
+        const title = recent.length > 1
+            ? `EBC v${MOD_VERSION} - what's new since v${seen}`
+            : `EBC v${recent[0].version} - what's new`;
+        appendChangelogBlock(title, lines, notes.length > 0
+            ? `+ ${notes.join(" and ")} - the full list is in SETTINGS -> Credits.`
+            : undefined);
+        // Recorded only after it has been shown, so a version is never marked read
+        // on the strength of having been installed.
+        setLastChangelogSeen(MOD_VERSION);
     }
     // Last metered arousal level, so toggling the meter back on restores it.
     // Defaults to "Manual" if the meter was already hidden at load time.
