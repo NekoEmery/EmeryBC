@@ -4258,21 +4258,47 @@ function paintAchievementIcon(host: HTMLElement, id: string, tone: "dim" | "on" 
     return true;
 }
 
+/**
+ * True when a press landed on a scrollbar rather than on content.
+ *
+ * Walks up from whatever was hit, because a press on a scrollbar reports the
+ * scrolling element on some paths and a row inside it on others. Each
+ * scrollable ancestor is checked in client coordinates: clientLeft/clientTop
+ * skip the border, clientWidth/clientHeight stop at the scrollbar, so anything
+ * past that edge is the bar itself.
+ */
+function onScrollbar(e: MouseEvent): boolean {
+    let n = e.target as HTMLElement | null;
+    while (n && n !== document.body) {
+        const r = n.getBoundingClientRect();
+        if (n.scrollHeight > n.clientHeight && e.clientX > r.left + n.clientLeft + n.clientWidth) return true;
+        if (n.scrollWidth  > n.clientWidth  && e.clientY > r.top  + n.clientTop  + n.clientHeight) return true;
+        n = n.parentElement;
+    }
+    return false;
+}
+
 function makeDraggable(el: HTMLElement): void {
     el.addEventListener("mousedown", (e: MouseEvent) => {
         const tgt = e.target as HTMLElement | null;
         if (tgt?.closest("input,textarea,select,button,a,label")) return;
 
         // A scrollbar is part of its element, not a child, so it cannot be
-        // excluded by selector - and this handler ran first and called
-        // preventDefault, which cancelled the browser's own scrollbar drag. The
-        // window moved instead of the list scrolling.
+        // excluded by selector - and this handler ran first, so the window was
+        // dragged while the browser scrolled the list at the same time.
         //
-        // offsetX/offsetY are measured against the padding box, which stops at
-        // the scrollbar: a press beyond clientWidth or clientHeight is on the
-        // bar itself. Checked on the element pressed rather than the window, so
-        // it works for any scrollable area inside any of these panels.
-        if (tgt && (e.offsetX > tgt.clientWidth || e.offsetY > tgt.clientHeight)) return;
+        // The first attempt compared offsetX against clientWidth. offsetX is
+        // measured from the target's padding box, which moves with the scroll
+        // and is measured on whichever descendant was hit, so what it means
+        // depends on how far the list is scrolled and what is under the cursor.
+        // It caught the case it was written against and missed others.
+        //
+        // Client coordinates against each scrollable ancestor's client box do
+        // not have that problem. The scrollbar occupies the strip between the
+        // client box and the border box, so a press past that edge is on the
+        // bar - true wherever the list is scrolled to, and true whether the
+        // press landed on the scroller or on a row inside it.
+        if (onScrollbar(e)) return;
 
         const r = el.getBoundingClientRect();
         const startX = e.clientX, startY = e.clientY;
@@ -5356,9 +5382,21 @@ export class EBCDrawer {
         // Track selections: group → "restraint" | "lock"
         const selfSelected = new Map<string, "restraint" | "lock">();
 
+        // What the open list is currently showing, so a rebuild only happens when
+        // it has genuinely gone stale. A rebuild clears the ticks, so rebuilding
+        // on a timer regardless would unpick a box a moment after it was picked.
+        let pickSig = "";
+        const pickSignature = (): string => {
+            try {
+                return [...getPlayerRestraints(), ...getPlayerLockedItems()]
+                    .map(i => i.group + ":" + i.name).join("|");
+            } catch { return pickSig; }
+        };
+
         const rebuildSelfPicker = (): void => {
             while (selfPickPanel.firstChild) selfPickPanel.removeChild(selfPickPanel.firstChild);
             selfSelected.clear();
+            pickSig = pickSignature();
 
             const restraints = getPlayerRestraints();
             const locks      = getPlayerLockedItems();
@@ -5441,6 +5479,22 @@ export class EBCDrawer {
             selfPickPanel.appendChild(btnRow);
             selfPickPanel.appendChild(selfPickStatus);
         };
+
+        // Keep the open list honest about what you are actually wearing.
+        //
+        // It only rebuilt when opened or after EBC's own release buttons, so
+        // anything applied or struggled out of while it was open left it showing
+        // a list that no longer existed - and since the panel stays open, closing
+        // and reopening the drawer did not rebuild it either.
+        //
+        // Rebuilt only when the set of items actually changes - see pickSignature.
+        window.setInterval(() => {
+            try {
+                if (selfPickPanel.style.display === "none") return;
+                if (pickSignature() === pickSig) return;
+                rebuildSelfPicker();
+            } catch { /* ignore */ }
+        }, 1_500);
 
         selfPickToggle.addEventListener("click", () => {
             const isOpen = selfPickPanel.style.display !== "none";
@@ -18962,12 +19016,17 @@ This cannot be undone.`,
             shareAll.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;padding:1px 9px;"
                 + "border-radius:9px;border:1px solid #4c2537;background:transparent;color:#b98aa0;cursor:pointer;";
             shareAll.addEventListener("click", () => {
-                const r = shareOverallProgress();
-                shareAll.textContent = r === "ok" ? "Shared ✓"
-                    : r === "cooldown" ? "Wait a moment"
-                    : r === "nothing" ? "Nothing unlocked yet"
-                    : "Only in a room";
-                window.setTimeout(() => { shareAll.textContent = "Share my progress"; }, 2000);
+                // Asked first, because the button posts to the room. "Share"
+                // does not say where, and finding out by having already done it
+                // is not a fair way to learn.
+                showQuickConfirm("Post your achievement progress to this room?", () => {
+                    const r = shareOverallProgress();
+                    shareAll.textContent = r === "ok" ? "Shared ✓"
+                        : r === "cooldown" ? "Wait a moment"
+                        : r === "nothing" ? "Nothing unlocked yet"
+                        : "Only in a room";
+                    window.setTimeout(() => { shareAll.textContent = "Share my progress"; }, 2000);
+                });
             });
             shareRow.appendChild(shareAll);
             summary.appendChild(shareRow);

@@ -15962,21 +15962,48 @@
         host.appendChild(ico);
         return true;
     }
+    /**
+     * True when a press landed on a scrollbar rather than on content.
+     *
+     * Walks up from whatever was hit, because a press on a scrollbar reports the
+     * scrolling element on some paths and a row inside it on others. Each
+     * scrollable ancestor is checked in client coordinates: clientLeft/clientTop
+     * skip the border, clientWidth/clientHeight stop at the scrollbar, so anything
+     * past that edge is the bar itself.
+     */
+    function onScrollbar(e) {
+        let n = e.target;
+        while (n && n !== document.body) {
+            const r = n.getBoundingClientRect();
+            if (n.scrollHeight > n.clientHeight && e.clientX > r.left + n.clientLeft + n.clientWidth)
+                return true;
+            if (n.scrollWidth > n.clientWidth && e.clientY > r.top + n.clientTop + n.clientHeight)
+                return true;
+            n = n.parentElement;
+        }
+        return false;
+    }
     function makeDraggable(el) {
         el.addEventListener("mousedown", (e) => {
             const tgt = e.target;
             if (tgt === null || tgt === void 0 ? void 0 : tgt.closest("input,textarea,select,button,a,label"))
                 return;
             // A scrollbar is part of its element, not a child, so it cannot be
-            // excluded by selector - and this handler ran first and called
-            // preventDefault, which cancelled the browser's own scrollbar drag. The
-            // window moved instead of the list scrolling.
+            // excluded by selector - and this handler ran first, so the window was
+            // dragged while the browser scrolled the list at the same time.
             //
-            // offsetX/offsetY are measured against the padding box, which stops at
-            // the scrollbar: a press beyond clientWidth or clientHeight is on the
-            // bar itself. Checked on the element pressed rather than the window, so
-            // it works for any scrollable area inside any of these panels.
-            if (tgt && (e.offsetX > tgt.clientWidth || e.offsetY > tgt.clientHeight))
+            // The first attempt compared offsetX against clientWidth. offsetX is
+            // measured from the target's padding box, which moves with the scroll
+            // and is measured on whichever descendant was hit, so what it means
+            // depends on how far the list is scrolled and what is under the cursor.
+            // It caught the case it was written against and missed others.
+            //
+            // Client coordinates against each scrollable ancestor's client box do
+            // not have that problem. The scrollbar occupies the strip between the
+            // client box and the border box, so a press past that edge is on the
+            // bar - true wherever the list is scrolled to, and true whether the
+            // press landed on the scroller or on a row inside it.
+            if (onScrollbar(e))
                 return;
             const r = el.getBoundingClientRect();
             const startX = e.clientX, startY = e.clientY;
@@ -16944,10 +16971,24 @@
             selfPickStatus.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#79a885;min-height:13px;";
             // Track selections: group → "restraint" | "lock"
             const selfSelected = new Map();
+            // What the open list is currently showing, so a rebuild only happens when
+            // it has genuinely gone stale. A rebuild clears the ticks, so rebuilding
+            // on a timer regardless would unpick a box a moment after it was picked.
+            let pickSig = "";
+            const pickSignature = () => {
+                try {
+                    return [...getPlayerRestraints(), ...getPlayerLockedItems()]
+                        .map(i => i.group + ":" + i.name).join("|");
+                }
+                catch (_a) {
+                    return pickSig;
+                }
+            };
             const rebuildSelfPicker = () => {
                 while (selfPickPanel.firstChild)
                     selfPickPanel.removeChild(selfPickPanel.firstChild);
                 selfSelected.clear();
+                pickSig = pickSignature();
                 const restraints = getPlayerRestraints();
                 const locks = getPlayerLockedItems();
                 if (restraints.length === 0 && locks.length === 0) {
@@ -17033,6 +17074,24 @@
                 selfPickPanel.appendChild(btnRow);
                 selfPickPanel.appendChild(selfPickStatus);
             };
+            // Keep the open list honest about what you are actually wearing.
+            //
+            // It only rebuilt when opened or after EBC's own release buttons, so
+            // anything applied or struggled out of while it was open left it showing
+            // a list that no longer existed - and since the panel stays open, closing
+            // and reopening the drawer did not rebuild it either.
+            //
+            // Rebuilt only when the set of items actually changes - see pickSignature.
+            window.setInterval(() => {
+                try {
+                    if (selfPickPanel.style.display === "none")
+                        return;
+                    if (pickSignature() === pickSig)
+                        return;
+                    rebuildSelfPicker();
+                }
+                catch ( /* ignore */_a) { /* ignore */ }
+            }, 1500);
             selfPickToggle.addEventListener("click", () => {
                 const isOpen = selfPickPanel.style.display !== "none";
                 selfPickPanel.style.display = isOpen ? "none" : "flex";
@@ -30410,12 +30469,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 shareAll.style.cssText = "font-family:'Trebuchet MS',serif;font-size:9.5px;padding:1px 9px;"
                     + "border-radius:9px;border:1px solid #4c2537;background:transparent;color:#b98aa0;cursor:pointer;";
                 shareAll.addEventListener("click", () => {
-                    const r = shareOverallProgress();
-                    shareAll.textContent = r === "ok" ? "Shared ✓"
-                        : r === "cooldown" ? "Wait a moment"
-                            : r === "nothing" ? "Nothing unlocked yet"
-                                : "Only in a room";
-                    window.setTimeout(() => { shareAll.textContent = "Share my progress"; }, 2000);
+                    // Asked first, because the button posts to the room. "Share"
+                    // does not say where, and finding out by having already done it
+                    // is not a fair way to learn.
+                    showQuickConfirm("Post your achievement progress to this room?", () => {
+                        const r = shareOverallProgress();
+                        shareAll.textContent = r === "ok" ? "Shared ✓"
+                            : r === "cooldown" ? "Wait a moment"
+                                : r === "nothing" ? "Nothing unlocked yet"
+                                    : "Only in a room";
+                        window.setTimeout(() => { shareAll.textContent = "Share my progress"; }, 2000);
+                    });
                 });
                 shareRow.appendChild(shareAll);
                 summary.appendChild(shareRow);
@@ -43220,7 +43284,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.1";
-    const SAL_VERSION = 330; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 331; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -43237,6 +43301,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.1.1",
             changes: [
+                "Fix (report 79, Julia): 'Pick restraints to remove' now updates while it is open. It only rebuilt when you opened it or used EBC's own release buttons, so anything applied or struggled out of in the meantime left it listing things that were no longer there - and because the list stays open, closing and reopening the drawer did not rebuild it either. It now refreshes when what you are wearing actually changes, and only then, so a tick you just made is not cleared out from under you.",
+                "Fix (report 80, Julia): dragging the achievements scrollbar no longer drags the window with it. The previous fix compared the press against the target's padding box, which shifts as the list scrolls and depends on which row was under the cursor, so it caught one case and missed others. It now measures the press against each scrollable box in screen coordinates, which does not care how far the list is scrolled or what was hit.",
+                "Fix (report 83, Julia): the 'EBC loaded successfully' line no longer goes missing when you autojoin a room on login. It was posted from the room sync, which on autojoin can happen before the chat log exists, and it was marked as shown either way - so it was dropped, and only turned up on the next room you entered. It is now only marked shown once it has actually posted.",
+                "New (report 81, Julia): 'Share my progress' asks before posting. The button writes to the room and the label did not say so, and finding that out by having already done it is not a fair way to learn.",
                 "Fix: the DOM tab's TARGET picker is no longer trapped inside the Control pill. Sets, Actions and Release Tools all act on whoever is chosen there, so filing it under Control meant opening Sets with no way to see or change who it would apply to. It now sits at the top of the tab, above the pills, and stays put whichever pill you are on.",
                 "New: EBC can live in BC's own chat room top bar. DEV -> Drawer -> 'Open EBC from the chat top bar' puts a paw next to Exit / Kneel / Icons and hides the side tab while you are in a room. Off by default. The tab always comes back outside a room, where there is no top bar to replace it - turning this on can never leave you without a way to open EBC.",
                 "Fix: curses hold the ITEM, not the slot. A curse used to be a claim on a slot, so if the cursed collar came off for any reason the next thing anyone put on your neck inherited the curse and could not be removed - you were stuck in a replacement nobody meant to lock. The curse now knows which item it was placed on. Anything else in that slot comes off normally.",
@@ -50742,11 +50810,34 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             }
         }
     }
+    /**
+     * The one-time "EBC loaded" line in chat.
+     *
+     * Fired from ChatRoomSync, which on a normal join happens well after the chat
+     * log exists. Autojoining a room on login does not work like that: the sync can
+     * land before the log element is in the DOM, and the notice was marked shown
+     * regardless, so it was dropped and never came back - it only turned up on the
+     * next room, which is what people saw.
+     *
+     * Now it is only marked shown once the line has actually landed, and it keeps
+     * trying for a short while rather than giving up after one retry.
+     */
     function showRoomLoadNotice() {
         if (noticeShown)
             return;
-        noticeShown = true;
-        appendLocalLogLine(`- EBC v${MOD_VERSION} loaded successfully.`);
+        let tries = 0;
+        const attempt = () => {
+            if (noticeShown)
+                return;
+            if (document.getElementById("TextAreaChatLog")) {
+                noticeShown = true;
+                appendLocalLogLine(`- EBC v${MOD_VERSION} loaded successfully.`);
+                return;
+            }
+            if (++tries < 40)
+                window.setTimeout(attempt, 250); // up to ~10s
+        };
+        attempt();
     }
     function tryHookFunction(modAPI, funcName, priority, hook) {
         try {
