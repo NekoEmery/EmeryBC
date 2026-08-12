@@ -31,8 +31,8 @@ import bcModSdk from "bondage-club-mod-sdk";
 import { isAchievementUser, hasCompletedEverything, completionPercent, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.1.2";
-const SAL_VERSION  = 333;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.1.3";
+const SAL_VERSION  = 335;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,11 +50,18 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "9.1.3",
+        changes: [
+            "Removed: the 'Why am I stuck?' panel from 9.1.2. It restated things already visible elsewhere, and a section earns its space or it goes.",
+            "Moved: 'Who may tie me' sits on the DOM tab directly under the auto-escape toggle it belongs to. It was on SAFETY, away from the switch it modifies, which made it read as a separate feature instead of the other half of one setting.",
+            "Fix: the 'Who may tie me' picker was styled by a class that does not exist, so it rendered as a raw white browser dropdown in the middle of the panel.",
+            "New: auto-escape can let named people through (DOM -> Auto-escape -> Who may tie me). The whitelist only ever covered ITEMS, so auto-escape was all-or-nothing: protecting your owner's collar did not help, because with it switched on they could not put the collar on you in the first place. Add someone from the room and their restraints are accepted normally while everyone else still bounces off.",
+            "New: save this session's whispers to a text file - the Save button next to Clear in DEV -> Logs -> Whisper Log. The whisper log only ever lived in memory and died with the tab, which is fine for looking something up mid-scene and no use for keeping what you wrote.",
+        ],
+    },
+    {
         version: "9.1.2",
         changes: [
-            "New: auto-escape can let named people through (SAFETY -> Who may tie me). The whitelist only ever covered ITEMS, so auto-escape was all-or-nothing: protecting your owner's collar did not help, because with it switched on they could not put the collar on you in the first place. Add someone from the room and their restraints are accepted normally while everyone else still bounces off.",
-            "New: 'Why am I stuck?' on the SAFETY tab. When something will not come off, the reason can be a lock, a curse, or auto-escape refusing new items - and each one is looked up somewhere different, if it is visible at all. This says all of them in one place: which slot, which lock, who holds it, when a curse lifts, and that the safeword always releases one. It only explains - releasing is still the safeword's job.",
-            "New: save this session's whispers to a text file (SAFETY -> Keep this session's whispers). The whisper log only ever lived in memory and died with the tab, which is fine for looking something up mid-scene and no use for keeping what you wrote.",
             "New: hold back repeated actions aimed at you (SAFETY -> Repeated actions). The achievement cooldown stopped spamming from PAYING, but it did not stop the spamming - people kept firing the same action over and over, it just earned nothing. This drops the repeats before anything renders them. Only the same action, from the same person, inside the window you set: a different action lands, a different person lands, the first one always lands. Off by default, starred people are exempt, and anyone being held back is named once so you can actually ask them to stop.",
             "New: EBC warns before your account storage fills up, not after. The old warning only spoke once saving had already stopped, which is the point at which it is too late - the first sign of trouble was a save that silently did not happen. At 85% full you now get a heads-up naming the single biggest thing you are storing, while there is still room to move something to This device.",
             "Fix (report 79, Julia): 'Pick restraints to remove' now updates while it is open. It only rebuilt when you opened it or used EBC's own release buttons, so anything applied or struggled out of in the meantime left it listing things that were no longer there - and because the list stays open, closing and reopening the drawer did not rebuild it either. It now refreshes when what you are wearing actually changes, and only then, so a tick you just made is not cleared out from under you.",
