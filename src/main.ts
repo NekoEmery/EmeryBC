@@ -1,6 +1,5 @@
 ﻿import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
 import { TOP_BAR_PAW } from "./modules/topBarIcon";
-import { limitIncomingAction } from "./modules/actionLimiter";
 import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
 import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { addWhisperEntry } from "./modules/whisperLog";
@@ -31,8 +30,8 @@ import bcModSdk from "bondage-club-mod-sdk";
 import { isAchievementUser, hasCompletedEverything, completionPercent, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.1.3";
-const SAL_VERSION  = 335;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.1.4";
+const SAL_VERSION  = 337;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,6 +49,12 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
+        version: "9.1.4",
+        changes: [
+            "Removed: 'Hold back repeated actions' from 9.1.2, along with its settings and the message hook behind it. Spamming already earns nothing - the achievement cooldown in 9.1.0 handles that - and hiding the messages on top of it was solving a problem that had already been solved. Repeated actions show in chat again like anything else.",
+        ],
+    },
+    {
         version: "9.1.3",
         changes: [
             "Removed: the 'Why am I stuck?' panel from 9.1.2. It restated things already visible elsewhere, and a section earns its space or it goes.",
@@ -62,7 +67,6 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.1.2",
         changes: [
-            "New: hold back repeated actions aimed at you (SAFETY -> Repeated actions). The achievement cooldown stopped spamming from PAYING, but it did not stop the spamming - people kept firing the same action over and over, it just earned nothing. This drops the repeats before anything renders them. Only the same action, from the same person, inside the window you set: a different action lands, a different person lands, the first one always lands. Off by default, starred people are exempt, and anyone being held back is named once so you can actually ask them to stop.",
             "New: EBC warns before your account storage fills up, not after. The old warning only spoke once saving had already stopped, which is the point at which it is too late - the first sign of trouble was a save that silently did not happen. At 85% full you now get a heads-up naming the single biggest thing you are storing, while there is still room to move something to This device.",
             "Fix (report 79, Julia): 'Pick restraints to remove' now updates while it is open. It only rebuilt when you opened it or used EBC's own release buttons, so anything applied or struggled out of in the meantime left it listing things that were no longer there - and because the list stays open, closing and reopening the drawer did not rebuild it either. It now refreshes when what you are wearing actually changes, and only then, so a tick you just made is not cleared out from under you.",
             "Fix (report 80, Julia): dragging the achievements scrollbar no longer drags the window with it. The previous fix compared the press against the target's padding box, which shifts as the list scrolls and depends on which row was under the cursor, so it caught one case and missed others. It now measures the press against each scrollable box in screen coordinates, which does not care how far the list is scrolled or what was hit.",
@@ -9046,45 +9050,6 @@ function init(): void {
             }
         } catch { /* ignore */ }
         return _r;
-    });
-
-    // Repeated actions aimed at you, dropped before anything renders them.
-    //
-    // Priority 50 puts this ahead of EBC's own achievement feed and every other
-    // mod's hook, so a dropped action is not merely hidden - nothing downstream
-    // ever sees it. Hiding it later would leave it counted, logged and reacted
-    // to by everything else, which is not what "limit" should mean.
-    modAPI.hookFunction("ChatRoomMessage", 50, (args, next) => {
-        try {
-            const data = args[0] as Record<string, unknown>;
-            if (data?.Type === "Activity" || data?.Type === "Action") {
-                const dict = Array.isArray(data.Dictionary)
-                    ? data.Dictionary as Record<string, unknown>[]
-                    : [];
-                const { targetNum, sourceNum, actGroup, actName } = parseXToysActivity(dict);
-                if (targetNum === Player.MemberNumber && actName) {
-                    const r = limitIncomingAction(sourceNum, actName, actGroup);
-                    if (r.drop) {
-                        // Said once per person, not once per message - a note for
-                        // every dropped action would just be the spam again in a
-                        // different colour. Naming them is the point: you cannot
-                        // ask someone to stop if you never find out who it was.
-                        if (r.firstDropFrom !== undefined) {
-                            const room = (window as unknown as
-                                { ChatRoomCharacter?: Array<{ MemberNumber?: number; Name?: string; Nickname?: string }> })
-                                .ChatRoomCharacter ?? [];
-                            const who = room.find(c => c.MemberNumber === r.firstDropFrom);
-                            const name = who ? ((who.Nickname ?? "").trim() || who.Name) : `#${r.firstDropFrom}`;
-                            appendLocalLogLine(
-                                `[EBC] ⏸ Repeated actions from ${name} are being held back.`,
-                                UI.textMuted);
-                        }
-                        return;   // never reaches BC or any other addon
-                    }
-                }
-            }
-        } catch { /* a fault here must never eat a message */ }
-        return next(args);
     });
 
     // Achievements feed (credits crew only): watch activities done to/by the

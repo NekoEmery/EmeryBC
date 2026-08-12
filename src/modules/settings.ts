@@ -296,46 +296,6 @@ export function setShowMemberNumbers(value: boolean): void {
     } catch { /* ignore */ }
 }
 
-// -- Limit repeated actions aimed at you ---------------------------------------
-// The achievement cooldown stopped spamming from PAYING. It did not stop the
-// spamming - people kept firing the same action over and over, it just earned
-// nothing. This drops the repeats before they reach the chat log.
-//
-// Off by default: silently dropping other people's actions is a real change to
-// what you see, and nobody should get it without asking.
-
-export function getActionLimitEnabled(): boolean {
-    try { return getSettings()?.actionLimitEnabled === true; } catch { return false; }
-}
-
-export function setActionLimitEnabled(value: boolean): void {
-    try { getSettings().actionLimitEnabled = value; syncSettings(); } catch { /* ignore */ }
-}
-
-/** Seconds the same action from the same person has to wait to show again. */
-export function getActionLimitSeconds(): number {
-    try {
-        const v = getSettings()?.actionLimitSeconds;
-        return typeof v === "number" && v >= 3 && v <= 120 ? v : 10;
-    } catch { return 10; }
-}
-
-export function setActionLimitSeconds(sec: number): void {
-    try {
-        getSettings().actionLimitSeconds = Math.max(3, Math.min(120, Math.round(sec)));
-        syncSettings();
-    } catch { /* ignore */ }
-}
-
-/** Starred people are never limited. On by default - they are who you play with. */
-export function getActionLimitExemptStars(): boolean {
-    try { return getSettings()?.actionLimitExemptStars !== false; } catch { return true; }
-}
-
-export function setActionLimitExemptStars(value: boolean): void {
-    try { getSettings().actionLimitExemptStars = value; syncSettings(); } catch { /* ignore */ }
-}
-
 // -- EBC button in the chat room top bar ---------------------------------------
 // Puts a paw next to BC's own Exit / Kneel / Icons buttons and hides the side
 // tab while you are in a room. Only while you are in a room - the top bar does

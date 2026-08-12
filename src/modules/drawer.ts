@@ -109,11 +109,10 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, getBeepVolume, setBeepVolume, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED, getTopBarButton, setTopBarButton, getActionLimitEnabled, setActionLimitEnabled, getActionLimitSeconds, setActionLimitSeconds, getActionLimitExemptStars, setActionLimitExemptStars, getAntiRestraintAllowList, toggleAntiRestraintAllowed } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, getBeepVolume, setBeepVolume, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED, getTopBarButton, setTopBarButton, getAntiRestraintAllowList, toggleAntiRestraintAllowed } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
-import { droppedSummary, resetActionLimiter } from "./actionLimiter";
 import { getFriendList, getFriendStatus, isEBCComplete, getEBCAchPct, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, getPendingMessagesCleaned, cancelPendingMessage, isBeepBlocked, deleteBeepEntry, setQueueDeliveredCallback, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
@@ -7339,7 +7338,6 @@ export class EBCDrawer {
 
         this.renderRestraintInfo(body);    // ACTIVE RESTRAINTS (+ timers)
         this.renderOutfitWhitelist(body);  // PROTECTED ITEMS
-        this.renderActionLimiter(body);    // REPEATED ACTIONS
         this.attachStripSection(body, t("grouped.safewords"), this.safewordRowEl, true);
         // Auto-escape deliberately does NOT live here. It lives on the DOM tab,
         // which is creator-gated in both layouts - the grouped layout used to
@@ -7348,110 +7346,11 @@ export class EBCDrawer {
         this._pillifyTab(body, "EBC_safetyView", [
             { pill: "Restraints", match: [t("grouped.releaseUnlock"), t("dev.activeRestraints")] },
             { pill: "Protected", match: [t("outfits.protectedItems")] },
-            { pill: "Actions", match: ["Repeated actions"] },
             { pill: "Safewords", match: [t("grouped.safewords")] },
         ]);
     }
 
 
-    /**
-     * Hold back repeated actions aimed at you.
-     *
-     * On SAFETY rather than with the achievements, because it is not about
-     * scoring - it is about what other people are allowed to do to your screen.
-     * Someone firing the same action twenty times is the problem whether or not
-     * anything was ever being counted for it.
-     */
-    private renderActionLimiter(body: HTMLElement): void {
-        const card = document.createElement("div");
-        card.style.cssText = "display:flex;flex-direction:column;gap:8px;";
-
-        const blurb = document.createElement("div");
-        blurb.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;line-height:1.55;";
-        blurb.textContent = "When someone does the same thing to you over and over, only the first "
-            + "one is shown. A different action, or a different person, always comes through.";
-        card.appendChild(blurb);
-
-        const row = (label: string, control: HTMLElement, hint?: string): HTMLElement => {
-            const r = document.createElement("div");
-            r.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-            const l = document.createElement("span");
-            l.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;user-select:none;";
-            l.textContent = label;
-            if (hint) l.title = hint;
-            r.appendChild(l);
-            r.appendChild(control);
-            return r;
-        };
-
-        const pill = (get: () => boolean, set: (v: boolean) => void, after?: () => void): HTMLButtonElement => {
-            const b = document.createElement("button");
-            const paint = (): void => {
-                const on = get();
-                b.textContent = on ? t("core.on") : t("core.off");
-                b.style.cssText = [
-                    "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
-                    "padding:4px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
-                    "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
-                    "background:" + (on ? "#4a1f30" : "#100508"),
-                    "color:" + (on ? "#f7e6ee" : "#7a5070"),
-                ].join(";");
-            };
-            paint();
-            b.addEventListener("click", () => { set(!get()); paint(); after?.(); });
-            return b;
-        };
-
-        const secsVal = document.createElement("span");
-        secsVal.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#cf6f98;min-width:34px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;";
-        const secs = document.createElement("input");
-        secs.type = "range";
-        secs.min = "3"; secs.max = "120"; secs.step = "1";
-        secs.value = String(getActionLimitSeconds());
-        secs.className = "ebc-slider";
-        secs.style.cssText = "flex:1;min-width:70px;";
-        const paintSecs = (): void => { secsVal.textContent = secs.value + "s"; };
-        paintSecs();
-        secs.addEventListener("input", () => { paintSecs(); setActionLimitSeconds(parseInt(secs.value, 10)); });
-
-        const secsWrap = document.createElement("div");
-        secsWrap.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;min-width:0;";
-        secsWrap.appendChild(secs);
-        secsWrap.appendChild(secsVal);
-
-        // Held back this session, so it is possible to find out who and say
-        // something. Silently swallowing it would trade one problem for another.
-        const held = document.createElement("div");
-        held.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#b98aa0;line-height:1.6;";
-        const paintHeld = (): void => {
-            const rows = droppedSummary();
-            if (rows.length === 0) {
-                held.textContent = "Nothing held back this session.";
-                return;
-            }
-            held.textContent = "Held back this session: " + rows
-                .map(r => `${resolveName(r.n)} (${r.count})`)
-                .join(", ");
-        };
-        paintHeld();
-
-        card.appendChild(row("Hold back repeated actions",
-            pill(getActionLimitEnabled, (v) => {
-                setActionLimitEnabled(v);
-                // Turning it off forgets who was being held, so re-enabling it
-                // later starts clean rather than resuming an old grudge.
-                if (!v) resetActionLimiter();
-                paintHeld();
-            })));
-        card.appendChild(row("Wait between repeats", secsWrap,
-            "How long the same action from the same person has to wait before it shows again."));
-        card.appendChild(row("Never limit starred people",
-            pill(getActionLimitExemptStars, setActionLimitExemptStars),
-            "Starred people are who you actually play with, so their scenes are never cut."));
-        card.appendChild(held);
-
-        this.addLabelledSection(body, "Repeated actions", card);
-    }
 
     /**
      * Who auto-escape lets through.
