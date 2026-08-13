@@ -5011,11 +5011,18 @@ export class EBCDrawer {
         // The header is built before login completes, so Player.MemberNumber may
         // not exist yet - re-check visibility until it does (or give up quietly).
         const refreshTrophyVis = (): void => {
-            // isAchievementUser, not crew membership. This was the reason
-            // achievements still looked crew-only after they were opened up:
-            // tracking ran for everyone but the button that opens the panel was
-            // gated on a different, narrower check.
-            trophyBtn.style.display = isAchievementUser((Player as { MemberNumber?: number })?.MemberNumber) ? "" : "none";
+            // Hidden only until login, never because of opting out.
+            //
+            // Opting out used to hide this button, and this button is the only
+            // way into the achievements panel - where the button to opt back IN
+            // lives. So opting out was permanent: there was no command, no other
+            // entry point, and no way back short of editing your saved settings.
+            // The way out of a setting must not be behind that same setting.
+            const loggedIn = typeof (Player as { MemberNumber?: number })?.MemberNumber === "number";
+            trophyBtn.style.display = loggedIn ? "" : "none";
+            const off = isAchievementsOptedOut();
+            trophyBtn.style.opacity = off ? "0.45" : "";
+            trophyBtn.title = off ? "Achievements (opted out - click to turn back on)" : "Achievements";
         };
         refreshTrophyVis();
         this._refreshTrophyVis = refreshTrophyVis;
@@ -19454,6 +19461,8 @@ This cannot be undone.`,
     }
 
     /** Fun popup version of the achievement list, opened from the 🏆 header button. */
+    public openAchievements(): void { this.showAchievementsOverlay(); }
+
     private showAchievementsOverlay(): void {
         if (document.getElementById("ebc-ach-overlay")) return;
         const overlay = document.createElement("div");
@@ -19490,6 +19499,7 @@ This cannot be undone.`,
             onBtn.textContent = "Turn achievements back ON";
             onBtn.addEventListener("click", () => {
                 setAchievementsOptedOut(false);
+                this._refreshTrophyVis?.();
                 overlay.remove();
                 this.showAchievementsOverlay();
             });
@@ -19565,6 +19575,7 @@ This cannot be undone.`,
             optOutBtn.addEventListener("mouseleave", () => { optOutBtn.style.color = "#7a6a86"; optOutBtn.style.borderColor = "#33283c"; });
             optOutBtn.addEventListener("click", () => {
                 setAchievementsOptedOut(true);
+                this._refreshTrophyVis?.();
                 overlay.remove();
                 this.showAchievementsOverlay();
             });

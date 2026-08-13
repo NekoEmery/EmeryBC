@@ -31,7 +31,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.4";
-const SAL_VERSION  = 339;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 340;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -51,6 +51,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.1.4",
         changes: [
+            "Fix: opting out of achievements no longer locks you out permanently. Opting out hid the trophy button in the drawer header - which is the only way to open the achievements panel, and the button to opt back IN lives inside that panel. There was no command and no other entry point, so the only way back was editing your saved settings by hand. The trophy now stays put and simply dims while you are opted out, and clicking it still opens the panel.",
+            "New: '/ebc achievements' opens the achievements panel, so it does not depend on finding a button in a header that can be scrolled off or moved off-screen.",
             "Fix (report 84, Julia): '/ebc changelog' shows everything since the version you last read, not just the newest release. With several releases a day, most people skip versions - someone on 9.1.0 opening 9.1.4 was shown one line about a feature being removed that they had never had, while the curse fixes and the room crash guard they actually received went unmentioned. It now lists each version since you last looked, up to five of them, and says how much is left over.",
             "Removed: 'Hold back repeated actions' from 9.1.2, along with its settings and the message hook behind it. Spamming already earns nothing - the achievement cooldown in 9.1.0 handles that - and hiding the messages on top of it was solving a problem that had already been solved. Repeated actions show in chat again like anything else.",
         ],
@@ -6915,6 +6917,7 @@ interface EBCSubcommand {
 const EBC_SUBCOMMANDS: EBCSubcommand[] = [
     { tag: "version",   desc: "Show current EBC version" },
     { tag: "changelog", desc: "Show recent changelog entries" },
+    { tag: "achievements", desc: "Open the achievements panel" },
     { tag: "release",   desc: "Release all restraints from yourself" },
     { tag: "unlock",    desc: "Remove all locks from yourself" },
     { tag: "ameter",    desc: "Show or hide your arousal meter (activities keep working)",
@@ -6943,6 +6946,13 @@ function handleMetaCommand(inputValue: string): boolean {
     const subcommand = (parts[1] || "version").toLowerCase();
     if (["version", "ver", "v"].includes(subcommand)) {
         showVersionInfo();
+        return true;
+    }
+
+    // A way in that does not depend on finding a button. The panel is opened
+    // from the drawer header, which can be scrolled off or hidden.
+    if (["achievements", "achievement", "ach"].includes(subcommand)) {
+        drawer?.openAchievements();
         return true;
     }
 

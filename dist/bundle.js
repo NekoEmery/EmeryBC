@@ -16829,11 +16829,18 @@
             // The header is built before login completes, so Player.MemberNumber may
             // not exist yet - re-check visibility until it does (or give up quietly).
             const refreshTrophyVis = () => {
-                // isAchievementUser, not crew membership. This was the reason
-                // achievements still looked crew-only after they were opened up:
-                // tracking ran for everyone but the button that opens the panel was
-                // gated on a different, narrower check.
-                trophyBtn.style.display = isAchievementUser(Player === null || Player === void 0 ? void 0 : Player.MemberNumber) ? "" : "none";
+                // Hidden only until login, never because of opting out.
+                //
+                // Opting out used to hide this button, and this button is the only
+                // way into the achievements panel - where the button to opt back IN
+                // lives. So opting out was permanent: there was no command, no other
+                // entry point, and no way back short of editing your saved settings.
+                // The way out of a setting must not be behind that same setting.
+                const loggedIn = typeof (Player === null || Player === void 0 ? void 0 : Player.MemberNumber) === "number";
+                trophyBtn.style.display = loggedIn ? "" : "none";
+                const off = isAchievementsOptedOut();
+                trophyBtn.style.opacity = off ? "0.45" : "";
+                trophyBtn.title = off ? "Achievements (opted out - click to turn back on)" : "Achievements";
             };
             refreshTrophyVis();
             this._refreshTrophyVis = refreshTrophyVis;
@@ -31083,6 +31090,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             document.body.appendChild(overlay);
         }
         /** Fun popup version of the achievement list, opened from the 🏆 header button. */
+        openAchievements() { this.showAchievementsOverlay(); }
         showAchievementsOverlay() {
             if (document.getElementById("ebc-ach-overlay"))
                 return;
@@ -31120,7 +31128,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 onBtn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:12px;font-weight:bold;padding:7px 0;border-radius:8px;border:1px solid #cf6f98;background:#3a1028;color:#cf6f98;cursor:pointer;";
                 onBtn.textContent = "Turn achievements back ON";
                 onBtn.addEventListener("click", () => {
+                    var _a;
                     setAchievementsOptedOut(false);
+                    (_a = this._refreshTrophyVis) === null || _a === void 0 ? void 0 : _a.call(this);
                     overlay.remove();
                     this.showAchievementsOverlay();
                 });
@@ -31195,7 +31205,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 optOutBtn.addEventListener("mouseenter", () => { optOutBtn.style.color = "#cf6f98"; optOutBtn.style.borderColor = "#cf6f98"; });
                 optOutBtn.addEventListener("mouseleave", () => { optOutBtn.style.color = "#7a6a86"; optOutBtn.style.borderColor = "#33283c"; });
                 optOutBtn.addEventListener("click", () => {
+                    var _a;
                     setAchievementsOptedOut(true);
+                    (_a = this._refreshTrophyVis) === null || _a === void 0 ? void 0 : _a.call(this);
                     overlay.remove();
                     this.showAchievementsOverlay();
                 });
@@ -43580,7 +43592,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.4";
-    const SAL_VERSION = 339; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 340; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -43597,6 +43609,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.1.4",
             changes: [
+                "Fix: opting out of achievements no longer locks you out permanently. Opting out hid the trophy button in the drawer header - which is the only way to open the achievements panel, and the button to opt back IN lives inside that panel. There was no command and no other entry point, so the only way back was editing your saved settings by hand. The trophy now stays put and simply dims while you are opted out, and clicking it still opens the panel.",
+                "New: '/ebc achievements' opens the achievements panel, so it does not depend on finding a button in a header that can be scrolled off or moved off-screen.",
                 "Fix (report 84, Julia): '/ebc changelog' shows everything since the version you last read, not just the newest release. With several releases a day, most people skip versions - someone on 9.1.0 opening 9.1.4 was shown one line about a feature being removed that they had never had, while the curse fixes and the room crash guard they actually received went unmentioned. It now lists each version since you last looked, up to five of them, and says how much is left over.",
                 "Removed: 'Hold back repeated actions' from 9.1.2, along with its settings and the message hook behind it. Spamming already earns nothing - the achievement cooldown in 9.1.0 handles that - and hiding the messages on top of it was solving a problem that had already been solved. Repeated actions show in chat again like anything else.",
             ],
@@ -50454,6 +50468,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const EBC_SUBCOMMANDS = [
         { tag: "version", desc: "Show current EBC version" },
         { tag: "changelog", desc: "Show recent changelog entries" },
+        { tag: "achievements", desc: "Open the achievements panel" },
         { tag: "release", desc: "Release all restraints from yourself" },
         { tag: "unlock", desc: "Remove all locks from yourself" },
         { tag: "ameter", desc: "Show or hide your arousal meter (activities keep working)",
@@ -50481,6 +50496,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         const subcommand = (parts[1] || "version").toLowerCase();
         if (["version", "ver", "v"].includes(subcommand)) {
             showVersionInfo();
+            return true;
+        }
+        // A way in that does not depend on finding a button. The panel is opened
+        // from the drawer header, which can be scrolled off or hidden.
+        if (["achievements", "achievement", "ach"].includes(subcommand)) {
+            drawer === null || drawer === void 0 ? void 0 : drawer.openAchievements();
             return true;
         }
         if (["changelog", "changes"].includes(subcommand)) {
