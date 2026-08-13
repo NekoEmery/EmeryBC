@@ -7549,6 +7549,122 @@
         pendingApplier = null;
     }
 
+    // Map room cheats.
+    //
+    // BC already implements every one of these - it calls the bundle "super powers"
+    // and gates it behind ChatRoomMapViewHasSuperPowers(), which requires you to be
+    // a room admin. Turning that one function on gives full vision and hearing,
+    // maximum sight range, walking through walls, and hidden objects made visible,
+    // all through BC's own tested code paths rather than a reimplementation.
+    //
+    // So this module is mostly a switch, not a feature. The parts BC has no path
+    // for at all are the door keys, which are normally only picked up by walking
+    // over them on the map.
+    //
+    // These are client-side. Nothing here changes what anyone else sees, and
+    // nothing is broadcast - which also means that in a game built on not knowing
+    // where people are, this is the thing that quietly stops it being a game. It
+    // is off by default and worth leaving off in someone else's scene.
+    /** Everything BC's own super-powers mode covers, minus the admin requirement. */
+    function getMapSuperPowers() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.mapSuperPowers) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setMapSuperPowers(v) {
+        try {
+            getSettings().mapSuperPowers = v;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    /**
+     * Fog alone.
+     *
+     * Separate from super powers because seeing the map is a much smaller thing
+     * than walking through its walls, and wanting the first is not wanting the
+     * second - reading a room's layout does not have to come with moving through it
+     * in ways nobody else can.
+     */
+    function getMapFogOff() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.mapFogOff) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setMapFogOff(v) {
+        try {
+            getSettings().mapFogOff = v;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
+    const MAP_KEYS = ["Bronze", "Silver", "Gold"];
+    function privateState() {
+        try {
+            const md = Player.MapData;
+            if (!md)
+                return null;
+            if (!md.PrivateState)
+                md.PrivateState = {};
+            return md.PrivateState;
+        }
+        catch (_a) {
+            return null;
+        }
+    }
+    /** True when the player is holding that key. */
+    function hasMapKey(key) {
+        const st = privateState();
+        return st ? st[`HasKey${key}`] === true : false;
+    }
+    /**
+     * Gives or takes a door key.
+     *
+     * The same field BC sets when you walk over the key on the floor, followed by
+     * the same update BC sends afterwards - so the server keeps it and it survives
+     * leaving the map, exactly as a key picked up the normal way would.
+     *
+     * Returns false when there is no map data yet, which is the case until the map
+     * has been opened at least once.
+     */
+    function setMapKey(key, held) {
+        const st = privateState();
+        if (!st)
+            return false;
+        try {
+            st[`HasKey${key}`] = held;
+            callBC(() => {
+                const send = window.ServerSend;
+                send === null || send === void 0 ? void 0 : send("ChatRoomCharacterMapDataUpdate", Player.MapData);
+            });
+            return true;
+        }
+        catch (_a) {
+            return false;
+        }
+    }
+    /** True when the player is on a map room at all - the controls are dead otherwise. */
+    function inMapRoom() {
+        var _a;
+        try {
+            const w = window;
+            const data = w.ChatRoomData;
+            const type = (_a = data === null || data === void 0 ? void 0 : data.MapData) === null || _a === void 0 ? void 0 : _a.Type;
+            return type === "Always" || type === "Hybrid";
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+
     // Friends system — tags, beep history, name cache.
     // All data stored in Player.ExtensionSettings.EmeryBC and synced to server
     // so it's available across devices on next login.
@@ -19117,6 +19233,108 @@
                 { pill: "Protected", match: [t("outfits.protectedItems")] },
                 { pill: "Safewords", match: [t("grouped.safewords")] },
             ]);
+        }
+        /**
+         * Map room cheats.
+         *
+         * Nearly all of this is BC's own super-powers mode with its admin check
+         * removed, so the card says so rather than implying EBC invented vision.
+         * Keys are the exception - BC only grants those by walking over them.
+         */
+        renderMapCheats(body) {
+            const card = document.createElement("div");
+            card.dataset.domGroup = "map";
+            card.style.cssText = "display:flex;flex-direction:column;gap:7px;background:#1a0d16;"
+                + "border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+            const hdr = document.createElement("div");
+            hdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;"
+                + "letter-spacing:0.12em;color:#a06878;text-transform:uppercase;";
+            hdr.textContent = "Map room";
+            card.appendChild(hdr);
+            // Said plainly and once. These change nothing for anyone else, which is
+            // the whole point and also the catch.
+            const warn = document.createElement("div");
+            warn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;line-height:1.55;"
+                + "color:#e8d4de;padding:5px 8px;border-radius:5px;background:rgba(20,8,16,0.5);"
+                + "border-left:3px solid #d8a86a;";
+            warn.textContent = "These only change your own screen - nothing is sent to anyone. "
+                + "In a room built on not knowing where people are, that is also what stops it "
+                + "being a game. Off by default.";
+            card.appendChild(warn);
+            const state = document.createElement("div");
+            state.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
+            const row = (label, hint, get, set) => {
+                const r = document.createElement("div");
+                r.style.cssText = "display:flex;align-items:center;gap:8px;";
+                const l = document.createElement("span");
+                l.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;user-select:none;";
+                l.textContent = label;
+                l.title = hint;
+                const b = document.createElement("button");
+                const paint = () => {
+                    const on = get();
+                    b.textContent = on ? t("core.on") : t("core.off");
+                    b.style.cssText = [
+                        "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
+                        "padding:4px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                        "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                        "background:" + (on ? "#4a1f30" : "#100508"),
+                        "color:" + (on ? "#f7e6ee" : "#7a5070"),
+                    ].join(";");
+                };
+                paint();
+                b.addEventListener("click", () => { set(!get()); paint(); });
+                r.appendChild(l);
+                r.appendChild(b);
+                return r;
+            };
+            card.appendChild(row("See through fog", "Reveals the map without any of the rest. BC's own fog switch, answered for you.", getMapFogOff, setMapFogOff));
+            card.appendChild(row("Super powers", "BC's own admin mode without the admin check: see and hear everything, full sight range, walk through walls, hidden objects shown.", getMapSuperPowers, setMapSuperPowers));
+            const keyRow = document.createElement("div");
+            keyRow.style.cssText = "display:flex;align-items:center;gap:6px;flex-wrap:wrap;";
+            const keyLbl = document.createElement("span");
+            keyLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;min-width:70px;";
+            keyLbl.textContent = "Door keys";
+            keyLbl.title = "The same keys you would pick up off the floor, for the bronze, silver and gold doors.";
+            keyRow.appendChild(keyLbl);
+            const paintState = () => {
+                if (!inMapRoom()) {
+                    state.textContent = "You are not in a map room - these do nothing here.";
+                    return;
+                }
+                const held = MAP_KEYS.filter(k => hasMapKey(k));
+                state.textContent = held.length > 0
+                    ? `Holding: ${held.join(", ")}.`
+                    : "Holding no keys.";
+            };
+            for (const key of MAP_KEYS) {
+                const b = document.createElement("button");
+                const paint = () => {
+                    const on = hasMapKey(key);
+                    b.textContent = key;
+                    b.style.cssText = [
+                        "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
+                        "padding:4px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                        "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                        "background:" + (on ? "#4a1f30" : "#100508"),
+                        "color:" + (on ? "#f7e6ee" : "#7a5070"),
+                    ].join(";");
+                };
+                paint();
+                b.addEventListener("click", () => {
+                    if (!setMapKey(key, !hasMapKey(key))) {
+                        state.textContent = "No map data yet - open the map once first.";
+                        return;
+                    }
+                    paint();
+                    paintState();
+                });
+                keyRow.appendChild(b);
+            }
+            card.appendChild(keyRow);
+            paintState();
+            card.appendChild(state);
+            body.appendChild(card);
         }
         /**
          * Who auto-escape lets through.
@@ -41594,6 +41812,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 body.removeChild(body.firstChild);
             this.buildAutoEscapeSection(body);
             this.renderEscapeAllowList(body); // the other half of that toggle
+            this.renderMapCheats(body); // MAP ROOM
             // ── DOM Tools (creator-only below this point) ─────────────────────────
             if (!isDomEnabled()) {
                 const msg = document.createElement("div");
@@ -43317,6 +43536,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 { id: "escape", label: "Auto-escape" },
                 { id: "sets", label: "Sets" },
                 { id: "control", label: "Control" },
+                { id: "map", label: "Map" },
                 { id: "management", label: "Management" },
             ];
             const cards = Array.from(body.children)
@@ -43592,7 +43812,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.4";
-    const SAL_VERSION = 341; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 342; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -43609,6 +43829,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.1.4",
             changes: [
+                "New: map room controls on the DOM tab, under a Map pill. 'See through fog' reveals the layout; 'Super powers' is BC's own admin mode without the admin check - full vision and hearing, maximum sight range, walking through walls, hidden objects shown; and the bronze, silver and gold door keys can be given to yourself instead of walked over. All off by default, all client-side: nothing is sent to anyone, which is also why a room built on not knowing where people are stops being a game with these on.",
+                "Fix: '/ebc achievements' threw instead of opening the panel. It referenced the drawer from a scope that cannot see it, and optional chaining does not save an identifier that was never declared - so the command added as the way out of the achievements lockout did not work. It now uses a handle set when the drawer is created, and says so plainly if the panel is not ready yet.",
                 "Fix: opting out of achievements no longer locks you out permanently. Opting out hid the trophy button in the drawer header - which is the only way to open the achievements panel, and the button to opt back IN lives inside that panel. There was no command and no other entry point, so the only way back was editing your saved settings by hand. The trophy now stays put and simply dims while you are opted out, and clicking it still opens the panel.",
                 "New: '/ebc achievements' opens the achievements panel, so it does not depend on finding a button in a header that can be scrolled off or moved off-screen.",
                 "Fix (report 84, Julia): '/ebc changelog' shows everything since the version you last read, not just the newest release. With several releases a day, most people skip versions - someone on 9.1.0 opening 9.1.4 was shown one line about a feature being removed that they had never had, while the curse fixes and the room crash guard they actually received went unmentioned. It now lists each version since you last looked, up to five of them, and says how much is left over.",
@@ -50484,6 +50706,15 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             args: [{ id: "state", name: "on|off", suggestions: ["on", "off"] }] },
         { tag: "help", desc: "List every EBC command" },
     ];
+    /**
+     * The live drawer, reachable from the top-level command handlers.
+     *
+     * The instance is created inside init(), so it is not in scope here - and a
+     * command that referenced it directly threw rather than failing quietly,
+     * because optional chaining does not save an identifier that was never
+     * declared. This is set the moment the drawer exists.
+     */
+    let activeDrawer = null;
     function handleMetaCommand(inputValue) {
         var _a, _b, _c;
         const trimmed = inputValue.trim();
@@ -50501,7 +50732,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         // A way in that does not depend on finding a button. The panel is opened
         // from the drawer header, which can be scrolled off or hidden.
         if (["achievements", "achievement", "ach"].includes(subcommand)) {
-            drawer === null || drawer === void 0 ? void 0 : drawer.openAchievements();
+            if (!activeDrawer) {
+                appendLocalLogLine("[EBC] The panel is not ready yet.", UI.danger);
+                return true;
+            }
+            activeDrawer.openAchievements();
             return true;
         }
         if (["changelog", "changes"].includes(subcommand)) {
@@ -51401,6 +51636,33 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         modAPI.hookFunction("ChatRoomRun", 500, (args, next) => {
             return next(args);
         });
+        // Map room cheats.
+        //
+        // Two hooks, because BC already does all of this itself. Its super-powers
+        // mode is exactly the bundle wanted - full vision and hearing, maximum
+        // sight, walls ignored, hidden objects shown - and it is switched on by a
+        // single function that also asks whether you are a room admin. Overriding
+        // that one answer reuses every code path BC already tests, instead of
+        // reimplementing the visibility mask and calling it the same thing.
+        tryHookFunction(modAPI, "ChatRoomMapViewHasSuperPowers", 1, (args, next) => {
+            try {
+                if (getMapSuperPowers())
+                    return true;
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return next(args);
+        });
+        // Fog on its own, for reading a room's layout without also walking through
+        // its walls. Super powers already cover fog, so this only has to answer for
+        // the case where they are off.
+        tryHookFunction(modAPI, "ChatRoomMapFogIsActive", 1, (args, next) => {
+            try {
+                if (getMapFogOff())
+                    return false;
+            }
+            catch ( /* ignore */_a) { /* ignore */ }
+            return next(args);
+        });
         // Guard a BC bug that empties a whole room at once.
         //
         // ChatRoomMapViewInitializeCharacter reads `ChatRoomData?.MapData.Type` - the
@@ -51537,6 +51799,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         try {
             EBCDrawer.pawDataUri = EBC_PAW_DATA;
             drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD, SAL_VERSION);
+            activeDrawer = drawer;
             // Fire an initial visibility check in case the addon loads while the
             // player is already in a chat room (ChatRoomSync won't fire again).
             window.setTimeout(() => { try {

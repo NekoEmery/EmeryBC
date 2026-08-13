@@ -113,6 +113,7 @@ import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadg
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
+import { getMapFogOff, setMapFogOff, getMapSuperPowers, setMapSuperPowers, hasMapKey, setMapKey, inMapRoom, MAP_KEYS } from "./mapCheats";
 import { getFriendList, getFriendStatus, isEBCComplete, getEBCAchPct, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, getPendingMessagesCleaned, cancelPendingMessage, isBeepBlocked, deleteBeepEntry, setQueueDeliveredCallback, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
@@ -7358,6 +7359,119 @@ export class EBCDrawer {
     }
 
 
+
+    /**
+     * Map room cheats.
+     *
+     * Nearly all of this is BC's own super-powers mode with its admin check
+     * removed, so the card says so rather than implying EBC invented vision.
+     * Keys are the exception - BC only grants those by walking over them.
+     */
+    private renderMapCheats(body: HTMLElement): void {
+        const card = document.createElement("div");
+        card.dataset.domGroup = "map";
+        card.style.cssText = "display:flex;flex-direction:column;gap:7px;background:#1a0d16;"
+            + "border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+
+        const hdr = document.createElement("div");
+        hdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;"
+            + "letter-spacing:0.12em;color:#a06878;text-transform:uppercase;";
+        hdr.textContent = "Map room";
+        card.appendChild(hdr);
+
+        // Said plainly and once. These change nothing for anyone else, which is
+        // the whole point and also the catch.
+        const warn = document.createElement("div");
+        warn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;line-height:1.55;"
+            + "color:#e8d4de;padding:5px 8px;border-radius:5px;background:rgba(20,8,16,0.5);"
+            + "border-left:3px solid #d8a86a;";
+        warn.textContent = "These only change your own screen - nothing is sent to anyone. "
+            + "In a room built on not knowing where people are, that is also what stops it "
+            + "being a game. Off by default.";
+        card.appendChild(warn);
+
+        const state = document.createElement("div");
+        state.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
+
+        const row = (label: string, hint: string, get: () => boolean, set: (v: boolean) => void): HTMLElement => {
+            const r = document.createElement("div");
+            r.style.cssText = "display:flex;align-items:center;gap:8px;";
+            const l = document.createElement("span");
+            l.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;user-select:none;";
+            l.textContent = label;
+            l.title = hint;
+            const b = document.createElement("button");
+            const paint = (): void => {
+                const on = get();
+                b.textContent = on ? t("core.on") : t("core.off");
+                b.style.cssText = [
+                    "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
+                    "padding:4px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                    "background:" + (on ? "#4a1f30" : "#100508"),
+                    "color:" + (on ? "#f7e6ee" : "#7a5070"),
+                ].join(";");
+            };
+            paint();
+            b.addEventListener("click", () => { set(!get()); paint(); });
+            r.appendChild(l);
+            r.appendChild(b);
+            return r;
+        };
+
+        card.appendChild(row("See through fog",
+            "Reveals the map without any of the rest. BC's own fog switch, answered for you.",
+            getMapFogOff, setMapFogOff));
+        card.appendChild(row("Super powers",
+            "BC's own admin mode without the admin check: see and hear everything, full sight range, walk through walls, hidden objects shown.",
+            getMapSuperPowers, setMapSuperPowers));
+
+        const keyRow = document.createElement("div");
+        keyRow.style.cssText = "display:flex;align-items:center;gap:6px;flex-wrap:wrap;";
+        const keyLbl = document.createElement("span");
+        keyLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;min-width:70px;";
+        keyLbl.textContent = "Door keys";
+        keyLbl.title = "The same keys you would pick up off the floor, for the bronze, silver and gold doors.";
+        keyRow.appendChild(keyLbl);
+
+        const paintState = (): void => {
+            if (!inMapRoom()) { state.textContent = "You are not in a map room - these do nothing here."; return; }
+            const held = MAP_KEYS.filter(k => hasMapKey(k));
+            state.textContent = held.length > 0
+                ? `Holding: ${held.join(", ")}.`
+                : "Holding no keys.";
+        };
+
+        for (const key of MAP_KEYS) {
+            const b = document.createElement("button");
+            const paint = (): void => {
+                const on = hasMapKey(key);
+                b.textContent = key;
+                b.style.cssText = [
+                    "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
+                    "padding:4px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
+                    "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
+                    "background:" + (on ? "#4a1f30" : "#100508"),
+                    "color:" + (on ? "#f7e6ee" : "#7a5070"),
+                ].join(";");
+            };
+            paint();
+            b.addEventListener("click", () => {
+                if (!setMapKey(key, !hasMapKey(key))) {
+                    state.textContent = "No map data yet - open the map once first.";
+                    return;
+                }
+                paint();
+                paintState();
+            });
+            keyRow.appendChild(b);
+        }
+        card.appendChild(keyRow);
+
+        paintState();
+        card.appendChild(state);
+        body.appendChild(card);
+    }
 
     /**
      * Who auto-escape lets through.
@@ -28976,6 +29090,7 @@ This cannot be undone.`,
 
         this.buildAutoEscapeSection(body);
         this.renderEscapeAllowList(body);   // the other half of that toggle
+        this.renderMapCheats(body);         // MAP ROOM
 
         // ── DOM Tools (creator-only below this point) ─────────────────────────
         if (!isDomEnabled()) {
@@ -30631,6 +30746,7 @@ This cannot be undone.`,
             { id: "escape",     label: "Auto-escape" },
             { id: "sets",       label: "Sets" },
             { id: "control",    label: "Control" },
+            { id: "map",        label: "Map" },
             { id: "management", label: "Management" },
         ];
 

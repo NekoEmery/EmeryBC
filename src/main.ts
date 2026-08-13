@@ -1,5 +1,6 @@
 ﻿import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
 import { TOP_BAR_PAW } from "./modules/topBarIcon";
+import { getMapSuperPowers, getMapFogOff } from "./modules/mapCheats";
 import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
 import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { addWhisperEntry } from "./modules/whisperLog";
@@ -31,7 +32,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.4";
-const SAL_VERSION  = 341;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 342;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -51,6 +52,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.1.4",
         changes: [
+            "New: map room controls on the DOM tab, under a Map pill. 'See through fog' reveals the layout; 'Super powers' is BC's own admin mode without the admin check - full vision and hearing, maximum sight range, walking through walls, hidden objects shown; and the bronze, silver and gold door keys can be given to yourself instead of walked over. All off by default, all client-side: nothing is sent to anyone, which is also why a room built on not knowing where people are stops being a game with these on.",
+            "Fix: '/ebc achievements' threw instead of opening the panel. It referenced the drawer from a scope that cannot see it, and optional chaining does not save an identifier that was never declared - so the command added as the way out of the achievements lockout did not work. It now uses a handle set when the drawer is created, and says so plainly if the panel is not ready yet.",
             "Fix: opting out of achievements no longer locks you out permanently. Opting out hid the trophy button in the drawer header - which is the only way to open the achievements panel, and the button to opt back IN lives inside that panel. There was no command and no other entry point, so the only way back was editing your saved settings by hand. The trophy now stays put and simply dims while you are opted out, and clicking it still opens the panel.",
             "New: '/ebc achievements' opens the achievements panel, so it does not depend on finding a button in a header that can be scrolled off or moved off-screen.",
             "Fix (report 84, Julia): '/ebc changelog' shows everything since the version you last read, not just the newest release. With several releases a day, most people skip versions - someone on 9.1.0 opening 9.1.4 was shown one line about a feature being removed that they had never had, while the curse fixes and the room crash guard they actually received went unmentioned. It now lists each version since you last looked, up to five of them, and says how much is left over.",
@@ -6934,6 +6937,16 @@ const EBC_SUBCOMMANDS: EBCSubcommand[] = [
     { tag: "help",      desc: "List every EBC command" },
 ];
 
+/**
+ * The live drawer, reachable from the top-level command handlers.
+ *
+ * The instance is created inside init(), so it is not in scope here - and a
+ * command that referenced it directly threw rather than failing quietly,
+ * because optional chaining does not save an identifier that was never
+ * declared. This is set the moment the drawer exists.
+ */
+let activeDrawer: EBCDrawer | null = null;
+
 function handleMetaCommand(inputValue: string): boolean {
     const trimmed = inputValue.trim();
     if (!trimmed.startsWith("/")) return false;
@@ -6952,7 +6965,8 @@ function handleMetaCommand(inputValue: string): boolean {
     // A way in that does not depend on finding a button. The panel is opened
     // from the drawer header, which can be scrolled off or hidden.
     if (["achievements", "achievement", "ach"].includes(subcommand)) {
-        drawer?.openAchievements();
+        if (!activeDrawer) { appendLocalLogLine("[EBC] The panel is not ready yet.", UI.danger); return true; }
+        activeDrawer.openAchievements();
         return true;
     }
 
@@ -7880,6 +7894,27 @@ function init(): void {
         return next(args);
     });
 
+    // Map room cheats.
+    //
+    // Two hooks, because BC already does all of this itself. Its super-powers
+    // mode is exactly the bundle wanted - full vision and hearing, maximum
+    // sight, walls ignored, hidden objects shown - and it is switched on by a
+    // single function that also asks whether you are a room admin. Overriding
+    // that one answer reuses every code path BC already tests, instead of
+    // reimplementing the visibility mask and calling it the same thing.
+    tryHookFunction(modAPI, "ChatRoomMapViewHasSuperPowers", 1, (args, next) => {
+        try { if (getMapSuperPowers()) return true; } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // Fog on its own, for reading a room's layout without also walking through
+    // its walls. Super powers already cover fog, so this only has to answer for
+    // the case where they are off.
+    tryHookFunction(modAPI, "ChatRoomMapFogIsActive", 1, (args, next) => {
+        try { if (getMapFogOff()) return false; } catch { /* ignore */ }
+        return next(args);
+    });
+
     // Guard a BC bug that empties a whole room at once.
     //
     // ChatRoomMapViewInitializeCharacter reads `ChatRoomData?.MapData.Type` - the
@@ -7995,6 +8030,7 @@ function init(): void {
     try {
         EBCDrawer.pawDataUri = EBC_PAW_DATA;
         drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD, SAL_VERSION);
+        activeDrawer = drawer;
         // Fire an initial visibility check in case the addon loads while the
         // player is already in a chat room (ChatRoomSync won't fire again).
         window.setTimeout(() => { try { drawer?.updateVisibility(); } catch { /* ignore */ } }, 400);
