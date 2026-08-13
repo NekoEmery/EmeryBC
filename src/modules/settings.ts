@@ -296,6 +296,25 @@ export function setShowMemberNumbers(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Last changelog version read -----------------------------------------------
+// Which version's notes have already been shown, so "/ebc changelog" can show
+// everything since then rather than only the newest release. Empty means it has
+// never been opened, in which case the newest release alone is the honest answer.
+
+export function getLastChangelogSeen(): string {
+    try {
+        const v = getSettings()?.lastChangelogSeen;
+        return typeof v === "string" ? v : "";
+    } catch { return ""; }
+}
+
+export function setLastChangelogSeen(version: string): void {
+    try {
+        getSettings().lastChangelogSeen = version;
+        syncSettings();
+    } catch { /* ignore */ }
+}
+
 // -- EBC button in the chat room top bar ---------------------------------------
 // Puts a paw next to BC's own Exit / Kneel / Icons buttons and hides the side
 // tab while you are in a room. Only while you are in a room - the top bar does
