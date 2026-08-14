@@ -1062,12 +1062,16 @@ const CSS = `
 
 .ebc-section-label {
     font-family: "Trebuchet MS", serif;
-    font-size: 10px;
+    /* 10px bold uppercase with letter-spacing, in a muted mauve, read as dark
+       smudges rather than words - reported as the headers being black. Every
+       section on every tab uses this, so it was the whole panel's headings that
+       were hard to read, not one of them. */
+    font-size: 11px;
     font-weight: bold;
-    letter-spacing: 0.1em;
-    color: #c09098;
+    letter-spacing: 0.09em;
+    color: #e7c6d3;
     text-transform: uppercase;
-    padding: 4px 4px 5px;
+    padding: 5px 4px 6px;
 }
 
 /* -- Outfit rows -- */
@@ -3759,8 +3763,8 @@ const CSS = `
 }
 
 #emerybc-panel[data-touch] .ebc-section-label {
-    font-size: 12px !important;
-    padding: 6px 4px 8px !important;
+    font-size: 13px !important;
+    padding: 7px 4px 9px !important;
 }
 
 #emerybc-panel[data-touch] .ebc-footer {
