@@ -6030,7 +6030,8 @@ export class EBCDrawer {
                 (pos) => {
                     const dx = pos.clientX - start.clientX;
                     const dy = pos.clientY - start.clientY;
-                    if (!dragged && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+                    const slop = isTouchModeActive() ? 14 : 5;
+                    if (!dragged && Math.abs(dx) < slop && Math.abs(dy) < slop) return;
                     dragged = true;
                     clearTimeout(lpTimer);
                     tab.style.cursor = "grabbing";
@@ -20049,6 +20050,27 @@ This cannot be undone.`,
             topBarRow.appendChild(topBarBtn);
             cnt.appendChild(topBarRow);
 
+            // ── Put the side tab back where it docks ──────────────────────────
+            const tabResetRow = document.createElement("div");
+            tabResetRow.className = "ebc-opt-row";
+            tabResetRow.style.marginBottom = "8px";
+            const tabResetLbl = document.createElement("span");
+            tabResetLbl.className = "ebc-opt-label";
+            tabResetLbl.textContent = "Reset the side tab position";
+            tabResetLbl.title = "If the EBC tab has ended up sitting out over the page instead of tucked "
+                + "against the edge, it has been dragged. This docks it again.";
+            const tabResetBtn = document.createElement("button");
+            tabResetBtn.className = "ebc-opt-btn";
+            tabResetBtn.textContent = "Dock it";
+            tabResetBtn.addEventListener("click", () => {
+                this.resetTabPosition();
+                tabResetBtn.textContent = "Done";
+                window.setTimeout(() => { tabResetBtn.textContent = "Dock it"; }, 1600);
+            });
+            tabResetRow.appendChild(tabResetLbl);
+            tabResetRow.appendChild(tabResetBtn);
+            cnt.appendChild(tabResetRow);
+
             // ── Touch / phone mode toggle (dev preview) ───────────────────────
             const touchRow = document.createElement("div");
             touchRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
@@ -30909,6 +30931,27 @@ This cannot be undone.`,
     // -- Open / Close / Toggle -------------------------------------------------
 
     public toggle(): void { this.isOpen ? this.close() : this.open(); }
+
+    /**
+     * Puts the tab back where it docks.
+     *
+     * Dragging it stores a fixed screen position, and from then on it no longer
+     * tucks itself to the edge - it sits out over the page as a full square.
+     * Right-clicking undid that, which is fine with a mouse and useless on a
+     * tablet, where the only remaining escape was a five-second hold that also
+     * resets zoom, opacity and panel size.
+     */
+    public resetTabPosition(): void {
+        const tabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab");
+        if (!tabEl) return;
+        this.userTabOffset = null;
+        this.lastCrabsBottom = -1;
+        tabEl.style.position = "";
+        tabEl.style.left = "";
+        tabEl.style.top = "";
+        this.saveTabOffset(null);
+        this.updateCrabsPosition();
+    }
 
     /**
      * Hides or shows the side tab, for when the chat room top bar button is

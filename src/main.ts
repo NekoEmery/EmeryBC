@@ -32,7 +32,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.4";
-const SAL_VERSION  = 345;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 346;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -52,6 +52,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.1.4",
         changes: [
+            "Fix: the EBC side tab is much harder to knock loose on a touch screen, and there is now a way to put it back. Dragging the tab stores a fixed position, and from then on it stops tucking itself to a 10px sliver at the edge and sits out over the page as a full square - which is what 'it got big and square overnight' actually was. The drag only started after five pixels, which is nothing to a fingertip, so tapping it to open the panel was enough to move it. On touch it now takes fourteen pixels, and DEV -> Drawer has a 'Dock it' button. Right-click already did this, which is no use on a tablet, and the only other escape was a five-second hold that also wiped zoom, opacity and panel size.",
             "Fix: the trophy button is no longer dimmed while you are opted out of achievements. The fix that stopped opting out from HIDING it left it at 45% opacity instead, which on a small emoji - and especially on a tablet - reads as the button being gone all over again. It is full strength now; the opted-out state is said inside the panel, where there is room to explain it.",
             "Fix: the DOM tab's Map and 'Who may tie me' controls are readable and tappable on a tablet. They were built with inline sizes, and the touch rules that scale everything else up use !important - which an inline style beats, so those cards stayed at desktop size on a touch screen. They now use shared classes that scale with the rest: bigger text, taller rows, and buttons with a real minimum tap height.",
             "Fix (report 85, Julia): Tab on '/ebc ameter' or '/ebc updates' no longer lists commands that do not exist. It was offering '/ebc ameter version', '/ebc ameter release', even '/ebc ameter ameter' - none of them real. BC builds that popup from the parent command but labels each line with wherever you currently are, so declaring arguments on a subcommand made it glue the two together into commands nobody registered. EBC no longer declares them; the on/off and 0-100 hints moved into the descriptions, where /ebc help already shows them.",
