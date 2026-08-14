@@ -32,7 +32,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.4";
-const SAL_VERSION  = 343;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 344;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -52,6 +52,7 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.1.4",
         changes: [
+            "Fix (report 85, Julia): Tab on '/ebc ameter' or '/ebc updates' no longer lists commands that do not exist. It was offering '/ebc ameter version', '/ebc ameter release', even '/ebc ameter ameter' - none of them real. BC builds that popup from the parent command but labels each line with wherever you currently are, so declaring arguments on a subcommand made it glue the two together into commands nobody registered. EBC no longer declares them; the on/off and 0-100 hints moved into the descriptions, where /ebc help already shows them.",
             "Fix: Bluetooth toy scanning only ever offered toys whose Bluetooth name starts 'LVS-'. Lovense uses that for much of its range but not all of it, so a toy advertising under its model name never appeared in the picker at all - which looks exactly like the toy being broken. It now also matches on the Lovense service IDs it already knew about, and there is a 'Toy not listed?' button that lists every Bluetooth device for toys that announce neither.",
             "Opened up: XToys is available to everyone instead of a fixed list of member numbers. It was restricted while it was being built, which meant people were asking for a feature that was finished and invisible to them. It connects to your own xtoys.app webhook, so there was nothing to guard.",
             "Fix (report 87): the IRL toys section said 'Enable Lovense above to configure' while the only control was a small OFF button in its own header, and nothing on screen was labelled Lovense - so the setup controls read as missing. There is now a 'Turn on IRL toys' button in the section itself, and the same message no longer says 'Lovense' inside the XToys section where it never made sense.",
@@ -6916,8 +6917,16 @@ interface EBCSubcommand {
     desc: string;
     /** Extra worked examples, listed under the command in /ebc help. */
     examples?: Array<{ suffix: string; desc: string }>;
-    /** Argument hints handed to BC so Tab can suggest values. */
-    args?: Array<{ id: string; name: string; description?: string; suggestions?: string[] }>;
+    /**
+     * Deliberately absent: no subcommand declares Arguments to BC.
+     *
+     * Declaring them sent BC's help popup down a path that builds its list from
+     * the PARENT command while labelling each line with the current one, so
+     * "/ebc ameter" + Tab offered "/ebc ameter version", "/ebc ameter release"
+     * and so on - none of which exist. Losing the on/off and 0-100 hints costs
+     * a line in the description; keeping them cost a list of commands that do
+     * not work.
+     */
 }
 
 const EBC_SUBCOMMANDS: EBCSubcommand[] = [
@@ -6926,17 +6935,15 @@ const EBC_SUBCOMMANDS: EBCSubcommand[] = [
     { tag: "achievements", desc: "Open the achievements panel" },
     { tag: "release",   desc: "Release all restraints from yourself" },
     { tag: "unlock",    desc: "Remove all locks from yourself" },
-    { tag: "ameter",    desc: "Show or hide your arousal meter (activities keep working)",
-      examples: [{ suffix: "50", desc: "Set arousal to a specific % (0-100)" }],
-      args: [{ id: "percent", name: "0-100", description: "Leave empty to toggle on / off",
-               suggestions: ["0", "25", "50", "75", "100"] }] },
+    { tag: "ameter",    desc: "Show or hide your arousal meter - add 0-100 to set it (activities keep working)",
+      examples: [{ suffix: "50", desc: "Set arousal to a specific % (0-100)" }] },
     { tag: "update",    desc: "Check GitHub for a newer version" },
     { tag: "updates",   desc: "Turn update notifications on or off",
       examples: [
           { suffix: "on",  desc: "Enable update notifications" },
           { suffix: "off", desc: "Disable update notifications" },
       ],
-      args: [{ id: "state", name: "on|off", suggestions: ["on", "off"] }] },
+    },
     { tag: "help",      desc: "List every EBC command" },
 ];
 
@@ -7080,7 +7087,6 @@ function registerEBCCommand(): void {
                 Tag: c.tag,
                 Description: `- ${c.desc}`,
                 Action: (argumentsString: string): void => run(`/ebc ${c.tag} ${argumentsString ?? ""}`),
-                ...(c.args ? { Arguments: c.args } : {}),
             })),
         });
     } catch { /* BC command system unavailable - interception still handles /ebc */ }
