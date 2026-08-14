@@ -8798,8 +8798,12 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     // XToys WebSocket integration.
     // Sends BC game events (activities, vibrator changes, shocks) to the XToys
     // webhook so physical toys respond to in-game actions.
-    // Restricted to specific member numbers only.
-    const XTOYS_MEMBERS = [130267, 230466, 140712]; // Emery, Lucy, #140712
+    //
+    // Open to everyone. It was restricted to a handful of member numbers while it
+    // was being built, which meant people asked for a feature that was already
+    // finished and sitting behind a list they were not on. The connection is to the
+    // user's own xtoys.app webhook, so there is nothing here that needed guarding -
+    // no shared endpoint, no cost, no account of ours involved.
     const XTOYS_WS_BASE = "wss://webhook.xtoys.app/";
     const MAX_RETRIES = 3;
     const LOG_MAX = 30;
@@ -8847,7 +8851,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         catch ( /* ignore */_a) { /* ignore */ }
     }
     function isXToysUser(memberNumber) {
-        return typeof memberNumber === "number" && XTOYS_MEMBERS.includes(memberNumber);
+        // Being logged in is the only requirement now - see the note at the top.
+        return typeof memberNumber === "number";
     }
     function isXToysEnabled() {
         try {
@@ -12168,7 +12173,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "pishock.gotItClose": { en: "Got it, close", de: "Verstanden, schließen", zh: "知道了，关闭", fr: "C'est bon, fermer", es: "Entendido, cerrar", ru: "Понятно, закрыть", ja: "了解、閉じる" },
         // ─── TOYS TAB ──────────────────────────────────────────────────────────
         "toys.irlHeader": { en: "IRL TOYS (lovense)", de: "IRL-TOYS (Lovense)", zh: "现实玩具 (Lovense)", fr: "JOUETS IRL (Lovense)", es: "JUGUETES IRL (Lovense)", ru: "ИРЛ ИГРУШКИ (Lovense)", ja: "リアル玩具 (Lovense)" },
-        "toys.enableAbove": { en: "Enable Lovense above to configure.", de: "Lovense oben aktivieren um zu konfigurieren.", zh: "请先在上方启用Lovense来配置。", fr: "Active Lovense ci-dessus pour configurer.", es: "Activa Lovense arriba para configurar.", ru: "Включи Lovense выше для настройки.", ja: "設定するには上でLovenseを有効にしてください。" },
+        "toys.enableAbove": { en: "Turn this section on to set it up - the ON/OFF button is in its header.", de: "Lovense oben aktivieren um zu konfigurieren.", zh: "请先在上方启用Lovense来配置。", fr: "Active Lovense ci-dessus pour configurer.", es: "Activa Lovense arriba para configurar.", ru: "Включи Lovense выше для настройки.", ja: "設定するには上でLovenseを有効にしてください。" },
         "toys.connection": { en: "CONNECTION", de: "VERBINDUNG", zh: "连接", fr: "CONNEXION", es: "CONEXIÓN", ru: "ПОДКЛЮЧЕНИЕ", ja: "接続" },
         "toys.bleDirect": { en: "BLE (Bluetooth Direct)", de: "BLE (Bluetooth Direkt)", zh: "BLE（蓝牙直连）", fr: "BLE (Bluetooth Direct)", es: "BLE (Bluetooth Directo)", ru: "BLE (Bluetooth Direct)", ja: "BLE (Bluetooth直接)" },
         "toys.noToys": { en: "No toys connected.", de: "Keine Toys verbunden.", zh: "没有连接的玩具。", fr: "Aucun jouet connecté.", es: "No hay juguetes conectados.", ru: "Нет подключённых игрушек.", ja: "接続されている玩具がありません。" },
@@ -37978,9 +37983,24 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             const lovEnabled = s.lovenseEnabled === true;
             const { wrap: lovWrap, content: lovContent } = mkSection("", t("toys.irlHeader"), "lovenseEnabled", "EBC_ui_lovense_open", "Connect Lovense toys through their Remote app so people in the room can control them.");
             if (!lovEnabled) {
-                const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
-                offNote.textContent = t("toys.enableAbove");
+                // A button, not a sentence pointing at one. People reported the
+                // setup controls as missing: the only way in was a small OFF pill
+                // in the header, and the text told them to enable "Lovense" above,
+                // where nothing is labelled Lovense.
+                const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;line-height:1.5;`);
+                offNote.textContent = "This section is off. Turn it on to set up a toy.";
                 lovContent.appendChild(offNote);
+                const onBtn = document.createElement("button");
+                onBtn.textContent = "Turn on IRL toys";
+                onBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;`
+                    + "cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;"
+                    + "color:var(--ebc-accent);margin-bottom:8px;";
+                onBtn.addEventListener("click", () => {
+                    s.lovenseEnabled = true;
+                    syncSettings();
+                    this.renderToys();
+                });
+                lovContent.appendChild(onBtn);
             }
             else {
                 const lvsHdr = (txt) => {
@@ -38091,10 +38111,35 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     lovConnBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:6px 18px;border-radius:6px;cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;color:var(--ebc-accent);transition:background 0.1s;`;
                     lovConnBtn.addEventListener("mouseenter", () => { lovConnBtn.style.background = "var(--ebc-bg)"; });
                     lovConnBtn.addEventListener("mouseleave", () => { lovConnBtn.style.background = "transparent"; });
+                    // What the browser is allowed to offer you.
+                    //
+                    // This used to be one filter: names starting "LVS-". Lovense
+                    // does use that for a lot of its range, but not all of it - and
+                    // a toy that advertises under its model name was not merely
+                    // hard to find, it never appeared in the Bluetooth picker at
+                    // all, which reads exactly like the toy being broken.
+                    //
+                    // The service UUIDs below were already known; they were only
+                    // being used AFTER connecting. Filtering on them as well means
+                    // any toy announcing a Lovense service is offered whatever it
+                    // calls itself. "showAll" is the last resort for toys that
+                    // announce neither, where picking it out of the full list by
+                    // hand still beats not being shown it.
+                    const pickerOptions = (showAll) => showAll
+                        ? { acceptAllDevices: true, optionalServices: LVS_SERVICES }
+                        : {
+                            filters: [
+                                { namePrefix: "LVS-" },
+                                { namePrefix: "Lovense" },
+                                ...LVS_SERVICES.map(uuid => ({ services: [uuid] })),
+                            ],
+                            optionalServices: LVS_SERVICES,
+                        };
+                    let pickAll = false;
                     lovConnBtn.addEventListener("click", () => {
                         lovConnBtn.disabled = true;
                         lovConnBtn.textContent = t("toys.opening");
-                        btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: LVS_SERVICES })
+                        btApi.requestDevice(pickerOptions(pickAll))
                             .then(async (rawDevice) => {
                             var _a, _b;
                             const device = rawDevice;
@@ -38166,8 +38211,22 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     });
                     connBtnRow.appendChild(lovConnBtn);
                     connCard.appendChild(connBtnRow);
+                    const allBtn = document.createElement("button");
+                    allBtn.style.cssText = `${FONT}font-size:10px;padding:3px 10px;border-radius:5px;cursor:pointer;`
+                        + "border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);margin-left:8px;";
+                    const paintAllBtn = () => {
+                        allBtn.textContent = pickAll ? "Showing every device" : "Toy not listed?";
+                        allBtn.title = pickAll
+                            ? "The picker will list every Bluetooth device nearby. Click to go back to Lovense toys only."
+                            : "Some toys do not announce themselves as Lovense. This lists every Bluetooth device instead.";
+                    };
+                    paintAllBtn();
+                    allBtn.addEventListener("click", () => { pickAll = !pickAll; paintAllBtn(); });
+                    connBtnRow.appendChild(allBtn);
                     const connNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-sub);line-height:1.5;`);
-                    connNote.textContent = "Chromium-based browsers (Chrome, Edge, Opera, Brave…). Toy must be on and not connected elsewhere.";
+                    connNote.textContent = "Chromium-based browsers (Chrome, Edge, Opera, Brave…). "
+                        + "The toy must be switched on, in range, and not already connected to the Lovense Remote app "
+                        + "or anything else - a toy that is paired elsewhere will not be offered here.";
                     connCard.appendChild(connNote);
                     lovContent.appendChild(connCard);
                 }
@@ -43847,7 +43906,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.4";
-    const SAL_VERSION = 342; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 343; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -43864,6 +43923,9 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.1.4",
             changes: [
+                "Fix: Bluetooth toy scanning only ever offered toys whose Bluetooth name starts 'LVS-'. Lovense uses that for much of its range but not all of it, so a toy advertising under its model name never appeared in the picker at all - which looks exactly like the toy being broken. It now also matches on the Lovense service IDs it already knew about, and there is a 'Toy not listed?' button that lists every Bluetooth device for toys that announce neither.",
+                "Opened up: XToys is available to everyone instead of a fixed list of member numbers. It was restricted while it was being built, which meant people were asking for a feature that was finished and invisible to them. It connects to your own xtoys.app webhook, so there was nothing to guard.",
+                "Fix (report 87): the IRL toys section said 'Enable Lovense above to configure' while the only control was a small OFF button in its own header, and nothing on screen was labelled Lovense - so the setup controls read as missing. There is now a 'Turn on IRL toys' button in the section itself, and the same message no longer says 'Lovense' inside the XToys section where it never made sense.",
                 "New: map room controls on the DOM tab, under a Map pill. 'See through fog' reveals the layout; 'Super powers' is BC's own admin mode without the admin check - full vision and hearing, maximum sight range, walking through walls, hidden objects shown; and the bronze, silver and gold door keys can be given to yourself instead of walked over. All off by default, all client-side: nothing is sent to anyone, which is also why a room built on not knowing where people are stops being a game with these on.",
                 "Fix: '/ebc achievements' threw instead of opening the panel. It referenced the drawer from a scope that cannot see it, and optional chaining does not save an identifier that was never declared - so the command added as the way out of the achievements lockout did not work. It now uses a handle set when the drawer is created, and says so plainly if the panel is not ready yet.",
                 "Fix: opting out of achievements no longer locks you out permanently. Opting out hid the trophy button in the drawer header - which is the only way to open the achievements panel, and the button to opt back IN lives inside that panel. There was no command and no other entry point, so the only way back was editing your saved settings by hand. The trophy now stays put and simply dims while you are opted out, and clicking it still opens the panel.",
