@@ -1,11 +1,17 @@
 // XToys WebSocket integration.
 // Sends BC game events (activities, vibrator changes, shocks) to the XToys
 // webhook so physical toys respond to in-game actions.
-// Restricted to specific member numbers only.
+//
+// Open to everyone. It was restricted to a handful of member numbers while it
+// was being built, which meant people asked for a feature that was already
+// finished and sitting behind a list they were not on. The connection is to the
+// user's own xtoys.app webhook, so there is nothing here that needed guarding -
+// no shared endpoint, no cost, no account of ours involved.
 
 import { getSettings, syncSettings } from "./bcUtils";
 
-export const XTOYS_MEMBERS = [130267, 230466, 140712]; // Emery, Lucy, #140712
+/** Kept so anything still importing it keeps working; no longer used to gate. */
+export const XTOYS_MEMBERS = [130267, 230466, 140712];
 const XTOYS_WS_BASE = "wss://webhook.xtoys.app/";
 const MAX_RETRIES   = 3;
 const LOG_MAX       = 30;
@@ -59,7 +65,8 @@ export function setXToysWebhookId(id: string): void {
 }
 
 export function isXToysUser(memberNumber: number | null | undefined): boolean {
-    return typeof memberNumber === "number" && XTOYS_MEMBERS.includes(memberNumber);
+    // Being logged in is the only requirement now - see the note at the top.
+    return typeof memberNumber === "number";
 }
 
 export function isXToysEnabled(): boolean {

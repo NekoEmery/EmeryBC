@@ -32,7 +32,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.4";
-const SAL_VERSION  = 342;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 343;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -52,6 +52,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.1.4",
         changes: [
+            "Fix: Bluetooth toy scanning only ever offered toys whose Bluetooth name starts 'LVS-'. Lovense uses that for much of its range but not all of it, so a toy advertising under its model name never appeared in the picker at all - which looks exactly like the toy being broken. It now also matches on the Lovense service IDs it already knew about, and there is a 'Toy not listed?' button that lists every Bluetooth device for toys that announce neither.",
+            "Opened up: XToys is available to everyone instead of a fixed list of member numbers. It was restricted while it was being built, which meant people were asking for a feature that was finished and invisible to them. It connects to your own xtoys.app webhook, so there was nothing to guard.",
+            "Fix (report 87): the IRL toys section said 'Enable Lovense above to configure' while the only control was a small OFF button in its own header, and nothing on screen was labelled Lovense - so the setup controls read as missing. There is now a 'Turn on IRL toys' button in the section itself, and the same message no longer says 'Lovense' inside the XToys section where it never made sense.",
             "New: map room controls on the DOM tab, under a Map pill. 'See through fog' reveals the layout; 'Super powers' is BC's own admin mode without the admin check - full vision and hearing, maximum sight range, walking through walls, hidden objects shown; and the bronze, silver and gold door keys can be given to yourself instead of walked over. All off by default, all client-side: nothing is sent to anyone, which is also why a room built on not knowing where people are stops being a game with these on.",
             "Fix: '/ebc achievements' threw instead of opening the panel. It referenced the drawer from a scope that cannot see it, and optional chaining does not save an identifier that was never declared - so the command added as the way out of the achievements lockout did not work. It now uses a handle set when the drawer is created, and says so plainly if the panel is not ready yet.",
             "Fix: opting out of achievements no longer locks you out permanently. Opting out hid the trophy button in the drawer header - which is the only way to open the achievements panel, and the button to opt back IN lives inside that panel. There was no command and no other entry point, so the only way back was editing your saved settings by hand. The trophy now stays put and simply dims while you are opted out, and clicking it still opens the panel.",

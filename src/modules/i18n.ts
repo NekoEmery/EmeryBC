@@ -584,7 +584,7 @@ const S: Record<string, T> = {
 
     // ─── TOYS TAB ──────────────────────────────────────────────────────────
     "toys.irlHeader":       { en: "IRL TOYS (lovense)",      de: "IRL-TOYS (Lovense)",          zh: "现实玩具 (Lovense)",    fr: "JOUETS IRL (Lovense)",          es: "JUGUETES IRL (Lovense)",        ru: "ИРЛ ИГРУШКИ (Lovense)",        ja: "リアル玩具 (Lovense)"          },
-    "toys.enableAbove":     { en: "Enable Lovense above to configure.", de: "Lovense oben aktivieren um zu konfigurieren.", zh: "请先在上方启用Lovense来配置。", fr: "Active Lovense ci-dessus pour configurer.", es: "Activa Lovense arriba para configurar.", ru: "Включи Lovense выше для настройки.", ja: "設定するには上でLovenseを有効にしてください。" },
+    "toys.enableAbove":     { en: "Turn this section on to set it up - the ON/OFF button is in its header.", de: "Lovense oben aktivieren um zu konfigurieren.", zh: "请先在上方启用Lovense来配置。", fr: "Active Lovense ci-dessus pour configurer.", es: "Activa Lovense arriba para configurar.", ru: "Включи Lovense выше для настройки.", ja: "設定するには上でLovenseを有効にしてください。" },
     "toys.connection":      { en: "CONNECTION",   de: "VERBINDUNG",      zh: "连接",          fr: "CONNEXION",      es: "CONEXIÓN",       ru: "ПОДКЛЮЧЕНИЕ",   ja: "接続"           },
     "toys.bleDirect":       { en: "BLE (Bluetooth Direct)", de: "BLE (Bluetooth Direkt)", zh: "BLE（蓝牙直连）", fr: "BLE (Bluetooth Direct)", es: "BLE (Bluetooth Directo)", ru: "BLE (Bluetooth Direct)", ja: "BLE (Bluetooth直接)" },
     "toys.noToys":          { en: "No toys connected.",      de: "Keine Toys verbunden.",  zh: "没有连接的玩具。",  fr: "Aucun jouet connecté.", es: "No hay juguetes conectados.", ru: "Нет подключённых игрушек.", ja: "接続されている玩具がありません。" },

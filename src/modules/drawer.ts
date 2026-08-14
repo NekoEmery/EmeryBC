@@ -25664,9 +25664,24 @@ This cannot be undone.`,
                 "Connect Lovense toys through their Remote app so people in the room can control them.");
 
         if (!lovEnabled) {
-            const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
-            offNote.textContent = t("toys.enableAbove");
+            // A button, not a sentence pointing at one. People reported the
+            // setup controls as missing: the only way in was a small OFF pill
+            // in the header, and the text told them to enable "Lovense" above,
+            // where nothing is labelled Lovense.
+            const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;line-height:1.5;`);
+            offNote.textContent = "This section is off. Turn it on to set up a toy.";
             lovContent.appendChild(offNote);
+            const onBtn = document.createElement("button");
+            onBtn.textContent = "Turn on IRL toys";
+            onBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;`
+                + "cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;"
+                + "color:var(--ebc-accent);margin-bottom:8px;";
+            onBtn.addEventListener("click", () => {
+                s.lovenseEnabled = true;
+                syncSettings();
+                this.renderToys();
+            });
+            lovContent.appendChild(onBtn);
         } else {
             const lvsHdr = (txt: string): HTMLElement => {
                 const d = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:1.2px;color:var(--ebc-text-muted);margin:0 0 6px;text-transform:uppercase;`);
@@ -25763,9 +25778,35 @@ This cannot be undone.`,
                 lovConnBtn.addEventListener("mouseenter", () => { lovConnBtn.style.background = "var(--ebc-bg)"; });
                 lovConnBtn.addEventListener("mouseleave", () => { lovConnBtn.style.background = "transparent"; });
 
+                // What the browser is allowed to offer you.
+                //
+                // This used to be one filter: names starting "LVS-". Lovense
+                // does use that for a lot of its range, but not all of it - and
+                // a toy that advertises under its model name was not merely
+                // hard to find, it never appeared in the Bluetooth picker at
+                // all, which reads exactly like the toy being broken.
+                //
+                // The service UUIDs below were already known; they were only
+                // being used AFTER connecting. Filtering on them as well means
+                // any toy announcing a Lovense service is offered whatever it
+                // calls itself. "showAll" is the last resort for toys that
+                // announce neither, where picking it out of the full list by
+                // hand still beats not being shown it.
+                const pickerOptions = (showAll: boolean): Record<string, unknown> => showAll
+                    ? { acceptAllDevices: true, optionalServices: LVS_SERVICES }
+                    : {
+                        filters: [
+                            { namePrefix: "LVS-" },
+                            { namePrefix: "Lovense" },
+                            ...LVS_SERVICES.map(uuid => ({ services: [uuid] })),
+                        ],
+                        optionalServices: LVS_SERVICES,
+                    };
+
+                let pickAll = false;
                 lovConnBtn.addEventListener("click", () => {
                     lovConnBtn.disabled = true; lovConnBtn.textContent = t("toys.opening");
-                    btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: LVS_SERVICES })
+                    btApi.requestDevice(pickerOptions(pickAll))
                         .then(async (rawDevice: unknown) => {
                             const device = rawDevice as { gatt?: { connect: () => Promise<unknown>; connected?: boolean; disconnect: () => void }; name?: string; addEventListener: (e: string, h: () => void) => void };
                             const devName = device.name ?? "Lovense toy";
@@ -25826,8 +25867,23 @@ This cannot be undone.`,
                 connBtnRow.appendChild(lovConnBtn);
                 connCard.appendChild(connBtnRow);
 
+                const allBtn = document.createElement("button");
+                allBtn.style.cssText = `${FONT}font-size:10px;padding:3px 10px;border-radius:5px;cursor:pointer;`
+                    + "border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);margin-left:8px;";
+                const paintAllBtn = (): void => {
+                    allBtn.textContent = pickAll ? "Showing every device" : "Toy not listed?";
+                    allBtn.title = pickAll
+                        ? "The picker will list every Bluetooth device nearby. Click to go back to Lovense toys only."
+                        : "Some toys do not announce themselves as Lovense. This lists every Bluetooth device instead.";
+                };
+                paintAllBtn();
+                allBtn.addEventListener("click", () => { pickAll = !pickAll; paintAllBtn(); });
+                connBtnRow.appendChild(allBtn);
+
                 const connNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-sub);line-height:1.5;`);
-                connNote.textContent = "Chromium-based browsers (Chrome, Edge, Opera, Brave…). Toy must be on and not connected elsewhere.";
+                connNote.textContent = "Chromium-based browsers (Chrome, Edge, Opera, Brave…). "
+                    + "The toy must be switched on, in range, and not already connected to the Lovense Remote app "
+                    + "or anything else - a toy that is paired elsewhere will not be offered here.";
                 connCard.appendChild(connNote);
                 lovContent.appendChild(connCard);
             }
