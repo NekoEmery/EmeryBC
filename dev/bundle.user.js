@@ -13154,12 +13154,16 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 
 .ebc-section-label {
     font-family: "Trebuchet MS", serif;
-    font-size: 10px;
+    /* 10px bold uppercase with letter-spacing, in a muted mauve, read as dark
+       smudges rather than words - reported as the headers being black. Every
+       section on every tab uses this, so it was the whole panel's headings that
+       were hard to read, not one of them. */
+    font-size: 11px;
     font-weight: bold;
-    letter-spacing: 0.1em;
-    color: #c09098;
+    letter-spacing: 0.09em;
+    color: #e7c6d3;
     text-transform: uppercase;
-    padding: 4px 4px 5px;
+    padding: 5px 4px 6px;
 }
 
 /* -- Outfit rows -- */
@@ -15851,8 +15855,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
 }
 
 #emerybc-panel[data-touch] .ebc-section-label {
-    font-size: 12px !important;
-    padding: 6px 4px 8px !important;
+    font-size: 13px !important;
+    padding: 7px 4px 9px !important;
 }
 
 #emerybc-panel[data-touch] .ebc-footer {
@@ -44003,7 +44007,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.4";
-    const SAL_VERSION = 346; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 347; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -44020,6 +44024,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.1.4",
             changes: [
+                "Fix: section headings across the whole panel are readable. Expression Sequences was reported as looking black; the heading style it uses is shared by every section on every tab, so it was all of them - 10px bold uppercase with wide letter-spacing in a muted mauve, which reads as a dark smudge rather than words, especially on a tablet. Brighter, slightly larger, and larger again in touch mode: contrast went from 6.9:1 to 12:1.",
                 "Fix: the EBC side tab is much harder to knock loose on a touch screen, and there is now a way to put it back. Dragging the tab stores a fixed position, and from then on it stops tucking itself to a 10px sliver at the edge and sits out over the page as a full square - which is what 'it got big and square overnight' actually was. The drag only started after five pixels, which is nothing to a fingertip, so tapping it to open the panel was enough to move it. On touch it now takes fourteen pixels, and DEV -> Drawer has a 'Dock it' button. Right-click already did this, which is no use on a tablet, and the only other escape was a five-second hold that also wiped zoom, opacity and panel size.",
                 "Fix: the trophy button is no longer dimmed while you are opted out of achievements. The fix that stopped opting out from HIDING it left it at 45% opacity instead, which on a small emoji - and especially on a tablet - reads as the button being gone all over again. It is full strength now; the opted-out state is said inside the panel, where there is room to explain it.",
                 "Fix: the DOM tab's Map and 'Who may tie me' controls are readable and tappable on a tablet. They were built with inline sizes, and the touch rules that scale everything else up use !important - which an inline style beats, so those cards stayed at desktop size on a touch screen. They now use shared classes that scale with the rest: bigger text, taller rows, and buttons with a real minimum tap height.",
