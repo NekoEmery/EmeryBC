@@ -32,7 +32,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.4";
-const SAL_VERSION  = 344;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 345;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -52,6 +52,8 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.1.4",
         changes: [
+            "Fix: the trophy button is no longer dimmed while you are opted out of achievements. The fix that stopped opting out from HIDING it left it at 45% opacity instead, which on a small emoji - and especially on a tablet - reads as the button being gone all over again. It is full strength now; the opted-out state is said inside the panel, where there is room to explain it.",
+            "Fix: the DOM tab's Map and 'Who may tie me' controls are readable and tappable on a tablet. They were built with inline sizes, and the touch rules that scale everything else up use !important - which an inline style beats, so those cards stayed at desktop size on a touch screen. They now use shared classes that scale with the rest: bigger text, taller rows, and buttons with a real minimum tap height.",
             "Fix (report 85, Julia): Tab on '/ebc ameter' or '/ebc updates' no longer lists commands that do not exist. It was offering '/ebc ameter version', '/ebc ameter release', even '/ebc ameter ameter' - none of them real. BC builds that popup from the parent command but labels each line with wherever you currently are, so declaring arguments on a subcommand made it glue the two together into commands nobody registered. EBC no longer declares them; the on/off and 0-100 hints moved into the descriptions, where /ebc help already shows them.",
             "Fix: Bluetooth toy scanning only ever offered toys whose Bluetooth name starts 'LVS-'. Lovense uses that for much of its range but not all of it, so a toy advertising under its model name never appeared in the picker at all - which looks exactly like the toy being broken. It now also matches on the Lovense service IDs it already knew about, and there is a 'Toy not listed?' button that lists every Bluetooth device for toys that announce neither.",
             "Opened up: XToys is available to everyone instead of a fixed list of member numbers. It was restricted while it was being built, which meant people were asking for a feature that was finished and invisible to them. It connects to your own xtoys.app webhook, so there was nothing to guard.",

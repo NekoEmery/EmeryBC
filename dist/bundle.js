@@ -13073,6 +13073,50 @@
 }
 
 /* -- Section label -- */
+.ebc-opt-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 9px;
+    border: 1px solid #2a1421;
+    border-radius: 6px;
+    background: rgba(20,8,16,0.5);
+}
+.ebc-opt-label {
+    font-family: "Trebuchet MS", serif;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #b89aa8;
+    flex: 1;
+    min-width: 0;
+    user-select: none;
+}
+.ebc-opt-note {
+    font-family: "Trebuchet MS", serif;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #c8adbb;
+}
+.ebc-opt-btn {
+    font-family: "Trebuchet MS", serif;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 6px 14px;
+    min-width: 54px;
+    border-radius: 5px;
+    cursor: pointer;
+    flex-shrink: 0;
+    border: 1px solid #3a1928;
+    background: #100508;
+    color: #7a5070;
+    transition: background .14s, color .14s, border-color .14s;
+}
+.ebc-opt-btn.ebc-opt-on {
+    border-color: #cf6f98;
+    background: #4a1f30;
+    color: #f7e6ee;
+}
+
 .ebc-section-label {
     font-family: "Trebuchet MS", serif;
     font-size: 10px;
@@ -15755,6 +15799,22 @@
     overscroll-behavior: contain; /* prevent scroll chaining to the page on modern iOS/Android */
 }
 
+#emerybc-panel[data-touch] .ebc-opt-row {
+    padding: 11px 12px !important;
+    gap: 12px !important;
+}
+#emerybc-panel[data-touch] .ebc-opt-label,
+#emerybc-panel[data-touch] .ebc-opt-note {
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+}
+#emerybc-panel[data-touch] .ebc-opt-btn {
+    font-size: 14px !important;
+    padding: 10px 18px !important;
+    min-width: 68px !important;
+    min-height: 42px !important;
+}
+
 #emerybc-panel[data-touch] .ebc-section-label {
     font-size: 12px !important;
     padding: 6px 4px 8px !important;
@@ -16959,9 +17019,15 @@
                 // The way out of a setting must not be behind that same setting.
                 const loggedIn = typeof (Player === null || Player === void 0 ? void 0 : Player.MemberNumber) === "number";
                 trophyBtn.style.display = loggedIn ? "" : "none";
+                // Full strength, always. The first version of this fix dimmed the
+                // trophy to 45% while opted out, which on a small emoji - and
+                // especially on a tablet - reads as the button being gone all over
+                // again. The opt-out state is said inside the panel, where it can
+                // be read properly and acted on; out here it only has to be
+                // findable.
                 const off = isAchievementsOptedOut();
-                trophyBtn.style.opacity = off ? "0.45" : "";
-                trophyBtn.title = off ? "Achievements (opted out - click to turn back on)" : "Achievements";
+                trophyBtn.style.opacity = "";
+                trophyBtn.title = off ? "Achievements (currently opted out - open to turn back on)" : "Achievements";
             };
             refreshTrophyVis();
             this._refreshTrophyVis = refreshTrophyVis;
@@ -19259,33 +19325,27 @@
             // Said plainly and once. These change nothing for anyone else, which is
             // the whole point and also the catch.
             const warn = document.createElement("div");
-            warn.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;line-height:1.55;"
-                + "color:#e8d4de;padding:5px 8px;border-radius:5px;background:rgba(20,8,16,0.5);"
-                + "border-left:3px solid #d8a86a;";
+            warn.className = "ebc-opt-note";
+            warn.style.cssText = "padding:8px 10px;border-radius:5px;background:rgba(20,8,16,0.5);"
+                + "border-left:3px solid #d8a86a;color:#e8d4de;";
             warn.textContent = "These only change your own screen - nothing is sent to anyone. "
                 + "In a room built on not knowing where people are, that is also what stops it "
                 + "being a game. Off by default.";
             card.appendChild(warn);
             const state = document.createElement("div");
-            state.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;";
+            state.className = "ebc-opt-note";
             const row = (label, hint, get, set) => {
                 const r = document.createElement("div");
-                r.style.cssText = "display:flex;align-items:center;gap:8px;";
+                r.className = "ebc-opt-row";
                 const l = document.createElement("span");
-                l.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;user-select:none;";
+                l.className = "ebc-opt-label";
                 l.textContent = label;
                 l.title = hint;
                 const b = document.createElement("button");
                 const paint = () => {
                     const on = get();
                     b.textContent = on ? t("core.on") : t("core.off");
-                    b.style.cssText = [
-                        "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
-                        "padding:4px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
-                        "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
-                        "background:" + (on ? "#4a1f30" : "#100508"),
-                        "color:" + (on ? "#f7e6ee" : "#7a5070"),
-                    ].join(";");
+                    b.className = on ? "ebc-opt-btn ebc-opt-on" : "ebc-opt-btn";
                 };
                 paint();
                 b.addEventListener("click", () => { set(!get()); paint(); });
@@ -19296,9 +19356,11 @@
             card.appendChild(row("See through fog", "Reveals the map without any of the rest. BC's own fog switch, answered for you.", getMapFogOff, setMapFogOff));
             card.appendChild(row("Super powers", "BC's own admin mode without the admin check: see and hear everything, full sight range, walk through walls, hidden objects shown.", getMapSuperPowers, setMapSuperPowers));
             const keyRow = document.createElement("div");
-            keyRow.style.cssText = "display:flex;align-items:center;gap:6px;flex-wrap:wrap;";
+            keyRow.className = "ebc-opt-row";
+            keyRow.style.flexWrap = "wrap";
             const keyLbl = document.createElement("span");
-            keyLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;flex:1;min-width:70px;";
+            keyLbl.className = "ebc-opt-label";
+            keyLbl.style.minWidth = "70px";
             keyLbl.textContent = "Door keys";
             keyLbl.title = "The same keys you would pick up off the floor, for the bronze, silver and gold doors.";
             keyRow.appendChild(keyLbl);
@@ -19315,15 +19377,8 @@
             for (const key of MAP_KEYS) {
                 const b = document.createElement("button");
                 const paint = () => {
-                    const on = hasMapKey(key);
                     b.textContent = key;
-                    b.style.cssText = [
-                        "font-family:'Trebuchet MS',serif", "font-size:11px", "font-weight:bold",
-                        "padding:4px 10px", "border-radius:4px", "cursor:pointer", "flex-shrink:0",
-                        "border:1px solid " + (on ? "#cf6f98" : "#3a1928"),
-                        "background:" + (on ? "#4a1f30" : "#100508"),
-                        "color:" + (on ? "#f7e6ee" : "#7a5070"),
-                    ].join(";");
+                    b.className = hasMapKey(key) ? "ebc-opt-btn ebc-opt-on" : "ebc-opt-btn";
                 };
                 paint();
                 b.addEventListener("click", () => {
@@ -19367,7 +19422,7 @@
             hdr.textContent = "Who may tie me";
             card.appendChild(hdr);
             const blurb = document.createElement("div");
-            blurb.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;line-height:1.55;";
+            blurb.className = "ebc-opt-note";
             blurb.textContent = "Auto-escape ignores these people. They can tie you normally while it is on. "
                 + "Everyone else still bounces off.";
             card.appendChild(blurb);
@@ -19383,7 +19438,7 @@
                     chips.removeChild(chips.firstChild);
                 if (allowed.length === 0) {
                     const none = document.createElement("div");
-                    none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
+                    none.className = "ebc-opt-note";
                     none.textContent = "Nobody yet - with auto-escape on, nobody can tie you.";
                     chips.appendChild(none);
                 }
@@ -19391,9 +19446,8 @@
                     const chip = document.createElement("button");
                     chip.textContent = `${resolveName(n)} ×`;
                     chip.title = "Remove from the allow list";
-                    chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;"
-                        + "border-radius:10px;cursor:pointer;border:1px solid #cf6f98;"
-                        + "background:#4a1f30;color:#f7e6ee;";
+                    chip.className = "ebc-opt-btn ebc-opt-on";
+                    chip.style.borderRadius = "999px";
                     chip.addEventListener("click", () => { toggleAntiRestraintAllowed(n); refresh(); });
                     chips.appendChild(chip);
                 }
@@ -43871,7 +43925,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.4";
-    const SAL_VERSION = 344; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 345; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -43888,6 +43942,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.1.4",
             changes: [
+                "Fix: the trophy button is no longer dimmed while you are opted out of achievements. The fix that stopped opting out from HIDING it left it at 45% opacity instead, which on a small emoji - and especially on a tablet - reads as the button being gone all over again. It is full strength now; the opted-out state is said inside the panel, where there is room to explain it.",
+                "Fix: the DOM tab's Map and 'Who may tie me' controls are readable and tappable on a tablet. They were built with inline sizes, and the touch rules that scale everything else up use !important - which an inline style beats, so those cards stayed at desktop size on a touch screen. They now use shared classes that scale with the rest: bigger text, taller rows, and buttons with a real minimum tap height.",
                 "Fix (report 85, Julia): Tab on '/ebc ameter' or '/ebc updates' no longer lists commands that do not exist. It was offering '/ebc ameter version', '/ebc ameter release', even '/ebc ameter ameter' - none of them real. BC builds that popup from the parent command but labels each line with wherever you currently are, so declaring arguments on a subcommand made it glue the two together into commands nobody registered. EBC no longer declares them; the on/off and 0-100 hints moved into the descriptions, where /ebc help already shows them.",
                 "Fix: Bluetooth toy scanning only ever offered toys whose Bluetooth name starts 'LVS-'. Lovense uses that for much of its range but not all of it, so a toy advertising under its model name never appeared in the picker at all - which looks exactly like the toy being broken. It now also matches on the Lovense service IDs it already knew about, and there is a 'Toy not listed?' button that lists every Bluetooth device for toys that announce neither.",
                 "Opened up: XToys is available to everyone instead of a fixed list of member numbers. It was restricted while it was being built, which meant people were asking for a feature that was finished and invisible to them. It connects to your own xtoys.app webhook, so there was nothing to guard.",
