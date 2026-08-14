@@ -17888,7 +17888,8 @@
                 addPointerTracking((pos) => {
                     const dx = pos.clientX - start.clientX;
                     const dy = pos.clientY - start.clientY;
-                    if (!dragged && Math.abs(dx) < 5 && Math.abs(dy) < 5)
+                    const slop = isTouchModeActive() ? 14 : 5;
+                    if (!dragged && Math.abs(dx) < slop && Math.abs(dy) < slop)
                         return;
                     dragged = true;
                     clearTimeout(lpTimer);
@@ -31787,6 +31788,26 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 topBarRow.appendChild(topBarLbl);
                 topBarRow.appendChild(topBarBtn);
                 cnt.appendChild(topBarRow);
+                // ── Put the side tab back where it docks ──────────────────────────
+                const tabResetRow = document.createElement("div");
+                tabResetRow.className = "ebc-opt-row";
+                tabResetRow.style.marginBottom = "8px";
+                const tabResetLbl = document.createElement("span");
+                tabResetLbl.className = "ebc-opt-label";
+                tabResetLbl.textContent = "Reset the side tab position";
+                tabResetLbl.title = "If the EBC tab has ended up sitting out over the page instead of tucked "
+                    + "against the edge, it has been dragged. This docks it again.";
+                const tabResetBtn = document.createElement("button");
+                tabResetBtn.className = "ebc-opt-btn";
+                tabResetBtn.textContent = "Dock it";
+                tabResetBtn.addEventListener("click", () => {
+                    this.resetTabPosition();
+                    tabResetBtn.textContent = "Done";
+                    window.setTimeout(() => { tabResetBtn.textContent = "Dock it"; }, 1600);
+                });
+                tabResetRow.appendChild(tabResetLbl);
+                tabResetRow.appendChild(tabResetBtn);
+                cnt.appendChild(tabResetRow);
                 // ── Touch / phone mode toggle (dev preview) ───────────────────────
                 const touchRow = document.createElement("div");
                 touchRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
@@ -43704,6 +43725,28 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         // -- Open / Close / Toggle -------------------------------------------------
         toggle() { this.isOpen ? this.close() : this.open(); }
         /**
+         * Puts the tab back where it docks.
+         *
+         * Dragging it stores a fixed screen position, and from then on it no longer
+         * tucks itself to the edge - it sits out over the page as a full square.
+         * Right-clicking undid that, which is fine with a mouse and useless on a
+         * tablet, where the only remaining escape was a five-second hold that also
+         * resets zoom, opacity and panel size.
+         */
+        resetTabPosition() {
+            var _a;
+            const tabEl = (_a = this.rootEl) === null || _a === void 0 ? void 0 : _a.querySelector("#ebc-tab");
+            if (!tabEl)
+                return;
+            this.userTabOffset = null;
+            this.lastCrabsBottom = -1;
+            tabEl.style.position = "";
+            tabEl.style.left = "";
+            tabEl.style.top = "";
+            this.saveTabOffset(null);
+            this.updateCrabsPosition();
+        }
+        /**
          * Hides or shows the side tab, for when the chat room top bar button is
          * standing in for it. Only ever called while a top bar button actually
          * exists to open the panel with - a hidden tab and no button would mean no
@@ -43925,7 +43968,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.4";
-    const SAL_VERSION = 345; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 346; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -43942,6 +43985,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         {
             version: "9.1.4",
             changes: [
+                "Fix: the EBC side tab is much harder to knock loose on a touch screen, and there is now a way to put it back. Dragging the tab stores a fixed position, and from then on it stops tucking itself to a 10px sliver at the edge and sits out over the page as a full square - which is what 'it got big and square overnight' actually was. The drag only started after five pixels, which is nothing to a fingertip, so tapping it to open the panel was enough to move it. On touch it now takes fourteen pixels, and DEV -> Drawer has a 'Dock it' button. Right-click already did this, which is no use on a tablet, and the only other escape was a five-second hold that also wiped zoom, opacity and panel size.",
                 "Fix: the trophy button is no longer dimmed while you are opted out of achievements. The fix that stopped opting out from HIDING it left it at 45% opacity instead, which on a small emoji - and especially on a tablet - reads as the button being gone all over again. It is full strength now; the opted-out state is said inside the panel, where there is room to explain it.",
                 "Fix: the DOM tab's Map and 'Who may tie me' controls are readable and tappable on a tablet. They were built with inline sizes, and the touch rules that scale everything else up use !important - which an inline style beats, so those cards stayed at desktop size on a touch screen. They now use shared classes that scale with the rest: bigger text, taller rows, and buttons with a real minimum tap height.",
                 "Fix (report 85, Julia): Tab on '/ebc ameter' or '/ebc updates' no longer lists commands that do not exist. It was offering '/ebc ameter version', '/ebc ameter release', even '/ebc ameter ameter' - none of them real. BC builds that popup from the parent command but labels each line with wherever you currently are, so declaring arguments on a subcommand made it glue the two together into commands nobody registered. EBC no longer declares them; the on/off and 0-100 hints moved into the descriptions, where /ebc help already shows them.",
