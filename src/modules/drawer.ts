@@ -6764,7 +6764,7 @@ export class EBCDrawer {
             tab: "outfits",
             label: t("guide.deep.s3.label"),
             text: t("guide.deep.s3.text"),
-            spotlight: ["[data-guide-target='btn-new-outfit']"],
+            spotlight: ["[data-guide-target='btn-save-outfit']"],
             autoExpand: ["btn-new-outfit"],
         },
         {
@@ -11046,6 +11046,7 @@ This cannot be undone.`,
         const createBtn = document.createElement("button");
         createBtn.className = "ebc-create-btn";
         createBtn.textContent = t("outfits.saveNewOutfit");
+        createBtn.setAttribute("data-guide-target", "btn-save-outfit");
         form.appendChild(createBtn);
 
         newBtn.addEventListener("click", () => {

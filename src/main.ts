@@ -23,7 +23,7 @@ import { broadcastRoom, parseShareMessage, noteSharedRoom } from "./modules/priv
 import { sendBeep, addBeepEntry, dedupeSentBeeps, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, cacheEBCComplete, cacheEBCAchPct, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
-import { callBC, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
+import { callBC, getSettings, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
 import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import { isXToysUser, isXToysEnabled, xtoysConnect, xtoysStatus, xtoysActivityEvent, xtoysActivityOnOtherEvent, xtoysItemAdded, xtoysItemRemoved, xtoysShockEvent, xtoysToyEvent, parseXToysActivity, getXToysWebhookId } from "./modules/xtoys";
@@ -32,7 +32,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.4";
-const SAL_VERSION  = 347;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 348;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -52,6 +52,9 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
         version: "9.1.4",
         changes: [
+            "Fix (report 89, Julia): '/ebc ameter' did nothing after a reload if you had left the meter hidden. Julia guessed the cause exactly - it was flipping the setting to itself. On login EBC records your current meter mode so the toggle knows what to turn back ON, and that recording only refused 'Inactive'. Logging in with the meter already hidden therefore stored 'hidden' as the thing to go back to, so the toggle read hidden, looked up its target, found hidden, and set hidden. It now never stores a mode that hides the meter, remembers your real mode across reloads, and says so plainly if a toggle would change nothing.",
+            "Fix (report 90, Julia): the tutorial told you to click the highlighted button to save an outfit while highlighting the button that closes the form. That step opens the new-outfit form for you, and the button that opens it is the same button that cancels it - so by the time you read the instruction it said '- Cancel', and following it threw the outfit away. The highlight is on 'Save as New Outfit' now.",
+            "Fix (report 88, Lilli): same side tab problem reported independently - covered by the touch drag threshold and the 'Dock it' button above.",
             "Fix: section headings across the whole panel are readable. Expression Sequences was reported as looking black; the heading style it uses is shared by every section on every tab, so it was all of them - 10px bold uppercase with wide letter-spacing in a muted mauve, which reads as a dark smudge rather than words, especially on a tablet. Brighter, slightly larger, and larger again in touch mode: contrast went from 6.9:1 to 12:1.",
             "Fix: the EBC side tab is much harder to knock loose on a touch screen, and there is now a way to put it back. Dragging the tab stores a fixed position, and from then on it stops tucking itself to a 10px sliver at the edge and sits out over the page as a full square - which is what 'it got big and square overnight' actually was. The drag only started after five pixels, which is nothing to a fingertip, so tapping it to open the panel was enough to move it. On touch it now takes fourteen pixels, and DEV -> Drawer has a 'Dock it' button. Right-click already did this, which is no use on a tablet, and the only other escape was a five-second hold that also wiped zoom, opacity and panel size.",
             "Fix: the trophy button is no longer dimmed while you are opted out of achievements. The fix that stopped opting out from HIDING it left it at 45% opacity instead, which on a small emoji - and especially on a tablet - reads as the button being gone all over again. It is full strength now; the opted-out state is said inside the panel, where there is room to explain it.",
@@ -6386,7 +6389,11 @@ function showChangelog(): void {
 }
 
 // Last metered arousal level, so toggling the meter back on restores it.
-// Defaults to "Manual" if the meter was already hidden at load time.
+//
+// Held in settings rather than a plain variable: it is the answer to "what do I
+// go back to", and a plain variable forgets that on every reload. Toggle the
+// meter off, reload, toggle it back on and you did not get your own mode back -
+// you got whatever the default happened to be.
 //
 // "OFF" here means BC's "NoMeter", not "Inactive". Both hide the meter, but
 // Inactive switches the whole arousal system off - which also stops you doing
@@ -6394,7 +6401,21 @@ function showChangelog(): void {
 // working. A command called "toggle the arousal meter" turning off half the
 // activity system was not what anyone expected, and NoMeter is the setting that
 // does what the name says.
-let lastArousalActive = "Manual";
+function getLastArousalActive(): string {
+    try {
+        const v = (getSettings() as Record<string, unknown>).lastArousalActive;
+        // A hidden mode stored here would make the toggle flip a value to
+        // itself and appear to do nothing at all - which is exactly what got
+        // reported. Never restore into a mode that hides the meter.
+        if (typeof v === "string" && v && !AROUSAL_HIDDEN.includes(v)) return v;
+    } catch { /* ignore */ }
+    return "Manual";
+}
+
+function setLastArousalActive(mode: string): void {
+    if (AROUSAL_HIDDEN.includes(mode)) return;
+    try { (getSettings() as Record<string, unknown>).lastArousalActive = mode; syncSettings(); } catch { /* ignore */ }
+}
 
 /** BC values that mean "the meter is not shown". */
 const AROUSAL_HIDDEN = ["NoMeter", "Inactive"];
@@ -6431,16 +6452,23 @@ function toggleArometerCommand(): void {
         if (!arousal) { appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger); return; }
         const current = arousal.Active as string | undefined;
         const hidden = !!current && AROUSAL_HIDDEN.includes(current);
-        if (current && !hidden) lastArousalActive = current;
+        if (current && !hidden) setLastArousalActive(current);
         // Anyone already on Inactive from an older EBC build comes back on to a
         // working mode rather than being left with activities disabled.
-        const next = hidden ? lastArousalActive : "NoMeter";
+        const next = hidden ? getLastArousalActive() : "NoMeter";
+        if (next === current) {
+            // Nothing would change. Say so instead of reporting a switch that
+            // did not happen - "it does nothing" with a cheerful confirmation
+            // underneath is worse than no message.
+            appendLocalLogLine(`[EBC] Arousal meter is already ${current}.`, UI.textMuted);
+            return;
+        }
         arousal.Active = next;
         syncArousalSettings(arousal);
         const label = next === "NoMeter"
             ? "hidden (arousal and activities still work)"
             : `shown (${next})`;
-        appendLocalLogLine(`[EBC] Arousal meter: ${label}`, UI.gold);
+        appendLocalLogLine(`[EBC] Arousal meter: ${label} - was ${current ?? "unset"}.`, UI.gold);
     } catch (err) {
         appendLocalLogLine("[EBC] Failed to toggle arousal meter.", UI.danger);
         console.warn("[EBC] toggleArometerCommand error:", err);
@@ -6453,7 +6481,7 @@ function setArometerProgress(pct: number): void {
         if (!arousal) { appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger); return; }
         // Setting a level implies wanting to see it, so restore a metered mode.
         const cur = arousal.Active as string | undefined;
-        if (cur && AROUSAL_HIDDEN.includes(cur)) arousal.Active = lastArousalActive;
+        if (cur && AROUSAL_HIDDEN.includes(cur)) arousal.Active = getLastArousalActive();
         arousal.Progress = pct;
         syncArousalSettings(arousal);
         appendLocalLogLine(`[EBC] Arousal set to ${pct}%`, UI.gold);
@@ -7785,12 +7813,19 @@ function init(): void {
         { allowReplace: true }
     );
 
-    // Seed the arousal restore-target with whatever the player has set right now
+    // Seed the arousal restore-target with whatever the player has set right now.
+    //
+    // This is where "/ebc ameter does nothing after a reload" came from. It only
+    // refused "Inactive", so logging in with the meter already hidden stored
+    // "NoMeter" as the thing to go back TO. The toggle then read hidden, looked
+    // up its restore target, found NoMeter, and set NoMeter - flipping the value
+    // to itself. setLastArousalActive refuses every hidden mode, so a hidden
+    // meter now leaves the previous target alone instead of overwriting it.
     try {
         const arousal = (Player as unknown as Record<string, unknown>).ArousalSettings as
             Record<string, unknown> | undefined;
         const active = arousal?.Active as string | undefined;
-        if (active && active !== "Inactive") lastArousalActive = active;
+        if (active) setLastArousalActive(active);
     } catch { /* ignore */ }
 
     // Seed BC's localisation map with fallback strings for keys absent in some BC versions.
