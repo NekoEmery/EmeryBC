@@ -1,5 +1,6 @@
 ﻿import { EBCDrawer, showConfirmOverlay } from "./modules/drawer";
 import { TOP_BAR_PAW } from "./modules/topBarIcon";
+import { getMapSuperPowers, getMapFogOff } from "./modules/mapCheats";
 import { drawActionButtons, handleActionButtonClick, initDragListener } from "./modules/actionButtons";
 import { handleOutfitCommand, handleRestraintCommand, RESTRAINT_GROUPS } from "./modules/outfitManager";
 import { addWhisperEntry } from "./modules/whisperLog";
@@ -22,7 +23,7 @@ import { broadcastRoom, parseShareMessage, noteSharedRoom } from "./modules/priv
 import { sendBeep, addBeepEntry, dedupeSentBeeps, markLastSentBlocked, cacheName, cacheAccountName, getCachedNames, cacheEBCVersion, cacheEBCComplete, cacheEBCAchPct, updateOnlineFriends, stripBeepMetadata, syncFriendsSince, storeRawBundle, extractGroupTag, addGroupBeepEntry, flushNameCache, setOnFriendCameOnlineCallback, resolveName } from "./modules/friends";
 import { migrateLocalStorageBundles, evictOldBundles } from "./modules/db";
 import { checkSafeword, enforceGracePeriod, checkGraceExpiry } from "./modules/safeword";
-import { callBC, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
+import { callBC, getSettings, syncSettings, initSettings, reinitFromExtensionSettings, isLeavePending, clearLeavePending, setCurrentRoomName, clearCurrentRoomName, fireRoomSearchResult } from "./modules/bcUtils";
 import { checkExpressionTriggers } from "./modules/expressions";
 import { LUCY_MEMBER, EMERY_MEMBER, parseKittyCmd, type KittyItem } from "./modules/kitty";
 import { isXToysUser, isXToysEnabled, xtoysConnect, xtoysStatus, xtoysActivityEvent, xtoysActivityOnOtherEvent, xtoysItemAdded, xtoysItemRemoved, xtoysShockEvent, xtoysToyEvent, parseXToysActivity, getXToysWebhookId } from "./modules/xtoys";
@@ -30,8 +31,8 @@ import bcModSdk from "bondage-club-mod-sdk";
 import { isAchievementUser, hasCompletedEverything, completionPercent, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.1.4";
-const SAL_VERSION  = 340;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.1.5";
+const SAL_VERSION  = 349;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -48,6 +49,28 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "9.1.5",
+        changes: [
+            "Fix (report 91, Julia): unreleased dev work no longer hides inside the last released version. Entries were filed under the current version number and only split off into their own version at release, so on a dev build they read as part of 9.1.4. They now go into their own block marked '-dev' from the moment they are written, and the changelog labels it 'not released yet'.",
+            "New (report 92, Julia): '/ebc help' is one dismissible block with an X, like /ebc changelog. It used to be a dozen separate chat lines with no way to clear them, so asking what the commands were pushed the conversation off screen and left it there. The rows are still clickable.",
+            "Fix (report 93, Julia): pressing the quick-buttons drag grip and releasing without moving no longer clicks whatever is behind it. EBC stopped the browser default but let the event travel on, and BC acts on the click at those coordinates. Listeners fire in registration order and BC registers first, so this now runs in the capture phase - before BC sees it - and eats the click that follows.",
+            "New (report 94, AlicornTwilight): the messenger follows your theme colours. Its accent already did, because that is a plain hex and gets swapped with everything else, but the window backgrounds are written as rgba() for the blur behind them and matched none of the replacements - so a themed panel sat next to a messenger that was still plum.",
+            "Fix (report 89, Julia): '/ebc ameter' did nothing after a reload if you had left the meter hidden. Julia guessed the cause exactly - it was flipping the setting to itself. On login EBC records your current meter mode so the toggle knows what to turn back ON, and that recording only refused 'Inactive'. Logging in with the meter already hidden therefore stored 'hidden' as the thing to go back to, so the toggle read hidden, looked up its target, found hidden, and set hidden. It now never stores a mode that hides the meter, remembers your real mode across reloads, and says so plainly if a toggle would change nothing.",
+            "Fix (report 90, Julia): the tutorial told you to click the highlighted button to save an outfit while highlighting the button that closes the form. That step opens the new-outfit form for you, and the button that opens it is the same button that cancels it - so by the time you read the instruction it said '- Cancel', and following it threw the outfit away. The highlight is on 'Save as New Outfit' now.",
+            "Fix (report 88, Lilli): same side tab problem reported independently - covered by the touch drag threshold and the 'Dock it' button above.",
+            "Fix: section headings across the whole panel are readable. Expression Sequences was reported as looking black; the heading style it uses is shared by every section on every tab, so it was all of them - 10px bold uppercase with wide letter-spacing in a muted mauve, which reads as a dark smudge rather than words, especially on a tablet. Brighter, slightly larger, and larger again in touch mode: contrast went from 6.9:1 to 12:1.",
+            "Fix: the EBC side tab is much harder to knock loose on a touch screen, and there is now a way to put it back. Dragging the tab stores a fixed position, and from then on it stops tucking itself to a 10px sliver at the edge and sits out over the page as a full square - which is what 'it got big and square overnight' actually was. The drag only started after five pixels, which is nothing to a fingertip, so tapping it to open the panel was enough to move it. On touch it now takes fourteen pixels, and DEV -> Drawer has a 'Dock it' button. Right-click already did this, which is no use on a tablet, and the only other escape was a five-second hold that also wiped zoom, opacity and panel size.",
+            "Fix: the trophy button is no longer dimmed while you are opted out of achievements. The fix that stopped opting out from HIDING it left it at 45% opacity instead, which on a small emoji - and especially on a tablet - reads as the button being gone all over again. It is full strength now; the opted-out state is said inside the panel, where there is room to explain it.",
+            "Fix: the DOM tab's Map and 'Who may tie me' controls are readable and tappable on a tablet. They were built with inline sizes, and the touch rules that scale everything else up use !important - which an inline style beats, so those cards stayed at desktop size on a touch screen. They now use shared classes that scale with the rest: bigger text, taller rows, and buttons with a real minimum tap height.",
+            "Fix (report 85, Julia): Tab on '/ebc ameter' or '/ebc updates' no longer lists commands that do not exist. It was offering '/ebc ameter version', '/ebc ameter release', even '/ebc ameter ameter' - none of them real. BC builds that popup from the parent command but labels each line with wherever you currently are, so declaring arguments on a subcommand made it glue the two together into commands nobody registered. EBC no longer declares them; the on/off and 0-100 hints moved into the descriptions, where /ebc help already shows them.",
+            "Fix: Bluetooth toy scanning only ever offered toys whose Bluetooth name starts 'LVS-'. Lovense uses that for much of its range but not all of it, so a toy advertising under its model name never appeared in the picker at all - which looks exactly like the toy being broken. It now also matches on the Lovense service IDs it already knew about, and there is a 'Toy not listed?' button that lists every Bluetooth device for toys that announce neither.",
+            "Opened up: XToys is available to everyone instead of a fixed list of member numbers. It was restricted while it was being built, which meant people were asking for a feature that was finished and invisible to them. It connects to your own xtoys.app webhook, so there was nothing to guard.",
+            "Fix (report 87): the IRL toys section said 'Enable Lovense above to configure' while the only control was a small OFF button in its own header, and nothing on screen was labelled Lovense - so the setup controls read as missing. There is now a 'Turn on IRL toys' button in the section itself, and the same message no longer says 'Lovense' inside the XToys section where it never made sense.",
+            "New: map room controls on the DOM tab, under a Map pill. 'See through fog' reveals the layout; 'Super powers' is BC's own admin mode without the admin check - full vision and hearing, maximum sight range, walking through walls, hidden objects shown; and the bronze, silver and gold door keys can be given to yourself instead of walked over. All off by default, all client-side: nothing is sent to anyone, which is also why a room built on not knowing where people are stops being a game with these on.",
+            "Fix: '/ebc achievements' threw instead of opening the panel. It referenced the drawer from a scope that cannot see it, and optional chaining does not save an identifier that was never declared - so the command added as the way out of the achievements lockout did not work. It now uses a handle set when the drawer is created, and says so plainly if the panel is not ready yet.",
+        ],
+    },
     {
         version: "9.1.4",
         changes: [
@@ -6265,6 +6288,77 @@ function playBeepSound(): void {
 
 // Appends a clickable command row to the chat log. Clicking fills the chat input
 // with the command text so the user only has to press Enter to run it.
+/**
+ * The command list as one dismissible block.
+ *
+ * It used to be a dozen separate chat lines with no way to clear them, so
+ * asking what the commands were pushed the conversation off screen and left it
+ * there. The rows are still clickable; they just sit in a box with the same X
+ * the changelog block has.
+ */
+function showEbcHelpBlock(): void {
+    const doAppend = (): boolean => {
+        const log = document.getElementById("TextAreaChatLog");
+        if (!log) return false;
+
+        const box = document.createElement("div");
+        box.style.cssText = `background:${UI.cardMuted};border-left:3px solid ${UI.accent};`
+            + "border-radius:4px;padding:6px 9px 8px;margin:3px 0;font-size:12px;position:relative;";
+
+        const head = document.createElement("div");
+        head.style.cssText = `color:${UI.gold};font-weight:bold;padding-right:18px;`
+            + `border-bottom:1px solid ${UI.accentSoft};padding-bottom:4px;margin-bottom:4px;`;
+        head.textContent = "EBC commands - click any to fill the chat bar";
+        box.appendChild(head);
+
+        const close = document.createElement("span");
+        close.textContent = "×";
+        close.title = "Dismiss";
+        close.style.cssText = `position:absolute;top:3px;right:6px;cursor:pointer;color:${UI.textSoft};`
+            + "font-size:16px;line-height:1;padding:0 3px;";
+        close.addEventListener("mouseenter", () => { close.style.color = UI.accent; });
+        close.addEventListener("mouseleave", () => { close.style.color = UI.textSoft; });
+        close.addEventListener("click", () => box.remove());
+        box.appendChild(close);
+
+        const body = document.createElement("div");
+        body.style.cssText = "max-height:230px;overflow-y:auto;";
+
+        const addRow = (cmd: string, desc: string): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:baseline;gap:8px;padding:3px 2px;"
+                + "cursor:pointer;border-radius:3px;transition:background 0.12s;";
+            row.title = "Click to fill chat bar";
+            row.addEventListener("mouseenter", () => { row.style.background = "#2a1a2a"; });
+            row.addEventListener("mouseleave", () => { row.style.background = ""; });
+            const cmdSpan = document.createElement("span");
+            cmdSpan.style.cssText = "font-family:monospace;color:#e0b8d8;font-weight:bold;font-size:11px;white-space:nowrap;font-style:normal;";
+            cmdSpan.textContent = cmd;
+            const descSpan = document.createElement("span");
+            descSpan.style.cssText = `color:${UI.textMuted};font-size:10px;font-style:italic;`;
+            descSpan.textContent = desc;
+            row.appendChild(cmdSpan);
+            row.appendChild(descSpan);
+            row.addEventListener("click", () => {
+                const input = document.getElementById("InputChat") as HTMLInputElement | HTMLTextAreaElement | null;
+                if (input) { input.value = cmd; input.focus(); }
+            });
+            body.appendChild(row);
+        };
+
+        for (const c of EBC_SUBCOMMANDS) {
+            addRow(`/ebc ${c.tag}`, c.desc);
+            for (const ex of c.examples ?? []) addRow(`/ebc ${c.tag} ${ex.suffix}`, ex.desc);
+        }
+
+        box.appendChild(body);
+        log.appendChild(box);
+        log.scrollTop = log.scrollHeight;
+        return true;
+    };
+    if (!doAppend()) window.setTimeout(() => doAppend(), 300);
+}
+
 function appendClickableCmd(cmd: string, desc: string): void {
     const doAppend = (): boolean => {
         const log = document.getElementById("TextAreaChatLog");
@@ -6349,7 +6443,8 @@ function showChangelog(): void {
     for (const block of recent) {
         const room = MAX_SHOWN - lines.length - (recent.length > 1 ? 1 : 0);
         if (room <= 0) { hidden += block.changes.length; continue; }
-        if (recent.length > 1) lines.push(`— v${block.version} —`);
+        const devTag = block.version.endsWith("-dev") ? " (not released yet)" : "";
+        if (recent.length > 1) lines.push(`— v${block.version.replace("-dev", "")}${devTag} —`);
         lines.push(...block.changes.slice(0, room));
         hidden += Math.max(0, block.changes.length - room);
     }
@@ -6358,9 +6453,12 @@ function showChangelog(): void {
     if (hidden > 0) notes.push(`${hidden} more change${hidden === 1 ? "" : "s"}`);
     if (olderVersions > 0) notes.push(`${olderVersions} older version${olderVersions === 1 ? "" : "s"}`);
 
+    const only = recent[0];
     const title = recent.length > 1
         ? `EBC v${MOD_VERSION} - what's new since v${seen}`
-        : `EBC v${recent[0].version} - what's new`;
+        : only.version.endsWith("-dev")
+            ? `EBC v${only.version.replace("-dev", "")} - not released yet`
+            : `EBC v${only.version} - what's new`;
     appendChangelogBlock(
         title,
         lines,
@@ -6375,7 +6473,11 @@ function showChangelog(): void {
 }
 
 // Last metered arousal level, so toggling the meter back on restores it.
-// Defaults to "Manual" if the meter was already hidden at load time.
+//
+// Held in settings rather than a plain variable: it is the answer to "what do I
+// go back to", and a plain variable forgets that on every reload. Toggle the
+// meter off, reload, toggle it back on and you did not get your own mode back -
+// you got whatever the default happened to be.
 //
 // "OFF" here means BC's "NoMeter", not "Inactive". Both hide the meter, but
 // Inactive switches the whole arousal system off - which also stops you doing
@@ -6383,7 +6485,21 @@ function showChangelog(): void {
 // working. A command called "toggle the arousal meter" turning off half the
 // activity system was not what anyone expected, and NoMeter is the setting that
 // does what the name says.
-let lastArousalActive = "Manual";
+function getLastArousalActive(): string {
+    try {
+        const v = (getSettings() as Record<string, unknown>).lastArousalActive;
+        // A hidden mode stored here would make the toggle flip a value to
+        // itself and appear to do nothing at all - which is exactly what got
+        // reported. Never restore into a mode that hides the meter.
+        if (typeof v === "string" && v && !AROUSAL_HIDDEN.includes(v)) return v;
+    } catch { /* ignore */ }
+    return "Manual";
+}
+
+function setLastArousalActive(mode: string): void {
+    if (AROUSAL_HIDDEN.includes(mode)) return;
+    try { (getSettings() as Record<string, unknown>).lastArousalActive = mode; syncSettings(); } catch { /* ignore */ }
+}
 
 /** BC values that mean "the meter is not shown". */
 const AROUSAL_HIDDEN = ["NoMeter", "Inactive"];
@@ -6420,16 +6536,23 @@ function toggleArometerCommand(): void {
         if (!arousal) { appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger); return; }
         const current = arousal.Active as string | undefined;
         const hidden = !!current && AROUSAL_HIDDEN.includes(current);
-        if (current && !hidden) lastArousalActive = current;
+        if (current && !hidden) setLastArousalActive(current);
         // Anyone already on Inactive from an older EBC build comes back on to a
         // working mode rather than being left with activities disabled.
-        const next = hidden ? lastArousalActive : "NoMeter";
+        const next = hidden ? getLastArousalActive() : "NoMeter";
+        if (next === current) {
+            // Nothing would change. Say so instead of reporting a switch that
+            // did not happen - "it does nothing" with a cheerful confirmation
+            // underneath is worse than no message.
+            appendLocalLogLine(`[EBC] Arousal meter is already ${current}.`, UI.textMuted);
+            return;
+        }
         arousal.Active = next;
         syncArousalSettings(arousal);
         const label = next === "NoMeter"
             ? "hidden (arousal and activities still work)"
             : `shown (${next})`;
-        appendLocalLogLine(`[EBC] Arousal meter: ${label}`, UI.gold);
+        appendLocalLogLine(`[EBC] Arousal meter: ${label} - was ${current ?? "unset"}.`, UI.gold);
     } catch (err) {
         appendLocalLogLine("[EBC] Failed to toggle arousal meter.", UI.danger);
         console.warn("[EBC] toggleArometerCommand error:", err);
@@ -6442,7 +6565,7 @@ function setArometerProgress(pct: number): void {
         if (!arousal) { appendLocalLogLine("[EBC] Arousal settings unavailable.", UI.danger); return; }
         // Setting a level implies wanting to see it, so restore a metered mode.
         const cur = arousal.Active as string | undefined;
-        if (cur && AROUSAL_HIDDEN.includes(cur)) arousal.Active = lastArousalActive;
+        if (cur && AROUSAL_HIDDEN.includes(cur)) arousal.Active = getLastArousalActive();
         arousal.Progress = pct;
         syncArousalSettings(arousal);
         appendLocalLogLine(`[EBC] Arousal set to ${pct}%`, UI.gold);
@@ -6910,8 +7033,16 @@ interface EBCSubcommand {
     desc: string;
     /** Extra worked examples, listed under the command in /ebc help. */
     examples?: Array<{ suffix: string; desc: string }>;
-    /** Argument hints handed to BC so Tab can suggest values. */
-    args?: Array<{ id: string; name: string; description?: string; suggestions?: string[] }>;
+    /**
+     * Deliberately absent: no subcommand declares Arguments to BC.
+     *
+     * Declaring them sent BC's help popup down a path that builds its list from
+     * the PARENT command while labelling each line with the current one, so
+     * "/ebc ameter" + Tab offered "/ebc ameter version", "/ebc ameter release"
+     * and so on - none of which exist. Losing the on/off and 0-100 hints costs
+     * a line in the description; keeping them cost a list of commands that do
+     * not work.
+     */
 }
 
 const EBC_SUBCOMMANDS: EBCSubcommand[] = [
@@ -6920,19 +7051,27 @@ const EBC_SUBCOMMANDS: EBCSubcommand[] = [
     { tag: "achievements", desc: "Open the achievements panel" },
     { tag: "release",   desc: "Release all restraints from yourself" },
     { tag: "unlock",    desc: "Remove all locks from yourself" },
-    { tag: "ameter",    desc: "Show or hide your arousal meter (activities keep working)",
-      examples: [{ suffix: "50", desc: "Set arousal to a specific % (0-100)" }],
-      args: [{ id: "percent", name: "0-100", description: "Leave empty to toggle on / off",
-               suggestions: ["0", "25", "50", "75", "100"] }] },
+    { tag: "ameter",    desc: "Show or hide your arousal meter - add 0-100 to set it (activities keep working)",
+      examples: [{ suffix: "50", desc: "Set arousal to a specific % (0-100)" }] },
     { tag: "update",    desc: "Check GitHub for a newer version" },
     { tag: "updates",   desc: "Turn update notifications on or off",
       examples: [
           { suffix: "on",  desc: "Enable update notifications" },
           { suffix: "off", desc: "Disable update notifications" },
       ],
-      args: [{ id: "state", name: "on|off", suggestions: ["on", "off"] }] },
+    },
     { tag: "help",      desc: "List every EBC command" },
 ];
+
+/**
+ * The live drawer, reachable from the top-level command handlers.
+ *
+ * The instance is created inside init(), so it is not in scope here - and a
+ * command that referenced it directly threw rather than failing quietly,
+ * because optional chaining does not save an identifier that was never
+ * declared. This is set the moment the drawer exists.
+ */
+let activeDrawer: EBCDrawer | null = null;
 
 function handleMetaCommand(inputValue: string): boolean {
     const trimmed = inputValue.trim();
@@ -6952,7 +7091,8 @@ function handleMetaCommand(inputValue: string): boolean {
     // A way in that does not depend on finding a button. The panel is opened
     // from the drawer header, which can be scrolled off or hidden.
     if (["achievements", "achievement", "ach"].includes(subcommand)) {
-        drawer?.openAchievements();
+        if (!activeDrawer) { appendLocalLogLine("[EBC] The panel is not ready yet.", UI.danger); return true; }
+        activeDrawer.openAchievements();
         return true;
     }
 
@@ -7014,11 +7154,7 @@ function handleMetaCommand(inputValue: string): boolean {
         appendLocalLogLine(`[EBC] Unknown command "/ebc ${subcommand}". Type /ebc help for the command list.`, UI.danger);
         return true;
     }
-    appendLocalLogLine("[EBC] Commands - click any to fill the chat bar:", UI.gold);
-    for (const c of EBC_SUBCOMMANDS) {
-        appendClickableCmd(`/ebc ${c.tag}`, c.desc);
-        for (const ex of c.examples ?? []) appendClickableCmd(`/ebc ${c.tag} ${ex.suffix}`, ex.desc);
-    }
+    showEbcHelpBlock();
     return true;
 }
 
@@ -7063,7 +7199,6 @@ function registerEBCCommand(): void {
                 Tag: c.tag,
                 Description: `- ${c.desc}`,
                 Action: (argumentsString: string): void => run(`/ebc ${c.tag} ${argumentsString ?? ""}`),
-                ...(c.args ? { Arguments: c.args } : {}),
             })),
         });
     } catch { /* BC command system unavailable - interception still handles /ebc */ }
@@ -7758,12 +7893,19 @@ function init(): void {
         { allowReplace: true }
     );
 
-    // Seed the arousal restore-target with whatever the player has set right now
+    // Seed the arousal restore-target with whatever the player has set right now.
+    //
+    // This is where "/ebc ameter does nothing after a reload" came from. It only
+    // refused "Inactive", so logging in with the meter already hidden stored
+    // "NoMeter" as the thing to go back TO. The toggle then read hidden, looked
+    // up its restore target, found NoMeter, and set NoMeter - flipping the value
+    // to itself. setLastArousalActive refuses every hidden mode, so a hidden
+    // meter now leaves the previous target alone instead of overwriting it.
     try {
         const arousal = (Player as unknown as Record<string, unknown>).ArousalSettings as
             Record<string, unknown> | undefined;
         const active = arousal?.Active as string | undefined;
-        if (active && active !== "Inactive") lastArousalActive = active;
+        if (active) setLastArousalActive(active);
     } catch { /* ignore */ }
 
     // Seed BC's localisation map with fallback strings for keys absent in some BC versions.
@@ -7877,6 +8019,27 @@ function init(): void {
             if (!w.ChatRoomData) return; // skip the null-data frame
             clearLeavePending();         // new room data arrived — stop guarding
         }
+        return next(args);
+    });
+
+    // Map room cheats.
+    //
+    // Two hooks, because BC already does all of this itself. Its super-powers
+    // mode is exactly the bundle wanted - full vision and hearing, maximum
+    // sight, walls ignored, hidden objects shown - and it is switched on by a
+    // single function that also asks whether you are a room admin. Overriding
+    // that one answer reuses every code path BC already tests, instead of
+    // reimplementing the visibility mask and calling it the same thing.
+    tryHookFunction(modAPI, "ChatRoomMapViewHasSuperPowers", 1, (args, next) => {
+        try { if (getMapSuperPowers()) return true; } catch { /* ignore */ }
+        return next(args);
+    });
+
+    // Fog on its own, for reading a room's layout without also walking through
+    // its walls. Super powers already cover fog, so this only has to answer for
+    // the case where they are off.
+    tryHookFunction(modAPI, "ChatRoomMapFogIsActive", 1, (args, next) => {
+        try { if (getMapFogOff()) return false; } catch { /* ignore */ }
         return next(args);
     });
 
@@ -7995,6 +8158,7 @@ function init(): void {
     try {
         EBCDrawer.pawDataUri = EBC_PAW_DATA;
         drawer = new EBCDrawer(MOD_VERSION, IS_DEV_BUILD, SAL_VERSION);
+        activeDrawer = drawer;
         // Fire an initial visibility check in case the addon loads while the
         // player is already in a chat room (ChatRoomSync won't fire again).
         window.setTimeout(() => { try { drawer?.updateVisibility(); } catch { /* ignore */ } }, 400);

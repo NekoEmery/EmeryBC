@@ -113,6 +113,7 @@ import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadg
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
+import { getMapFogOff, setMapFogOff, getMapSuperPowers, setMapSuperPowers, hasMapKey, setMapKey, inMapRoom, MAP_KEYS } from "./mapCheats";
 import { getFriendList, getFriendStatus, isEBCComplete, getEBCAchPct, getFriendTagList, setFriendTagList, FriendTag, getConversation, clearConversation, getBeepHistory, sendBeep, resolveName, cacheName, addBeepEntry, BeepEntry, getFriendOnlineInfo, getEBCVersion, cacheEBCVersion, isFriendPinned, togglePinFriend, isOnWatchList, toggleOnlineWatch, stripBeepMetadata, getLastSeen, formatLastSeen, getFriendSince, syncFriendsSince, getCharacterBundle, getLockedTag, getLockedTagMembers, getAccountName, getGroups, saveGroups, makeGroupId, encodeGroupTag, addGroupBeepEntry, getGroupHistory, getPendingMessagesCleaned, cancelPendingMessage, isBeepBlocked, deleteBeepEntry, setQueueDeliveredCallback, type EBCGroup, type GroupBeepEntry } from "./friends";
 import { isDevLogEnabled, setDevLogEnabled, getDevLog, clearDevLog, pushTestEntry } from "./devLog";
 import { xtoysConnect, xtoysDisconnect, xtoysStatus, xtoysLog, getXToysWebhookId, isXToysUser } from "./xtoys";
@@ -1015,14 +1016,62 @@ const CSS = `
 }
 
 /* -- Section label -- */
+.ebc-opt-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 9px;
+    border: 1px solid #2a1421;
+    border-radius: 6px;
+    background: rgba(20,8,16,0.5);
+}
+.ebc-opt-label {
+    font-family: "Trebuchet MS", serif;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #b89aa8;
+    flex: 1;
+    min-width: 0;
+    user-select: none;
+}
+.ebc-opt-note {
+    font-family: "Trebuchet MS", serif;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #c8adbb;
+}
+.ebc-opt-btn {
+    font-family: "Trebuchet MS", serif;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 6px 14px;
+    min-width: 54px;
+    border-radius: 5px;
+    cursor: pointer;
+    flex-shrink: 0;
+    border: 1px solid #3a1928;
+    background: #100508;
+    color: #7a5070;
+    transition: background .14s, color .14s, border-color .14s;
+}
+.ebc-opt-btn.ebc-opt-on {
+    border-color: #cf6f98;
+    background: #4a1f30;
+    color: #f7e6ee;
+}
+
 .ebc-section-label {
     font-family: "Trebuchet MS", serif;
-    font-size: 10px;
+    /* 10px bold uppercase with letter-spacing, in a muted mauve, read as dark
+       smudges rather than words - reported as the headers being black. Every
+       section on every tab uses this, so it was the whole panel's headings that
+       were hard to read, not one of them. */
+    font-size: 11px;
     font-weight: bold;
-    letter-spacing: 0.1em;
-    color: #c09098;
+    letter-spacing: 0.09em;
+    color: #e7c6d3;
     text-transform: uppercase;
-    padding: 4px 4px 5px;
+    padding: 5px 4px 6px;
 }
 
 /* -- Outfit rows -- */
@@ -3697,9 +3746,25 @@ const CSS = `
     overscroll-behavior: contain; /* prevent scroll chaining to the page on modern iOS/Android */
 }
 
+#emerybc-panel[data-touch] .ebc-opt-row {
+    padding: 11px 12px !important;
+    gap: 12px !important;
+}
+#emerybc-panel[data-touch] .ebc-opt-label,
+#emerybc-panel[data-touch] .ebc-opt-note {
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+}
+#emerybc-panel[data-touch] .ebc-opt-btn {
+    font-size: 14px !important;
+    padding: 10px 18px !important;
+    min-width: 68px !important;
+    min-height: 42px !important;
+}
+
 #emerybc-panel[data-touch] .ebc-section-label {
-    font-size: 12px !important;
-    padding: 6px 4px 8px !important;
+    font-size: 13px !important;
+    padding: 7px 4px 9px !important;
 }
 
 #emerybc-panel[data-touch] .ebc-footer {
@@ -4171,6 +4236,29 @@ function buildCSS(c: CoreColors): string {
     css = css.split("#f7e6ee").join(c.textBright);
     // ── Gold ─────────────────────────────────────────────────────────────────
     css = css.split("#c9ab72").join(c.gold);
+
+    // ── Messenger ────────────────────────────────────────────────────────────
+    //
+    // The beep windows already followed the accent, because that is a plain hex
+    // and gets swapped with everything else. Their backgrounds did not: they are
+    // written as rgba() for the blur behind them, and an rgba string matches
+    // none of the hex replacements above. So a themed panel sat next to a
+    // messenger that was still plum, which is what "colour changing for the
+    // messenger" was asking for.
+    const rgba = (hex: string, alpha: number): string => {
+        const h = hex.replace("#", "");
+        const n = parseInt(h.length === 3 ? h.split("").map(x => x + x).join("") : h, 16);
+        return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+    };
+    css = css.split("rgba(19,8,16,0.94)").join(rgba(bgDark, 0.94));    // window body
+    css = css.split("rgba(30,13,26,0.58)").join(rgba(c.card, 0.58));   // rows
+    css = css.split("rgba(42,14,30,0.58)").join(rgba(c.card, 0.58));
+    css = css.split("rgba(40,19,32,0.75)").join(rgba(bgMid, 0.75));
+    css = css.split("rgba(58,16,40,0.90)").join(rgba(c.border, 0.90));
+    css = css.split("rgba(74,16,32,0.90)").join(rgba(accentDim, 0.90));
+    css = css.split("#1a0814").join(bgDarker);                         // scrollbar track
+    css = css.split("#e890b8").join(accentHover);                      // scrollbar thumb hover
+
     return vars + css;
 }
 
@@ -5020,9 +5108,15 @@ export class EBCDrawer {
             // The way out of a setting must not be behind that same setting.
             const loggedIn = typeof (Player as { MemberNumber?: number })?.MemberNumber === "number";
             trophyBtn.style.display = loggedIn ? "" : "none";
+            // Full strength, always. The first version of this fix dimmed the
+            // trophy to 45% while opted out, which on a small emoji - and
+            // especially on a tablet - reads as the button being gone all over
+            // again. The opt-out state is said inside the panel, where it can
+            // be read properly and acted on; out here it only has to be
+            // findable.
             const off = isAchievementsOptedOut();
-            trophyBtn.style.opacity = off ? "0.45" : "";
-            trophyBtn.title = off ? "Achievements (opted out - click to turn back on)" : "Achievements";
+            trophyBtn.style.opacity = "";
+            trophyBtn.title = off ? "Achievements (currently opted out - open to turn back on)" : "Achievements";
         };
         refreshTrophyVis();
         this._refreshTrophyVis = refreshTrophyVis;
@@ -5963,7 +6057,8 @@ export class EBCDrawer {
                 (pos) => {
                     const dx = pos.clientX - start.clientX;
                     const dy = pos.clientY - start.clientY;
-                    if (!dragged && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+                    const slop = isTouchModeActive() ? 14 : 5;
+                    if (!dragged && Math.abs(dx) < slop && Math.abs(dy) < slop) return;
                     dragged = true;
                     clearTimeout(lpTimer);
                     tab.style.cursor = "grabbing";
@@ -6692,7 +6787,7 @@ export class EBCDrawer {
             tab: "outfits",
             label: t("guide.deep.s3.label"),
             text: t("guide.deep.s3.text"),
-            spotlight: ["[data-guide-target='btn-new-outfit']"],
+            spotlight: ["[data-guide-target='btn-save-outfit']"],
             autoExpand: ["btn-new-outfit"],
         },
         {
@@ -7360,6 +7455,108 @@ export class EBCDrawer {
 
 
     /**
+     * Map room cheats.
+     *
+     * Nearly all of this is BC's own super-powers mode with its admin check
+     * removed, so the card says so rather than implying EBC invented vision.
+     * Keys are the exception - BC only grants those by walking over them.
+     */
+    private renderMapCheats(body: HTMLElement): void {
+        const card = document.createElement("div");
+        card.dataset.domGroup = "map";
+        card.style.cssText = "display:flex;flex-direction:column;gap:7px;background:#1a0d16;"
+            + "border:1px solid #3a1828;border-radius:8px;padding:9px 10px;margin-bottom:7px;";
+
+        const hdr = document.createElement("div");
+        hdr.style.cssText = "font-family:'Trebuchet MS',serif;font-size:10px;font-weight:bold;"
+            + "letter-spacing:0.12em;color:#a06878;text-transform:uppercase;";
+        hdr.textContent = "Map room";
+        card.appendChild(hdr);
+
+        // Said plainly and once. These change nothing for anyone else, which is
+        // the whole point and also the catch.
+        const warn = document.createElement("div");
+        warn.className = "ebc-opt-note";
+        warn.style.cssText = "padding:8px 10px;border-radius:5px;background:rgba(20,8,16,0.5);"
+            + "border-left:3px solid #d8a86a;color:#e8d4de;";
+        warn.textContent = "These only change your own screen - nothing is sent to anyone. "
+            + "In a room built on not knowing where people are, that is also what stops it "
+            + "being a game. Off by default.";
+        card.appendChild(warn);
+
+        const state = document.createElement("div");
+        state.className = "ebc-opt-note";
+
+        const row = (label: string, hint: string, get: () => boolean, set: (v: boolean) => void): HTMLElement => {
+            const r = document.createElement("div");
+            r.className = "ebc-opt-row";
+            const l = document.createElement("span");
+            l.className = "ebc-opt-label";
+            l.textContent = label;
+            l.title = hint;
+            const b = document.createElement("button");
+            const paint = (): void => {
+                const on = get();
+                b.textContent = on ? t("core.on") : t("core.off");
+                b.className = on ? "ebc-opt-btn ebc-opt-on" : "ebc-opt-btn";
+            };
+            paint();
+            b.addEventListener("click", () => { set(!get()); paint(); });
+            r.appendChild(l);
+            r.appendChild(b);
+            return r;
+        };
+
+        card.appendChild(row("See through fog",
+            "Reveals the map without any of the rest. BC's own fog switch, answered for you.",
+            getMapFogOff, setMapFogOff));
+        card.appendChild(row("Super powers",
+            "BC's own admin mode without the admin check: see and hear everything, full sight range, walk through walls, hidden objects shown.",
+            getMapSuperPowers, setMapSuperPowers));
+
+        const keyRow = document.createElement("div");
+        keyRow.className = "ebc-opt-row";
+        keyRow.style.flexWrap = "wrap";
+        const keyLbl = document.createElement("span");
+        keyLbl.className = "ebc-opt-label";
+        keyLbl.style.minWidth = "70px";
+        keyLbl.textContent = "Door keys";
+        keyLbl.title = "The same keys you would pick up off the floor, for the bronze, silver and gold doors.";
+        keyRow.appendChild(keyLbl);
+
+        const paintState = (): void => {
+            if (!inMapRoom()) { state.textContent = "You are not in a map room - these do nothing here."; return; }
+            const held = MAP_KEYS.filter(k => hasMapKey(k));
+            state.textContent = held.length > 0
+                ? `Holding: ${held.join(", ")}.`
+                : "Holding no keys.";
+        };
+
+        for (const key of MAP_KEYS) {
+            const b = document.createElement("button");
+            const paint = (): void => {
+                b.textContent = key;
+                b.className = hasMapKey(key) ? "ebc-opt-btn ebc-opt-on" : "ebc-opt-btn";
+            };
+            paint();
+            b.addEventListener("click", () => {
+                if (!setMapKey(key, !hasMapKey(key))) {
+                    state.textContent = "No map data yet - open the map once first.";
+                    return;
+                }
+                paint();
+                paintState();
+            });
+            keyRow.appendChild(b);
+        }
+        card.appendChild(keyRow);
+
+        paintState();
+        card.appendChild(state);
+        body.appendChild(card);
+    }
+
+    /**
      * Who auto-escape lets through.
      *
      * The item whitelist answers "what may stay on me". This answers "who may
@@ -7387,7 +7584,7 @@ export class EBCDrawer {
         card.appendChild(hdr);
 
         const blurb = document.createElement("div");
-        blurb.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#9a7080;line-height:1.55;";
+        blurb.className = "ebc-opt-note";
         blurb.textContent = "Auto-escape ignores these people. They can tie you normally while it is on. "
             + "Everyone else still bounces off.";
         card.appendChild(blurb);
@@ -7406,7 +7603,7 @@ export class EBCDrawer {
             while (chips.firstChild) chips.removeChild(chips.firstChild);
             if (allowed.length === 0) {
                 const none = document.createElement("div");
-                none.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;";
+                none.className = "ebc-opt-note";
                 none.textContent = "Nobody yet - with auto-escape on, nobody can tie you.";
                 chips.appendChild(none);
             }
@@ -7414,9 +7611,8 @@ export class EBCDrawer {
                 const chip = document.createElement("button");
                 chip.textContent = `${resolveName(n)} ×`;
                 chip.title = "Remove from the allow list";
-                chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;padding:3px 9px;"
-                    + "border-radius:10px;cursor:pointer;border:1px solid #cf6f98;"
-                    + "background:#4a1f30;color:#f7e6ee;";
+                chip.className = "ebc-opt-btn ebc-opt-on";
+                chip.style.borderRadius = "999px";
                 chip.addEventListener("click", () => { toggleAntiRestraintAllowed(n); refresh(); });
                 chips.appendChild(chip);
             }
@@ -10873,6 +11069,7 @@ This cannot be undone.`,
         const createBtn = document.createElement("button");
         createBtn.className = "ebc-create-btn";
         createBtn.textContent = t("outfits.saveNewOutfit");
+        createBtn.setAttribute("data-guide-target", "btn-save-outfit");
         form.appendChild(createBtn);
 
         newBtn.addEventListener("click", () => {
@@ -19881,6 +20078,27 @@ This cannot be undone.`,
             topBarRow.appendChild(topBarBtn);
             cnt.appendChild(topBarRow);
 
+            // ── Put the side tab back where it docks ──────────────────────────
+            const tabResetRow = document.createElement("div");
+            tabResetRow.className = "ebc-opt-row";
+            tabResetRow.style.marginBottom = "8px";
+            const tabResetLbl = document.createElement("span");
+            tabResetLbl.className = "ebc-opt-label";
+            tabResetLbl.textContent = "Reset the side tab position";
+            tabResetLbl.title = "If the EBC tab has ended up sitting out over the page instead of tucked "
+                + "against the edge, it has been dragged. This docks it again.";
+            const tabResetBtn = document.createElement("button");
+            tabResetBtn.className = "ebc-opt-btn";
+            tabResetBtn.textContent = "Dock it";
+            tabResetBtn.addEventListener("click", () => {
+                this.resetTabPosition();
+                tabResetBtn.textContent = "Done";
+                window.setTimeout(() => { tabResetBtn.textContent = "Dock it"; }, 1600);
+            });
+            tabResetRow.appendChild(tabResetLbl);
+            tabResetRow.appendChild(tabResetBtn);
+            cnt.appendChild(tabResetRow);
+
             // ── Touch / phone mode toggle (dev preview) ───────────────────────
             const touchRow = document.createElement("div");
             touchRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
@@ -25550,9 +25768,24 @@ This cannot be undone.`,
                 "Connect Lovense toys through their Remote app so people in the room can control them.");
 
         if (!lovEnabled) {
-            const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;`);
-            offNote.textContent = t("toys.enableAbove");
+            // A button, not a sentence pointing at one. People reported the
+            // setup controls as missing: the only way in was a small OFF pill
+            // in the header, and the text told them to enable "Lovense" above,
+            // where nothing is labelled Lovense.
+            const offNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-muted);padding:4px 0 8px;line-height:1.5;`);
+            offNote.textContent = "This section is off. Turn it on to set up a toy.";
             lovContent.appendChild(offNote);
+            const onBtn = document.createElement("button");
+            onBtn.textContent = "Turn on IRL toys";
+            onBtn.style.cssText = `${FONT}font-size:11px;font-weight:bold;padding:5px 14px;border-radius:6px;`
+                + "cursor:pointer;border:1px solid var(--ebc-accent);background:transparent;"
+                + "color:var(--ebc-accent);margin-bottom:8px;";
+            onBtn.addEventListener("click", () => {
+                s.lovenseEnabled = true;
+                syncSettings();
+                this.renderToys();
+            });
+            lovContent.appendChild(onBtn);
         } else {
             const lvsHdr = (txt: string): HTMLElement => {
                 const d = mk("div", `${FONT}font-size:10px;font-weight:bold;letter-spacing:1.2px;color:var(--ebc-text-muted);margin:0 0 6px;text-transform:uppercase;`);
@@ -25649,9 +25882,35 @@ This cannot be undone.`,
                 lovConnBtn.addEventListener("mouseenter", () => { lovConnBtn.style.background = "var(--ebc-bg)"; });
                 lovConnBtn.addEventListener("mouseleave", () => { lovConnBtn.style.background = "transparent"; });
 
+                // What the browser is allowed to offer you.
+                //
+                // This used to be one filter: names starting "LVS-". Lovense
+                // does use that for a lot of its range, but not all of it - and
+                // a toy that advertises under its model name was not merely
+                // hard to find, it never appeared in the Bluetooth picker at
+                // all, which reads exactly like the toy being broken.
+                //
+                // The service UUIDs below were already known; they were only
+                // being used AFTER connecting. Filtering on them as well means
+                // any toy announcing a Lovense service is offered whatever it
+                // calls itself. "showAll" is the last resort for toys that
+                // announce neither, where picking it out of the full list by
+                // hand still beats not being shown it.
+                const pickerOptions = (showAll: boolean): Record<string, unknown> => showAll
+                    ? { acceptAllDevices: true, optionalServices: LVS_SERVICES }
+                    : {
+                        filters: [
+                            { namePrefix: "LVS-" },
+                            { namePrefix: "Lovense" },
+                            ...LVS_SERVICES.map(uuid => ({ services: [uuid] })),
+                        ],
+                        optionalServices: LVS_SERVICES,
+                    };
+
+                let pickAll = false;
                 lovConnBtn.addEventListener("click", () => {
                     lovConnBtn.disabled = true; lovConnBtn.textContent = t("toys.opening");
-                    btApi.requestDevice({ filters: [{ namePrefix: "LVS-" }], optionalServices: LVS_SERVICES })
+                    btApi.requestDevice(pickerOptions(pickAll))
                         .then(async (rawDevice: unknown) => {
                             const device = rawDevice as { gatt?: { connect: () => Promise<unknown>; connected?: boolean; disconnect: () => void }; name?: string; addEventListener: (e: string, h: () => void) => void };
                             const devName = device.name ?? "Lovense toy";
@@ -25712,8 +25971,23 @@ This cannot be undone.`,
                 connBtnRow.appendChild(lovConnBtn);
                 connCard.appendChild(connBtnRow);
 
+                const allBtn = document.createElement("button");
+                allBtn.style.cssText = `${FONT}font-size:10px;padding:3px 10px;border-radius:5px;cursor:pointer;`
+                    + "border:1px solid var(--ebc-border);background:transparent;color:var(--ebc-text-muted);margin-left:8px;";
+                const paintAllBtn = (): void => {
+                    allBtn.textContent = pickAll ? "Showing every device" : "Toy not listed?";
+                    allBtn.title = pickAll
+                        ? "The picker will list every Bluetooth device nearby. Click to go back to Lovense toys only."
+                        : "Some toys do not announce themselves as Lovense. This lists every Bluetooth device instead.";
+                };
+                paintAllBtn();
+                allBtn.addEventListener("click", () => { pickAll = !pickAll; paintAllBtn(); });
+                connBtnRow.appendChild(allBtn);
+
                 const connNote = mk("div", `${FONT}font-size:10px;color:var(--ebc-text-sub);line-height:1.5;`);
-                connNote.textContent = "Chromium-based browsers (Chrome, Edge, Opera, Brave…). Toy must be on and not connected elsewhere.";
+                connNote.textContent = "Chromium-based browsers (Chrome, Edge, Opera, Brave…). "
+                    + "The toy must be switched on, in range, and not already connected to the Lovense Remote app "
+                    + "or anything else - a toy that is paired elsewhere will not be offered here.";
                 connCard.appendChild(connNote);
                 lovContent.appendChild(connCard);
             }
@@ -28976,6 +29250,7 @@ This cannot be undone.`,
 
         this.buildAutoEscapeSection(body);
         this.renderEscapeAllowList(body);   // the other half of that toggle
+        this.renderMapCheats(body);         // MAP ROOM
 
         // ── DOM Tools (creator-only below this point) ─────────────────────────
         if (!isDomEnabled()) {
@@ -30631,6 +30906,7 @@ This cannot be undone.`,
             { id: "escape",     label: "Auto-escape" },
             { id: "sets",       label: "Sets" },
             { id: "control",    label: "Control" },
+            { id: "map",        label: "Map" },
             { id: "management", label: "Management" },
         ];
 
@@ -30683,6 +30959,27 @@ This cannot be undone.`,
     // -- Open / Close / Toggle -------------------------------------------------
 
     public toggle(): void { this.isOpen ? this.close() : this.open(); }
+
+    /**
+     * Puts the tab back where it docks.
+     *
+     * Dragging it stores a fixed screen position, and from then on it no longer
+     * tucks itself to the edge - it sits out over the page as a full square.
+     * Right-clicking undid that, which is fine with a mouse and useless on a
+     * tablet, where the only remaining escape was a five-second hold that also
+     * resets zoom, opacity and panel size.
+     */
+    public resetTabPosition(): void {
+        const tabEl = this.rootEl?.querySelector<HTMLElement>("#ebc-tab");
+        if (!tabEl) return;
+        this.userTabOffset = null;
+        this.lastCrabsBottom = -1;
+        tabEl.style.position = "";
+        tabEl.style.left = "";
+        tabEl.style.top = "";
+        this.saveTabOffset(null);
+        this.updateCrabsPosition();
+    }
 
     /**
      * Hides or shows the side tab, for when the chat room top bar button is
