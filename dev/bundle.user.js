@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      9.1.4
+// @version      9.1.5
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -44056,7 +44056,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "9.1.4";
+    const MOD_VERSION = "9.1.5";
     const SAL_VERSION = 349; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
@@ -44072,7 +44072,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "9.1.5-dev",
+            version: "9.1.5",
             changes: [
                 "Fix (report 91, Julia): unreleased dev work no longer hides inside the last released version. Entries were filed under the current version number and only split off into their own version at release, so on a dev build they read as part of 9.1.4. They now go into their own block marked '-dev' from the moment they are written, and the changelog labels it 'not released yet'.",
                 "New (report 92, Julia): '/ebc help' is one dismissible block with an X, like /ebc changelog. It used to be a dozen separate chat lines with no way to clear them, so asking what the commands were pushed the conversation off screen and left it there. The rows are still clickable.",
