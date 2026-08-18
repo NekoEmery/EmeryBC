@@ -32,7 +32,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.4";
-const SAL_VERSION  = 348;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 349;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -50,8 +50,12 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "9.1.4",
+        version: "9.1.5-dev",
         changes: [
+            "Fix (report 91, Julia): unreleased dev work no longer hides inside the last released version. Entries were filed under the current version number and only split off into their own version at release, so on a dev build they read as part of 9.1.4. They now go into their own block marked '-dev' from the moment they are written, and the changelog labels it 'not released yet'.",
+            "New (report 92, Julia): '/ebc help' is one dismissible block with an X, like /ebc changelog. It used to be a dozen separate chat lines with no way to clear them, so asking what the commands were pushed the conversation off screen and left it there. The rows are still clickable.",
+            "Fix (report 93, Julia): pressing the quick-buttons drag grip and releasing without moving no longer clicks whatever is behind it. EBC stopped the browser default but let the event travel on, and BC acts on the click at those coordinates. Listeners fire in registration order and BC registers first, so this now runs in the capture phase - before BC sees it - and eats the click that follows.",
+            "New (report 94, AlicornTwilight): the messenger follows your theme colours. Its accent already did, because that is a plain hex and gets swapped with everything else, but the window backgrounds are written as rgba() for the blur behind them and matched none of the replacements - so a themed panel sat next to a messenger that was still plum.",
             "Fix (report 89, Julia): '/ebc ameter' did nothing after a reload if you had left the meter hidden. Julia guessed the cause exactly - it was flipping the setting to itself. On login EBC records your current meter mode so the toggle knows what to turn back ON, and that recording only refused 'Inactive'. Logging in with the meter already hidden therefore stored 'hidden' as the thing to go back to, so the toggle read hidden, looked up its target, found hidden, and set hidden. It now never stores a mode that hides the meter, remembers your real mode across reloads, and says so plainly if a toggle would change nothing.",
             "Fix (report 90, Julia): the tutorial told you to click the highlighted button to save an outfit while highlighting the button that closes the form. That step opens the new-outfit form for you, and the button that opens it is the same button that cancels it - so by the time you read the instruction it said '- Cancel', and following it threw the outfit away. The highlight is on 'Save as New Outfit' now.",
             "Fix (report 88, Lilli): same side tab problem reported independently - covered by the touch drag threshold and the 'Dock it' button above.",
@@ -65,6 +69,11 @@ const CHANGELOG: Array<{ version: string; changes: string[] }> = [
             "Fix (report 87): the IRL toys section said 'Enable Lovense above to configure' while the only control was a small OFF button in its own header, and nothing on screen was labelled Lovense - so the setup controls read as missing. There is now a 'Turn on IRL toys' button in the section itself, and the same message no longer says 'Lovense' inside the XToys section where it never made sense.",
             "New: map room controls on the DOM tab, under a Map pill. 'See through fog' reveals the layout; 'Super powers' is BC's own admin mode without the admin check - full vision and hearing, maximum sight range, walking through walls, hidden objects shown; and the bronze, silver and gold door keys can be given to yourself instead of walked over. All off by default, all client-side: nothing is sent to anyone, which is also why a room built on not knowing where people are stops being a game with these on.",
             "Fix: '/ebc achievements' threw instead of opening the panel. It referenced the drawer from a scope that cannot see it, and optional chaining does not save an identifier that was never declared - so the command added as the way out of the achievements lockout did not work. It now uses a handle set when the drawer is created, and says so plainly if the panel is not ready yet.",
+        ],
+    },
+    {
+        version: "9.1.4",
+        changes: [
             "Fix: opting out of achievements no longer locks you out permanently. Opting out hid the trophy button in the drawer header - which is the only way to open the achievements panel, and the button to opt back IN lives inside that panel. There was no command and no other entry point, so the only way back was editing your saved settings by hand. The trophy now stays put and simply dims while you are opted out, and clicking it still opens the panel.",
             "New: '/ebc achievements' opens the achievements panel, so it does not depend on finding a button in a header that can be scrolled off or moved off-screen.",
             "Fix (report 84, Julia): '/ebc changelog' shows everything since the version you last read, not just the newest release. With several releases a day, most people skip versions - someone on 9.1.0 opening 9.1.4 was shown one line about a feature being removed that they had never had, while the curse fixes and the room crash guard they actually received went unmentioned. It now lists each version since you last looked, up to five of them, and says how much is left over.",
@@ -6279,6 +6288,77 @@ function playBeepSound(): void {
 
 // Appends a clickable command row to the chat log. Clicking fills the chat input
 // with the command text so the user only has to press Enter to run it.
+/**
+ * The command list as one dismissible block.
+ *
+ * It used to be a dozen separate chat lines with no way to clear them, so
+ * asking what the commands were pushed the conversation off screen and left it
+ * there. The rows are still clickable; they just sit in a box with the same X
+ * the changelog block has.
+ */
+function showEbcHelpBlock(): void {
+    const doAppend = (): boolean => {
+        const log = document.getElementById("TextAreaChatLog");
+        if (!log) return false;
+
+        const box = document.createElement("div");
+        box.style.cssText = `background:${UI.cardMuted};border-left:3px solid ${UI.accent};`
+            + "border-radius:4px;padding:6px 9px 8px;margin:3px 0;font-size:12px;position:relative;";
+
+        const head = document.createElement("div");
+        head.style.cssText = `color:${UI.gold};font-weight:bold;padding-right:18px;`
+            + `border-bottom:1px solid ${UI.accentSoft};padding-bottom:4px;margin-bottom:4px;`;
+        head.textContent = "EBC commands - click any to fill the chat bar";
+        box.appendChild(head);
+
+        const close = document.createElement("span");
+        close.textContent = "×";
+        close.title = "Dismiss";
+        close.style.cssText = `position:absolute;top:3px;right:6px;cursor:pointer;color:${UI.textSoft};`
+            + "font-size:16px;line-height:1;padding:0 3px;";
+        close.addEventListener("mouseenter", () => { close.style.color = UI.accent; });
+        close.addEventListener("mouseleave", () => { close.style.color = UI.textSoft; });
+        close.addEventListener("click", () => box.remove());
+        box.appendChild(close);
+
+        const body = document.createElement("div");
+        body.style.cssText = "max-height:230px;overflow-y:auto;";
+
+        const addRow = (cmd: string, desc: string): void => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:baseline;gap:8px;padding:3px 2px;"
+                + "cursor:pointer;border-radius:3px;transition:background 0.12s;";
+            row.title = "Click to fill chat bar";
+            row.addEventListener("mouseenter", () => { row.style.background = "#2a1a2a"; });
+            row.addEventListener("mouseleave", () => { row.style.background = ""; });
+            const cmdSpan = document.createElement("span");
+            cmdSpan.style.cssText = "font-family:monospace;color:#e0b8d8;font-weight:bold;font-size:11px;white-space:nowrap;font-style:normal;";
+            cmdSpan.textContent = cmd;
+            const descSpan = document.createElement("span");
+            descSpan.style.cssText = `color:${UI.textMuted};font-size:10px;font-style:italic;`;
+            descSpan.textContent = desc;
+            row.appendChild(cmdSpan);
+            row.appendChild(descSpan);
+            row.addEventListener("click", () => {
+                const input = document.getElementById("InputChat") as HTMLInputElement | HTMLTextAreaElement | null;
+                if (input) { input.value = cmd; input.focus(); }
+            });
+            body.appendChild(row);
+        };
+
+        for (const c of EBC_SUBCOMMANDS) {
+            addRow(`/ebc ${c.tag}`, c.desc);
+            for (const ex of c.examples ?? []) addRow(`/ebc ${c.tag} ${ex.suffix}`, ex.desc);
+        }
+
+        box.appendChild(body);
+        log.appendChild(box);
+        log.scrollTop = log.scrollHeight;
+        return true;
+    };
+    if (!doAppend()) window.setTimeout(() => doAppend(), 300);
+}
+
 function appendClickableCmd(cmd: string, desc: string): void {
     const doAppend = (): boolean => {
         const log = document.getElementById("TextAreaChatLog");
@@ -6363,7 +6443,8 @@ function showChangelog(): void {
     for (const block of recent) {
         const room = MAX_SHOWN - lines.length - (recent.length > 1 ? 1 : 0);
         if (room <= 0) { hidden += block.changes.length; continue; }
-        if (recent.length > 1) lines.push(`— v${block.version} —`);
+        const devTag = block.version.endsWith("-dev") ? " (not released yet)" : "";
+        if (recent.length > 1) lines.push(`— v${block.version.replace("-dev", "")}${devTag} —`);
         lines.push(...block.changes.slice(0, room));
         hidden += Math.max(0, block.changes.length - room);
     }
@@ -6372,9 +6453,12 @@ function showChangelog(): void {
     if (hidden > 0) notes.push(`${hidden} more change${hidden === 1 ? "" : "s"}`);
     if (olderVersions > 0) notes.push(`${olderVersions} older version${olderVersions === 1 ? "" : "s"}`);
 
+    const only = recent[0];
     const title = recent.length > 1
         ? `EBC v${MOD_VERSION} - what's new since v${seen}`
-        : `EBC v${recent[0].version} - what's new`;
+        : only.version.endsWith("-dev")
+            ? `EBC v${only.version.replace("-dev", "")} - not released yet`
+            : `EBC v${only.version} - what's new`;
     appendChangelogBlock(
         title,
         lines,
@@ -7070,11 +7154,7 @@ function handleMetaCommand(inputValue: string): boolean {
         appendLocalLogLine(`[EBC] Unknown command "/ebc ${subcommand}". Type /ebc help for the command list.`, UI.danger);
         return true;
     }
-    appendLocalLogLine("[EBC] Commands - click any to fill the chat bar:", UI.gold);
-    for (const c of EBC_SUBCOMMANDS) {
-        appendClickableCmd(`/ebc ${c.tag}`, c.desc);
-        for (const ex of c.examples ?? []) appendClickableCmd(`/ebc ${c.tag} ${ex.suffix}`, ex.desc);
-    }
+    showEbcHelpBlock();
     return true;
 }
 

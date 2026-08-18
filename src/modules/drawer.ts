@@ -4236,6 +4236,29 @@ function buildCSS(c: CoreColors): string {
     css = css.split("#f7e6ee").join(c.textBright);
     // ── Gold ─────────────────────────────────────────────────────────────────
     css = css.split("#c9ab72").join(c.gold);
+
+    // ── Messenger ────────────────────────────────────────────────────────────
+    //
+    // The beep windows already followed the accent, because that is a plain hex
+    // and gets swapped with everything else. Their backgrounds did not: they are
+    // written as rgba() for the blur behind them, and an rgba string matches
+    // none of the hex replacements above. So a themed panel sat next to a
+    // messenger that was still plum, which is what "colour changing for the
+    // messenger" was asking for.
+    const rgba = (hex: string, alpha: number): string => {
+        const h = hex.replace("#", "");
+        const n = parseInt(h.length === 3 ? h.split("").map(x => x + x).join("") : h, 16);
+        return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+    };
+    css = css.split("rgba(19,8,16,0.94)").join(rgba(bgDark, 0.94));    // window body
+    css = css.split("rgba(30,13,26,0.58)").join(rgba(c.card, 0.58));   // rows
+    css = css.split("rgba(42,14,30,0.58)").join(rgba(c.card, 0.58));
+    css = css.split("rgba(40,19,32,0.75)").join(rgba(bgMid, 0.75));
+    css = css.split("rgba(58,16,40,0.90)").join(rgba(c.border, 0.90));
+    css = css.split("rgba(74,16,32,0.90)").join(rgba(accentDim, 0.90));
+    css = css.split("#1a0814").join(bgDarker);                         // scrollbar track
+    css = css.split("#e890b8").join(accentHover);                      // scrollbar thumb hover
+
     return vars + css;
 }
 

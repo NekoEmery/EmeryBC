@@ -571,6 +571,9 @@ function screenToCanvas(clientX: number, clientY: number): { x: number; y: numbe
     return { x: (clientX - left) * scaleX, y: (clientY - top) * scaleY };
 }
 
+/** Set when the grip is pressed, so the click that follows does not reach BC. */
+let swallowNextClick = false;
+
 function isInGrip(cx: number, cy: number): boolean {
     const gripY = sidebarY - GRIP_H - 2;
     const sbX = effectiveSidebarX();
@@ -701,12 +704,36 @@ export function initDragListener(): void {
         const pt = "touches" in e ? (e as TouchEvent).touches[0] : e as MouseEvent;
         const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
         if (isInGrip(x, y)) {
+            // Stopped, not just prevented.
+            //
+            // preventDefault() alone left the event travelling on to BC, which
+            // acts on the click at those coordinates - so pressing the grip and
+            // releasing without moving clicked straight through to whatever was
+            // behind it. Listeners on the same element fire in registration
+            // order and BC registers first, so stopping it needs the capture
+            // phase, where this runs before BC ever sees the event.
             e.preventDefault();
+            e.stopPropagation();
+            (e as Event).stopImmediatePropagation?.();
+            swallowNextClick = true;
             startDrag(x, y);
         }
     };
-    canvas.addEventListener("mousedown",  onDown as EventListener);
-    canvas.addEventListener("touchstart", onDown as EventListener, { passive: false });
+    // Capture phase so the grip is handled before BC's own canvas listeners.
+    canvas.addEventListener("mousedown",  onDown as EventListener, { capture: true });
+    canvas.addEventListener("touchstart", onDown as EventListener, { passive: false, capture: true });
+
+    // A press on the grip is followed by a click, whether or not it moved, and
+    // that click is BC's cue to act on whatever is under the cursor. Eaten once.
+    const eatClick = (e: Event): void => {
+        if (!swallowNextClick) return;
+        swallowNextClick = false;
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation?.();
+    };
+    canvas.addEventListener("click",   eatClick, { capture: true });
+    canvas.addEventListener("mouseup", eatClick, { capture: true });
 }
 
 /**
