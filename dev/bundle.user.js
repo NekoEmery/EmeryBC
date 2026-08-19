@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         EmeryBC (dev)
 // @namespace    https://github.com/NekoEmery/EmeryBC
-// @version      9.1.5
+// @version      9.1.6
 // @description  EmeryBC addon for Bondage Club — dev channel
 // @author       Emery
 // @downloadURL  https://nekoemery.github.io/EmeryBC/dev/bundle.user.js
@@ -44048,7 +44048,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "9.1.5";
+    const MOD_VERSION = "9.1.6";
     const SAL_VERSION = 351; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
@@ -44064,7 +44064,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "9.1.6-dev",
+            version: "9.1.6",
             changes: [
                 "Fix (report 95, Julia): dragging the quick buttons works again, and pressing the grip no longer clicks through - this time properly. Yesterday's fix added a listener on the canvas that swallowed mouseup, but the drag ends on a mouseup listener attached to document, and a canvas listener in the capture phase runs first. So the drag never ended: the buttons kept following the cursor until something else was clicked, and the click-through got worse rather than better. That listener is gone. The real cause was much smaller - the drag already suppressed the click that follows, but only when the mouse had actually moved, so a press-and-release on the spot fell straight through. It now suppresses that click after every grip press.",
             ],
