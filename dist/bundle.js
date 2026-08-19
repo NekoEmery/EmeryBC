@@ -6463,8 +6463,6 @@
         const { scaleX, scaleY, left, top } = getCanvasScale();
         return { x: (clientX - left) * scaleX, y: (clientY - top) * scaleY };
     }
-    /** Set when the grip is pressed, so the click that follows does not reach BC. */
-    let swallowNextClick = false;
     function isInGrip(cx, cy) {
         const gripY = sidebarY - GRIP_H - 2;
         const sbX = effectiveSidebarX();
@@ -6524,7 +6522,6 @@
         // that is being held back by a narrow window does not make it jump first.
         dragAnchorPanelX = effectiveSidebarX();
         dragAnchorPanelY = sidebarY;
-        let hasMoved = false;
         // A drag only happens with the chat window on screen, so the measurement
         // all but always succeeds - the fallback is here for the case it does not,
         // and this is the one place a guess is harmless because the user is
@@ -6536,7 +6533,6 @@
             const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
             sidebarX = Math.max(0, Math.min(maxX, dragAnchorPanelX + (x - dragAnchorMouseX)));
             sidebarY = Math.max(GRIP_H + 2, Math.min(900, dragAnchorPanelY + (y - dragAnchorMouseY)));
-            hasMoved = true;
         };
         const onEnd = () => {
             isDragging = false;
@@ -6546,18 +6542,22 @@
             document.removeEventListener("mouseup", onEnd);
             document.removeEventListener("touchend", onEnd);
             // Suppress the click that fires after mouseup so it doesn't hit BC characters.
-            // Only suppress if the click target is the game canvas — HTML panel elements
-            // (like EBC kitty/pose buttons) must not be swallowed by this guard.
-            if (hasMoved) {
-                const suppress = (e) => {
-                    var _a;
-                    if (((_a = e.target) === null || _a === void 0 ? void 0 : _a.id) === "MainCanvas") {
-                        e.stopPropagation();
-                        e.preventDefault();
-                    }
-                };
-                document.addEventListener("click", suppress, { capture: true, once: true });
-            }
+            //
+            // Every grip press, not just one that moved. The "hasMoved" condition was
+            // the original bug: press the grip, release without moving, and the click
+            // sailed through to whatever was behind it. A press on the grip is a press
+            // on the grip whether or not it turned into a drag.
+            //
+            // Still limited to the game canvas, so EBC's own HTML buttons are never
+            // swallowed - and "once" so it can never outlive the press that armed it.
+            const suppress = (e) => {
+                var _a;
+                if (((_a = e.target) === null || _a === void 0 ? void 0 : _a.id) === "MainCanvas") {
+                    e.stopPropagation();
+                    e.preventDefault();
+                }
+            };
+            document.addEventListener("click", suppress, { capture: true, once: true });
         };
         document.addEventListener("mousemove", onMove);
         document.addEventListener("touchmove", onMove, { passive: true });
@@ -6574,7 +6574,6 @@
             return;
         }
         const onDown = (e) => {
-            var _a, _b;
             // Don't allow repositioning while a character tab (in the current room) is open —
             // getSidebarMaxX() can't find the chat log during the overlay, causing the clamp
             // to break and the panel to end up stuck behind chat.
@@ -6591,7 +6590,7 @@
                         return; // real in-room character menu open — block drag
                 }
             }
-            catch ( /* ignore */_c) { /* ignore */ }
+            catch ( /* ignore */_a) { /* ignore */ }
             const pt = "touches" in e ? e.touches[0] : e;
             const { x, y } = screenToCanvas(pt.clientX, pt.clientY);
             if (isInGrip(x, y)) {
@@ -6605,27 +6604,20 @@
                 // phase, where this runs before BC ever sees the event.
                 e.preventDefault();
                 e.stopPropagation();
-                (_b = (_a = e).stopImmediatePropagation) === null || _b === void 0 ? void 0 : _b.call(_a);
-                swallowNextClick = true;
                 startDrag(x, y);
             }
         };
-        // Capture phase so the grip is handled before BC's own canvas listeners.
+        // Capture phase so the grip press is seen before BC's own canvas listeners.
+        //
+        // Only mousedown is intercepted. An earlier version also intercepted mouseup
+        // here, which broke dragging outright: the drag ends on a mouseup listener
+        // attached to document, and a canvas capture listener runs before that, so
+        // swallowing mouseup meant the drag never ended - it kept following the
+        // cursor until something else was clicked. The click that follows a press is
+        // suppressed in the drag's own end handler instead, where the ordering is
+        // known and the drag has already finished with the event.
         canvas.addEventListener("mousedown", onDown, { capture: true });
         canvas.addEventListener("touchstart", onDown, { passive: false, capture: true });
-        // A press on the grip is followed by a click, whether or not it moved, and
-        // that click is BC's cue to act on whatever is under the cursor. Eaten once.
-        const eatClick = (e) => {
-            var _a;
-            if (!swallowNextClick)
-                return;
-            swallowNextClick = false;
-            e.preventDefault();
-            e.stopPropagation();
-            (_a = e.stopImmediatePropagation) === null || _a === void 0 ? void 0 : _a.call(e);
-        };
-        canvas.addEventListener("click", eatClick, { capture: true });
-        canvas.addEventListener("mouseup", eatClick, { capture: true });
     }
     /**
      * Draw a single action button with perfectly centred label text.
@@ -44022,7 +44014,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.5";
-    const SAL_VERSION = 350; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 351; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -44036,6 +44028,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "9.1.6-dev",
+            changes: [
+                "Fix (report 95, Julia): dragging the quick buttons works again, and pressing the grip no longer clicks through - this time properly. Yesterday's fix added a listener on the canvas that swallowed mouseup, but the drag ends on a mouseup listener attached to document, and a canvas listener in the capture phase runs first. So the drag never ended: the buttons kept following the cursor until something else was clicked, and the click-through got worse rather than better. That listener is gone. The real cause was much smaller - the drag already suppressed the click that follows, but only when the mouse had actually moved, so a press-and-release on the spot fell straight through. It now suppresses that click after every grip press.",
+            ],
+        },
         {
             version: "9.1.5",
             changes: [
