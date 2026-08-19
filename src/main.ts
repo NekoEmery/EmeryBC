@@ -31,8 +31,8 @@ import bcModSdk from "bondage-club-mod-sdk";
 import { isAchievementUser, hasCompletedEverything, completionPercent, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.1.5";
-const SAL_VERSION  = 349;   // internal sub-version - shown when Emery Versioning is ON
+const MOD_VERSION = "9.1.6";
+const SAL_VERSION  = 351;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = false; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "9.1.6",
+        changes: [
+            "Fix (report 95, Julia): dragging the quick buttons works again, and pressing the grip no longer clicks through - this time properly. Yesterday's fix added a listener on the canvas that swallowed mouseup, but the drag ends on a mouseup listener attached to document, and a canvas listener in the capture phase runs first. So the drag never ended: the buttons kept following the cursor until something else was clicked, and the click-through got worse rather than better. That listener is gone. The real cause was much smaller - the drag already suppressed the click that follows, but only when the mouse had actually moved, so a press-and-release on the spot fell straight through. It now suppresses that click after every grip press.",
+        ],
+    },
     {
         version: "9.1.5",
         changes: [
