@@ -1104,5 +1104,21 @@ export function handleActionButtonClick(): boolean {
             return true;
         }
     }
+
+    // Anything else inside the bar's outline is still the bar.
+    //
+    // The pieces are drawn with small gaps between them - two pixels under the
+    // grip, four under the collapse toggle and the category chip - and each
+    // piece was hit-tested on its own. A click that landed in one of those gaps
+    // matched nothing, was reported as "not mine", and went through to BC, so
+    // aiming at the bar and missing by a pixel clicked the character behind it.
+    //
+    // Consuming the whole outline costs nothing: there is nothing behind the bar
+    // that anyone is trying to reach through it.
+    const gripTop = sidebarY - GRIP_H - 2;
+    const width   = Math.max(CHIP_W, BTN_SIZE);
+    const bottom  = btnStartY + getButtons().length * BTN_SIZE;
+    if (mx >= sbX && mx <= sbX + width && my >= gripTop && my <= bottom) return true;
+
     return false;
 }
