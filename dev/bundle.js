@@ -6983,6 +6983,21 @@
                 return true;
             }
         }
+        // Anything else inside the bar's outline is still the bar.
+        //
+        // The pieces are drawn with small gaps between them - two pixels under the
+        // grip, four under the collapse toggle and the category chip - and each
+        // piece was hit-tested on its own. A click that landed in one of those gaps
+        // matched nothing, was reported as "not mine", and went through to BC, so
+        // aiming at the bar and missing by a pixel clicked the character behind it.
+        //
+        // Consuming the whole outline costs nothing: there is nothing behind the bar
+        // that anyone is trying to reach through it.
+        const gripTop = sidebarY - GRIP_H - 2;
+        const width = Math.max(CHIP_W, BTN_SIZE);
+        const bottom = btnStartY + getButtons().length * BTN_SIZE;
+        if (mx >= sbX && mx <= sbX + width && my >= gripTop && my <= bottom)
+            return true;
         return false;
     }
 
@@ -12086,7 +12101,7 @@
         "guide.fast.s3.text": { en: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))", de: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))", zh: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))", fr: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))", es: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))", ru: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))", ja: "Chain poses and messages — trigger with [[/name]] in BC chat.\n((Click the highlighted button to start building a combo!))" },
         "guide.fast.s4.text": { en: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", de: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", zh: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", fr: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", es: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", ru: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room.", ja: "Control a friend's in-game vibrator or real Lovense toy.\nHit [[Request]] on their name — both of you must be in the same room." },
         "guide.fast.s5.text": { en: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", de: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", zh: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", fr: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", es: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", ru: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))", ja: "[[Quick Preset]] swaps the entire colour theme in one click. [[Hotkey]] opens EBC from anywhere.\n((The Preferences section is expanded — try Quick Preset now!))" },
-        "guide.fast.s6.text": { en: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", de: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", zh: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", fr: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", es: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", ru: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", ja: "Three safewords pinned above every tab — always one tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))" },
+        "guide.fast.s6.text": { en: "Three safewords, on the SAFETY tab — always a tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", de: "Three safewords, on the SAFETY tab — always a tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", zh: "Three safewords, on the SAFETY tab — always a tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", fr: "Three safewords, on the SAFETY tab — always a tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", es: "Three safewords, on the SAFETY tab — always a tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", ru: "Three safewords, on the SAFETY tab — always a tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))", ja: "Three safewords, on the SAFETY tab — always a tap away.\n((That's the quick tour! Open Tutorial anytime to revisit.))" },
         // Guide step shared by both tours - how to get the old menu layout back
         "guide.layout.label": { en: "Menu Layout", de: "Menü-Layout", zh: "菜单布局", fr: "Disposition du menu", es: "Diseño del menú", ru: "Макет меню", ja: "メニューレイアウト" },
         "guide.layout.text": { en: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way.", de: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way.", zh: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way.", fr: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way.", es: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way.", ru: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way.", ja: "EBC now groups everything into six tabs: [[ME]], [[SAFETY]], [[SOCIAL]], [[BUTTONS]], [[TOYS]] and [[SETTINGS]].\nPrefer the original eight tabs? Open [[DEV]] -> [[Drawer]] -> [[Menu layout]] and press [[Switch to Classic]] - nothing is lost either way." },
@@ -12117,9 +12132,11 @@
         "guide.deep.s10.text": { en: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety", de: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety", zh: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety", fr: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety", es: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety", ru: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety", ja: "Control a friend's in-game vibrator or real Lovense toy.\n[[GAME TOYS]] — mode buttons: Off, Low, Medium, High, Max, Tease, Random, Escalate, Deny, Edge\n• [[My Privacy]] toggles whether others can send you control requests\n[[IRL TOYS]] — same request flow: set [[Intensity]] (1-20) and [[Duration]] before sending a buzz\n• [[Whitelist]] trusted friends to skip the popup — OFF by default for safety" },
         "guide.deep.s11.text": { en: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean", de: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean", zh: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean", fr: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean", es: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean", ru: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean", ja: "Customise everything in the DEV tab.\n• [[Quick Preset]] → apply a full colour theme instantly (Rose, Midnight, Ocean...)\n• [[Hotkey]] → open/close EBC from anywhere in BC with one key press\n• [[Panel Opacity]] and [[Zoom]] → adjust transparency and text size to your preference\n• [[Visible Tabs]] → hide tabs you don't use — keeps the header clean" },
         "guide.deep.s12.text": { en: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", de: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", zh: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", fr: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", es: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", ru: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered", ja: "[[Whisper Log]] — every whisper sent and received this session\n[[Current Room]] — who is in your room right now, with member IDs\n[[Rooms Visited]] — all rooms you've entered this session\n[[Restraint Log]] — when items were applied or removed\n[[People Met]] — persists between sessions: a permanent record of everyone you've encountered" },
-        "guide.deep.s13.text": { en: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", de: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", zh: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", fr: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", es: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", ru: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))", ja: "Three safewords pinned above every tab — always one tap away, no matter which tab you're on.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n((Safewords and the EBC Tags strip can be shown/hidden per tab in DEV → Pinned strip visibility.))" },
+        "guide.deep.s13.text": { en: "Three safewords, on the SAFETY tab in the grouped layout and the DEV tab in the classic one.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n", de: "Three safewords, on the SAFETY tab in the grouped layout and the DEV tab in the classic one.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n", zh: "Three safewords, on the SAFETY tab in the grouped layout and the DEV tab in the classic one.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n", fr: "Three safewords, on the SAFETY tab in the grouped layout and the DEV tab in the classic one.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n", es: "Three safewords, on the SAFETY tab in the grouped layout and the DEV tab in the classic one.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n", ru: "Three safewords, on the SAFETY tab in the grouped layout and the DEV tab in the classic one.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n", ja: "Three safewords, on the SAFETY tab in the grouped layout and the DEV tab in the classic one.\n• Tap any safeword → sends a safety message to the room immediately\n• [[Grace period]] prevents accidental taps — set the window in seconds\n• [[Confirm step]] adds a second confirmation before sending\n" },
         // ─── FEEDBACK MODAL ────────────────────────────────────────────────────
         "feedback.title": { en: "Suggestions & Bugs", de: "Feedback & Fehlerbericht", zh: "反馈与错误报告", fr: "Retour & Rapport de bug", es: "Comentarios & Informe de error", ru: "Отзыв и отчёт об ошибке", ja: "フィードバックとバグレポート" },
+        "feedback.checking": { en: "Checking version...", de: "Version wird geprüft...", zh: "正在检查版本...", fr: "Vérification de la version...", es: "Comprobando versión...", ru: "Проверка версии...", ja: "バージョンを確認中..." },
+        "feedback.sendAnyway": { en: "Send anyway", de: "Trotzdem senden", zh: "仍然发送", fr: "Envoyer quand même", es: "Enviar de todos modos", ru: "Всё равно отправить", ja: "それでも送信" },
         "feedback.subtitle": { en: "Please make sure you are on the latest DEV build before reporting - a lot gets fixed there first, and a report from an older build is usually something already dealt with. Your BC member number is attached so misuse can be blocked.", de: "Deine BC-Mitgliedsnummer wird angehängt, damit Missbrauch blockiert werden kann.", zh: "你的BC成员编号已附加，以便阻止滥用。", fr: "Ton numéro de membre BC est joint pour pouvoir bloquer les abus.", es: "Tu número de miembro BC está adjunto para bloquear el abuso.", ru: "Твой номер участника BC прикреплён, чтобы можно было заблокировать злоупотребление.", ja: "不正使用をブロックできるようにBCメンバー番号が添付されます。" },
         "feedback.typeLabel": { en: "TYPE", de: "TYP", zh: "类型", fr: "TYPE", es: "TIPO", ru: "ТИП", ja: "タイプ" },
         "feedback.bugReport": { en: "Bug report", de: "Fehlerbericht", zh: "错误报告", fr: "Rapport de bug", es: "Informe de error", ru: "Отчёт об ошибке", ja: "バグレポート" },
@@ -16593,36 +16610,6 @@
     // Each pinned section (Safewords, EBC Tags) stores a Set of tab IDs it should
     // appear on.  null / absent key = "all tabs" (default).  Written to localStorage
     // so it survives panel re-builds without touching server-side ExtensionSettings.
-    const PINNED_STRIP_TABS = ["outfits", "buttons", "anims", "notes", "thanks", "dev", "dom"];
-    const PINNED_TAB_SHORT = {
-        outfits: "OUT", buttons: "BTN", anims: "ANM",
-        notes: "USR", thanks: "CRD", dev: "DEV", dom: "DOM",
-    };
-    function loadStripTabFilter(key) {
-        try {
-            const v = localStorage.getItem(key);
-            if (!v)
-                return null;
-            const arr = JSON.parse(v);
-            if (arr.length >= PINNED_STRIP_TABS.length)
-                return null; // treat as "all"
-            return new Set(arr);
-        }
-        catch (_a) {
-            return null;
-        }
-    }
-    function saveStripTabFilter(key, tabs) {
-        try {
-            if (!tabs || tabs.size >= PINNED_STRIP_TABS.length) {
-                localStorage.removeItem(key);
-            }
-            else {
-                localStorage.setItem(key, JSON.stringify([...tabs]));
-            }
-        }
-        catch ( /* ignore */_a) { /* ignore */ }
-    }
     const EBC_OPEN_BEEP_WINS_KEY = "EBC_openBeepWins";
     const TOUCH_DEFS = [];
     /**
@@ -16771,7 +16758,7 @@
             this._hqLiveEl = null;
             this._hqScanTimer = null;
             this._hqScreenWatchTimer = null;
-            // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
+            // Refs to the safeword / EBC-tag strips, so the tab that owns each one can host it
             this.safewordRowEl = null;
             this.quickActionsEl = null;
             this.selfPickPanelEl = null;
@@ -17912,7 +17899,6 @@
             // (slideContainer/root/body already anchored early in setup - see above)
             this.applyPanelOpacity();
             this.applyPanelZoom();
-            this.updatePinnedStrips();
             // Events - tab supports both click (toggle) and drag (reposition anywhere on screen).
             // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
             // Works with both mouse and touch input via addPointerDown / addPointerTracking.
@@ -19196,10 +19182,6 @@
                     el.className = "ebc-tab-btn" + (tab === name ? " ebc-tab-active" : "");
             }
             this.renderCurrentTab();
-            try {
-                this.updatePinnedStrips();
-            }
-            catch ( /* ignore */_c) { /* ignore */ }
         }
         renderCurrentTab() {
             this.pillGroups = []; // repopulated by whichever tab builds pill nav
@@ -19615,15 +19597,6 @@
             this.renderDev(true);
         }
         /** Show or hide each pinned strip based on the active tab and the stored filter. */
-        updatePinnedStrips() {
-            this.currentTab;
-            // Safewords / EBC Tags now live inside the DEV tab, so the old pinned-strip
-            // per-tab filters no longer apply - keep them visible wherever they sit.
-            if (this.safewordRowEl)
-                this.safewordRowEl.style.display = "flex";
-            if (this.ebcTagsStripEl)
-                this.ebcTagsStripEl.style.display = "";
-        }
         /**
          * Apply the stored panel opacity to the .ebc-panel element.
          * At opacity 1 the panel is fully opaque (no backdrop blur).
@@ -26277,6 +26250,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             }
             this.beepUnread.delete(memberNumber);
             this.refreshTabDot();
+            this.refreshMissedMessages();
             EBCDrawer.addOpenBeepWindow(memberNumber);
             // Offset each new window slightly so they don't all stack at the same position
             const offset = this.beepWins.size * 28;
@@ -26615,6 +26589,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     unreadDot.classList.remove("visible");
                     this.beepUnread.delete(memberNumber);
                     this.refreshTabDot();
+                    this.refreshMissedMessages();
                     try {
                         this.refreshFriendList();
                     }
@@ -28002,6 +27977,22 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
          * Only rendered when there are unread beeps - disappears completely once
          * all conversations have been opened.
          */
+        /**
+         * Redraws the tab holding MISSED MESSAGES, if that is the tab you are on.
+         *
+         * Opening a conversation clears its unread count and refreshes the tab dot,
+         * but the missed-messages list is only built while its tab renders - so it
+         * went on showing a message you had just read until the panel was closed
+         * and opened again.
+         */
+        refreshMissedMessages() {
+            try {
+                if (this.currentTab !== "notes" && this.currentTab !== "social")
+                    return;
+                this.rerender();
+            }
+            catch ( /* a failed redraw must never break opening a beep */_a) { /* a failed redraw must never break opening a beep */ }
+        }
         renderMessagesDropdown(body) {
             var _a, _b;
             // Nothing to show - hide the whole section
@@ -31979,69 +31970,6 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 zoomRow.appendChild(zoomVal);
                 zoomRow.appendChild(zoomReset);
                 cnt.appendChild(zoomRow);
-                // ── Pinned strip tab visibility ───────────────────────────────────
-                const stripVisBox = document.createElement("div");
-                stripVisBox.style.cssText = "padding:7px 9px 9px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-                const stripVisTitle = document.createElement("div");
-                stripVisTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;margin-bottom:4px;";
-                stripVisTitle.textContent = "Pinned strip visibility";
-                stripVisBox.appendChild(stripVisTitle);
-                const stripVisDesc = document.createElement("div");
-                stripVisDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5070;line-height:1.5;margin-bottom:9px;";
-                stripVisDesc.textContent = "Choose which tabs show the Safewords and EBC Tag Settings strips at the top of the panel. Deselect a tab to hide that strip when you're on it.";
-                stripVisBox.appendChild(stripVisDesc);
-                // Helper: one labeled row of tab chips per pinned strip
-                const makeStripRow = (rowLabel, storageKey) => {
-                    var _a;
-                    const wrap = document.createElement("div");
-                    wrap.style.cssText = "margin-bottom:8px;";
-                    const lbl = document.createElement("div");
-                    lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.05em;color:#9a6878;text-transform:uppercase;margin-bottom:5px;";
-                    lbl.textContent = rowLabel;
-                    wrap.appendChild(lbl);
-                    const chipRow = document.createElement("div");
-                    chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
-                    for (const tid of PINNED_STRIP_TABS) {
-                        const chip = document.createElement("button");
-                        chip.textContent = (_a = PINNED_TAB_SHORT[tid]) !== null && _a !== void 0 ? _a : tid;
-                        chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 11px;border-radius:4px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
-                        const refreshChip = () => {
-                            const f = loadStripTabFilter(storageKey);
-                            const on = !f || f.has(tid);
-                            chip.style.background = on ? "#2e1020" : "#150a10";
-                            chip.style.border = `1px solid ${on ? "#8a3458" : "#321220"}`;
-                            chip.style.color = on ? "#f0c0d8" : "#4a2838";
-                        };
-                        refreshChip();
-                        chip.addEventListener("click", () => {
-                            let f = loadStripTabFilter(storageKey);
-                            if (!f) {
-                                f = new Set(PINNED_STRIP_TABS);
-                                f.delete(tid);
-                            }
-                            else if (f.has(tid)) {
-                                if (f.size <= 1)
-                                    return; // keep at least one
-                                f.delete(tid);
-                            }
-                            else {
-                                f.add(tid);
-                                if (f.size >= PINNED_STRIP_TABS.length)
-                                    f = null;
-                            }
-                            saveStripTabFilter(storageKey, f);
-                            chipRow.querySelectorAll("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
-                            this.updatePinnedStrips();
-                        });
-                        chip.addEventListener("ebc-refresh", refreshChip);
-                        chipRow.appendChild(chip);
-                    }
-                    wrap.appendChild(chipRow);
-                    stripVisBox.appendChild(wrap);
-                };
-                makeStripRow("Safewords", "EBC_swTabFilter");
-                makeStripRow("EBC Tag Settings", "EBC_tagsTabFilter");
-                cnt.appendChild(stripVisBox);
                 // ── Tab visibility ─────────────────────────────────────────────────
                 const tabVisLbl = document.createElement("div");
                 tabVisLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5a6a;margin-bottom:4px;";
@@ -41475,6 +41403,10 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             card.appendChild(titleEl);
             const subEl = mk("div", `${FONT}font-size:12px;font-weight:bold;color:#f0cfe0;background:rgba(207,111,152,0.12);border-left:3px solid #cf6f98;border-radius:6px;padding:9px 12px;margin-bottom:20px;line-height:1.5;`);
             subEl.textContent = t("feedback.subtitle");
+            // Hidden until it is true of you. It used to greet everyone with a wall
+            // of text telling them to check their version, which meant checking by
+            // hand every time and reading a warning that usually did not apply.
+            subEl.style.display = "none";
             card.appendChild(subEl);
             const mkLabel = (txt) => {
                 const l = mk("div", `${FONT}font-size:10.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#bd8aa4;margin-bottom:8px;`);
@@ -41577,17 +41509,47 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             cancelBtn.addEventListener("click", close);
             overlay.addEventListener("click", (e) => { if (e.target === overlay)
                 close(); });
-            sendBtn.addEventListener("click", () => {
+            /**
+             * Is this build behind the branch it came from?
+             *
+             * Returns null when the answer cannot be had - offline, GitHub down, a
+             * malformed reply. An unknown version must never block a report: the
+             * point is to catch stale builds, not to make reporting conditional on
+             * a network call succeeding.
+             */
+            const isOutdated = async () => {
+                var _a, _b, _c, _d;
+                try {
+                    const branch = this.isDev ? "dev" : "master";
+                    const url = `https://raw.githubusercontent.com/NekoEmery/EmeryBC/refs/heads/${branch}/package.json`;
+                    const res = await fetch(`${url}?t=${Date.now()}`);
+                    if (!res.ok)
+                        return null;
+                    const data = await res.json();
+                    const remote = typeof data.version === "string" ? data.version : null;
+                    const local = this.version;
+                    if (!remote || !local)
+                        return null;
+                    const parse = (v) => v.replace(/[^0-9.]/g, "").split(".").map(n => parseInt(n, 10) || 0);
+                    const r = parse(remote), l = parse(local);
+                    for (let i = 0; i < Math.max(r.length, l.length); i++) {
+                        if (((_a = r[i]) !== null && _a !== void 0 ? _a : 0) > ((_b = l[i]) !== null && _b !== void 0 ? _b : 0))
+                            return true;
+                        if (((_c = r[i]) !== null && _c !== void 0 ? _c : 0) < ((_d = l[i]) !== null && _d !== void 0 ? _d : 0))
+                            return false;
+                    }
+                    return false;
+                }
+                catch (_e) {
+                    return null;
+                }
+            };
+            // Set once an outdated build has been shown the warning, so the second
+            // press is the one that actually sends.
+            let warnedOutdated = false;
+            const submit = () => {
                 var _a, _b;
                 const what = whatArea.value.trim();
-                if (!what) {
-                    errEl.textContent = t("feedback.errEmpty");
-                    whatArea.focus();
-                    return;
-                }
-                errEl.textContent = "";
-                sendBtn.disabled = true;
-                sendBtn.textContent = t("feedback.sending");
                 const mn = (typeof Player !== "undefined" && (Player === null || Player === void 0 ? void 0 : Player.MemberNumber)) ? `#${Player.MemberNumber}` : "?";
                 const params = new URLSearchParams();
                 params.append(E_TYPE, selectedType);
@@ -41605,6 +41567,52 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     achievementOnFeedbackSent();
                 }
                 catch ( /* ignore */_c) { /* ignore */ }
+            };
+            sendBtn.addEventListener("click", () => {
+                const what = whatArea.value.trim();
+                if (!what) {
+                    errEl.textContent = t("feedback.errEmpty");
+                    whatArea.focus();
+                    return;
+                }
+                errEl.textContent = "";
+                // Already warned and pressed again - that is the acknowledgement.
+                if (warnedOutdated) {
+                    sendBtn.disabled = true;
+                    sendBtn.textContent = t("feedback.sending");
+                    submit();
+                    return;
+                }
+                sendBtn.disabled = true;
+                sendBtn.textContent = t("feedback.checking");
+                void isOutdated().then((old) => {
+                    if (old !== true) {
+                        // Up to date, or the check could not be made. Either way the
+                        // report goes: a network hiccup must not swallow someone's bug.
+                        sendBtn.textContent = t("feedback.sending");
+                        submit();
+                        return;
+                    }
+                    // Behind the branch. Show why, and make the next press deliberate.
+                    warnedOutdated = true;
+                    subEl.style.display = "";
+                    sendBtn.textContent = t("feedback.sendAnyway");
+                    let left = 3;
+                    const tick = () => {
+                        // Counted down on the button itself, so the wait is visibly
+                        // finite rather than the button just being dead.
+                        sendBtn.textContent = left > 0
+                            ? `${t("feedback.sendAnyway")} (${left})`
+                            : t("feedback.sendAnyway");
+                        if (left <= 0) {
+                            sendBtn.disabled = false;
+                            return;
+                        }
+                        left--;
+                        window.setTimeout(tick, 1000);
+                    };
+                    tick();
+                });
             });
             document.body.appendChild(overlay);
             whatArea.focus();
@@ -44014,7 +44022,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.6";
-    const SAL_VERSION = 352; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 353; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -44028,6 +44036,15 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "9.1.7-dev",
+            changes: [
+                "Removed (report 96, Julia): the 'Pinned strip visibility' setting, which stopped doing anything some time ago. Safewords and EBC Tags used to sit above every tab and could be hidden per tab; they now live on the tab that owns them - SAFETY in the grouped layout, DEV in the classic one - so there was nothing left to filter. The chips still lit up when clicked and changed nothing, which is worse than not having them. The tutorial no longer points at the setting either, and no longer claims the safewords are pinned above every tab.",
+                "New (report 97, Julia): the report window checks your version when you press Send instead of warning everyone up front. Up to date, or the check cannot be made, and it just sends. Behind your branch, and the warning appears, the button becomes 'Send anyway', and it waits three seconds with a visible countdown so the warning gets read. A failed check never blocks a report - the point is to catch stale builds, not to make reporting depend on GitHub answering.",
+                "Fix (report 98, Julia): the small gaps between the parts of the quick buttons bar no longer click through to whatever is behind them. The grip, the collapse toggle, the category chip and the buttons are drawn with two to four pixels between them, and each piece was hit-tested on its own - so a click landing in a gap matched nothing and went to BC, selecting the character behind the bar. The whole outline now counts as the bar.",
+                "Fix (report 99, Julia): opening a conversation from the social tab updates the MISSED MESSAGES list straight away. It cleared the unread count and the tab dot, but that list is only built while its tab renders, so it kept showing a message you had just read until the panel was closed and reopened.",
+            ],
+        },
         {
             version: "9.1.6",
             changes: [
