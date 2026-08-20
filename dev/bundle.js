@@ -44021,7 +44021,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     var bcModSdk = /*@__PURE__*/getDefaultExportFromCjs(bcmodsdkExports);
 
     const MOD_NAME = "EBC";
-    const MOD_VERSION = "9.1.6";
+    const MOD_VERSION = "9.1.7";
     const SAL_VERSION = 353; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
@@ -44037,7 +44037,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
         {
-            version: "9.1.7-dev",
+            version: "9.1.7",
             changes: [
                 "Removed (report 96, Julia): the 'Pinned strip visibility' setting, which stopped doing anything some time ago. Safewords and EBC Tags used to sit above every tab and could be hidden per tab; they now live on the tab that owns them - SAFETY in the grouped layout, DEV in the classic one - so there was nothing left to filter. The chips still lit up when clicked and changed nothing, which is worse than not having them. The tutorial no longer points at the setting either, and no longer claims the safewords are pinned above every tab.",
                 "New (report 97, Julia): the report window checks your version when you press Send instead of warning everyone up front. Up to date, or the check cannot be made, and it just sends. Behind your branch, and the warning appears, the button becomes 'Send anyway', and it waits three seconds with a visible countdown so the warning gets read. A failed check never blocks a report - the point is to catch stale builds, not to make reporting depend on GitHub answering.",
