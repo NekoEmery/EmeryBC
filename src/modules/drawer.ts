@@ -4585,31 +4585,6 @@ const EBC_TAB_TO_CLASSIC: Record<string, DrawerTab> = {
 // Each pinned section (Safewords, EBC Tags) stores a Set of tab IDs it should
 // appear on.  null / absent key = "all tabs" (default).  Written to localStorage
 // so it survives panel re-builds without touching server-side ExtensionSettings.
-const PINNED_STRIP_TABS: DrawerTab[] = ["outfits", "buttons", "anims", "notes", "thanks", "dev", "dom"];
-const PINNED_TAB_SHORT: Partial<Record<DrawerTab, string>> = {
-    outfits: "OUT", buttons: "BTN", anims: "ANM",
-    notes: "USR",  thanks:  "CRD", dev:   "DEV", dom: "DOM",
-};
-
-function loadStripTabFilter(key: string): Set<DrawerTab> | null {
-    try {
-        const v = localStorage.getItem(key);
-        if (!v) return null;
-        const arr = JSON.parse(v) as DrawerTab[];
-        if (arr.length >= PINNED_STRIP_TABS.length) return null; // treat as "all"
-        return new Set(arr);
-    } catch { return null; }
-}
-
-function saveStripTabFilter(key: string, tabs: Set<DrawerTab> | null): void {
-    try {
-        if (!tabs || tabs.size >= PINNED_STRIP_TABS.length) {
-            localStorage.removeItem(key);
-        } else {
-            localStorage.setItem(key, JSON.stringify([...tabs]));
-        }
-    } catch { /* ignore */ }
-}
 
 
 
@@ -4774,7 +4749,7 @@ export class EBCDrawer {
     private _hqLiveEl: HTMLElement | null = null;
     private _hqScanTimer: ReturnType<typeof setInterval> | null = null;
     private _hqScreenWatchTimer: ReturnType<typeof setInterval> | null = null;
-    // Refs to the pinned strips so updatePinnedStrips() can show/hide them per tab
+    // Refs to the safeword / EBC-tag strips, so the tab that owns each one can host it
     private safewordRowEl: HTMLElement | null = null;
     private quickActionsEl: HTMLElement | null = null;
     private selfPickPanelEl: HTMLElement | null = null;
@@ -6032,7 +6007,6 @@ export class EBCDrawer {
         // (slideContainer/root/body already anchored early in setup - see above)
         this.applyPanelOpacity();
         this.applyPanelZoom();
-        this.updatePinnedStrips();
 
         // Events - tab supports both click (toggle) and drag (reposition anywhere on screen).
         // We distinguish the two by tracking how far the pointer moved (5px dead-zone).
@@ -7322,7 +7296,6 @@ export class EBCDrawer {
         }
 
         this.renderCurrentTab();
-        try { this.updatePinnedStrips(); } catch { /* ignore */ }
     }
 
     private renderCurrentTab(): void {
@@ -7724,13 +7697,6 @@ export class EBCDrawer {
     }
 
     /** Show or hide each pinned strip based on the active tab and the stored filter. */
-    private updatePinnedStrips(): void {
-        const tab = this.currentTab;
-        // Safewords / EBC Tags now live inside the DEV tab, so the old pinned-strip
-        // per-tab filters no longer apply - keep them visible wherever they sit.
-        if (this.safewordRowEl) this.safewordRowEl.style.display = "flex";
-        if (this.ebcTagsStripEl) this.ebcTagsStripEl.style.display = "";
-    }
 
     /**
      * Apply the stored panel opacity to the .ebc-panel element.
@@ -14526,6 +14492,7 @@ This cannot be undone.`,
 
         this.beepUnread.delete(memberNumber);
         this.refreshTabDot();
+        this.refreshMissedMessages();
         EBCDrawer.addOpenBeepWindow(memberNumber);
 
         // Offset each new window slightly so they don't all stack at the same position
@@ -14870,6 +14837,7 @@ This cannot be undone.`,
                 unreadDot.classList.remove("visible");
                 this.beepUnread.delete(memberNumber);
                 this.refreshTabDot();
+                this.refreshMissedMessages();
                 try { this.refreshFriendList(); } catch { /* ignore */ }
             }
         });
@@ -16292,6 +16260,21 @@ This cannot be undone.`,
      * Only rendered when there are unread beeps - disappears completely once
      * all conversations have been opened.
      */
+    /**
+     * Redraws the tab holding MISSED MESSAGES, if that is the tab you are on.
+     *
+     * Opening a conversation clears its unread count and refreshes the tab dot,
+     * but the missed-messages list is only built while its tab renders - so it
+     * went on showing a message you had just read until the panel was closed
+     * and opened again.
+     */
+    private refreshMissedMessages(): void {
+        try {
+            if (this.currentTab !== "notes" && this.currentTab !== "social") return;
+            this.rerender();
+        } catch { /* a failed redraw must never break opening a beep */ }
+    }
+
     private renderMessagesDropdown(body: HTMLElement): void {
         // Nothing to show - hide the whole section
         if (this.beepUnread.size === 0) return;
@@ -20240,73 +20223,6 @@ This cannot be undone.`,
             zoomRow.appendChild(zoomVal);
             zoomRow.appendChild(zoomReset);
             cnt.appendChild(zoomRow);
-
-            // ── Pinned strip tab visibility ───────────────────────────────────
-            const stripVisBox = document.createElement("div");
-            stripVisBox.style.cssText = "padding:7px 9px 9px;margin-bottom:8px;border:1px solid #2a1421;border-radius:5px;background:rgba(20,8,16,0.5);";
-
-            const stripVisTitle = document.createElement("div");
-            stripVisTitle.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#c09098;margin-bottom:4px;";
-            stripVisTitle.textContent = "Pinned strip visibility";
-            stripVisBox.appendChild(stripVisTitle);
-
-            const stripVisDesc = document.createElement("div");
-            stripVisDesc.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;color:#7a5070;line-height:1.5;margin-bottom:9px;";
-            stripVisDesc.textContent = "Choose which tabs show the Safewords and EBC Tag Settings strips at the top of the panel. Deselect a tab to hide that strip when you're on it.";
-            stripVisBox.appendChild(stripVisDesc);
-
-            // Helper: one labeled row of tab chips per pinned strip
-            const makeStripRow = (rowLabel: string, storageKey: string): void => {
-                const wrap = document.createElement("div");
-                wrap.style.cssText = "margin-bottom:8px;";
-
-                const lbl = document.createElement("div");
-                lbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;letter-spacing:0.05em;color:#9a6878;text-transform:uppercase;margin-bottom:5px;";
-                lbl.textContent = rowLabel;
-                wrap.appendChild(lbl);
-
-                const chipRow = document.createElement("div");
-                chipRow.style.cssText = "display:flex;flex-wrap:wrap;gap:5px;";
-
-                for (const tid of PINNED_STRIP_TABS) {
-                    const chip = document.createElement("button");
-                    chip.textContent = PINNED_TAB_SHORT[tid] ?? tid;
-                    chip.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;padding:4px 11px;border-radius:4px;cursor:pointer;transition:background 0.1s,border-color 0.1s,color 0.1s;";
-                    const refreshChip = (): void => {
-                        const f = loadStripTabFilter(storageKey);
-                        const on = !f || f.has(tid);
-                        chip.style.background = on ? "#2e1020" : "#150a10";
-                        chip.style.border     = `1px solid ${on ? "#8a3458" : "#321220"}`;
-                        chip.style.color      = on ? "#f0c0d8" : "#4a2838";
-                    };
-                    refreshChip();
-                    chip.addEventListener("click", () => {
-                        let f = loadStripTabFilter(storageKey);
-                        if (!f) {
-                            f = new Set(PINNED_STRIP_TABS);
-                            f.delete(tid);
-                        } else if (f.has(tid)) {
-                            if (f.size <= 1) return; // keep at least one
-                            f.delete(tid);
-                        } else {
-                            f.add(tid);
-                            if (f.size >= PINNED_STRIP_TABS.length) f = null;
-                        }
-                        saveStripTabFilter(storageKey, f);
-                        chipRow.querySelectorAll<HTMLButtonElement>("button").forEach(b => b.dispatchEvent(new Event("ebc-refresh")));
-                        this.updatePinnedStrips();
-                    });
-                    chip.addEventListener("ebc-refresh", refreshChip);
-                    chipRow.appendChild(chip);
-                }
-
-                wrap.appendChild(chipRow);
-                stripVisBox.appendChild(wrap);
-            };
-
-            makeStripRow("Safewords", "EBC_swTabFilter");
-            makeStripRow("EBC Tag Settings", "EBC_tagsTabFilter");
-            cnt.appendChild(stripVisBox);
 
             // ── Tab visibility ─────────────────────────────────────────────────
             const tabVisLbl = document.createElement("div");
@@ -28701,6 +28617,10 @@ This cannot be undone.`,
 
         const subEl = mk("div", `${FONT}font-size:12px;font-weight:bold;color:#f0cfe0;background:rgba(207,111,152,0.12);border-left:3px solid #cf6f98;border-radius:6px;padding:9px 12px;margin-bottom:20px;line-height:1.5;`);
         subEl.textContent = t("feedback.subtitle");
+        // Hidden until it is true of you. It used to greet everyone with a wall
+        // of text telling them to check their version, which meant checking by
+        // hand every time and reading a warning that usually did not apply.
+        subEl.style.display = "none";
         card.appendChild(subEl);
 
         const mkLabel = (txt: string): HTMLElement => {
@@ -28804,12 +28724,41 @@ This cannot be undone.`,
         cancelBtn.addEventListener("click", close);
         overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
 
-        sendBtn.addEventListener("click", () => {
-            const what = whatArea.value.trim();
-            if (!what) { errEl.textContent = t("feedback.errEmpty"); whatArea.focus(); return; }
-            errEl.textContent = "";
-            sendBtn.disabled = true; sendBtn.textContent = t("feedback.sending");
+        /**
+         * Is this build behind the branch it came from?
+         *
+         * Returns null when the answer cannot be had - offline, GitHub down, a
+         * malformed reply. An unknown version must never block a report: the
+         * point is to catch stale builds, not to make reporting conditional on
+         * a network call succeeding.
+         */
+        const isOutdated = async (): Promise<boolean | null> => {
+            try {
+                const branch = this.isDev ? "dev" : "master";
+                const url = `https://raw.githubusercontent.com/NekoEmery/EmeryBC/refs/heads/${branch}/package.json`;
+                const res = await fetch(`${url}?t=${Date.now()}`);
+                if (!res.ok) return null;
+                const data = await res.json() as Record<string, unknown>;
+                const remote = typeof data.version === "string" ? data.version : null;
+                const local = this.version;
+                if (!remote || !local) return null;
+                const parse = (v: string): number[] =>
+                    v.replace(/[^0-9.]/g, "").split(".").map(n => parseInt(n, 10) || 0);
+                const r = parse(remote), l = parse(local);
+                for (let i = 0; i < Math.max(r.length, l.length); i++) {
+                    if ((r[i] ?? 0) > (l[i] ?? 0)) return true;
+                    if ((r[i] ?? 0) < (l[i] ?? 0)) return false;
+                }
+                return false;
+            } catch { return null; }
+        };
 
+        // Set once an outdated build has been shown the warning, so the second
+        // press is the one that actually sends.
+        let warnedOutdated = false;
+
+        const submit = (): void => {
+            const what = whatArea.value.trim();
             const mn = (typeof Player !== "undefined" && Player?.MemberNumber) ? `#${Player.MemberNumber}` : "?";
             const params = new URLSearchParams();
             params.append(E_TYPE, selectedType);
@@ -28825,6 +28774,43 @@ This cannot be undone.`,
                 .then(() => { close(); this._showToyToast(thanksFor(selectedType)); })
                 .catch(() => { close(); this._showToyToast(thanksFor(selectedType)); });
             try { achievementOnFeedbackSent(); } catch { /* ignore */ }
+        };
+
+        sendBtn.addEventListener("click", () => {
+            const what = whatArea.value.trim();
+            if (!what) { errEl.textContent = t("feedback.errEmpty"); whatArea.focus(); return; }
+            errEl.textContent = "";
+
+            // Already warned and pressed again - that is the acknowledgement.
+            if (warnedOutdated) { sendBtn.disabled = true; sendBtn.textContent = t("feedback.sending"); submit(); return; }
+
+            sendBtn.disabled = true;
+            sendBtn.textContent = t("feedback.checking");
+            void isOutdated().then((old) => {
+                if (old !== true) {
+                    // Up to date, or the check could not be made. Either way the
+                    // report goes: a network hiccup must not swallow someone's bug.
+                    sendBtn.textContent = t("feedback.sending");
+                    submit();
+                    return;
+                }
+                // Behind the branch. Show why, and make the next press deliberate.
+                warnedOutdated = true;
+                subEl.style.display = "";
+                sendBtn.textContent = t("feedback.sendAnyway");
+                let left = 3;
+                const tick = (): void => {
+                    // Counted down on the button itself, so the wait is visibly
+                    // finite rather than the button just being dead.
+                    sendBtn.textContent = left > 0
+                        ? `${t("feedback.sendAnyway")} (${left})`
+                        : t("feedback.sendAnyway");
+                    if (left <= 0) { sendBtn.disabled = false; return; }
+                    left--;
+                    window.setTimeout(tick, 1000);
+                };
+                tick();
+            });
         });
 
         document.body.appendChild(overlay);

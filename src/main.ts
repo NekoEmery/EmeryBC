@@ -32,7 +32,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.6";
-const SAL_VERSION  = 352;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 353;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,15 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "9.1.7-dev",
+        changes: [
+            "Removed (report 96, Julia): the 'Pinned strip visibility' setting, which stopped doing anything some time ago. Safewords and EBC Tags used to sit above every tab and could be hidden per tab; they now live on the tab that owns them - SAFETY in the grouped layout, DEV in the classic one - so there was nothing left to filter. The chips still lit up when clicked and changed nothing, which is worse than not having them. The tutorial no longer points at the setting either, and no longer claims the safewords are pinned above every tab.",
+            "New (report 97, Julia): the report window checks your version when you press Send instead of warning everyone up front. Up to date, or the check cannot be made, and it just sends. Behind your branch, and the warning appears, the button becomes 'Send anyway', and it waits three seconds with a visible countdown so the warning gets read. A failed check never blocks a report - the point is to catch stale builds, not to make reporting depend on GitHub answering.",
+            "Fix (report 98, Julia): the small gaps between the parts of the quick buttons bar no longer click through to whatever is behind them. The grip, the collapse toggle, the category chip and the buttons are drawn with two to four pixels between them, and each piece was hit-tested on its own - so a click landing in a gap matched nothing and went to BC, selecting the character behind the bar. The whole outline now counts as the bar.",
+            "Fix (report 99, Julia): opening a conversation from the social tab updates the MISSED MESSAGES list straight away. It cleared the unread count and the tab dot, but that list is only built while its tab renders, so it kept showing a message you had just read until the panel was closed and reopened.",
+        ],
+    },
     {
         version: "9.1.6",
         changes: [
