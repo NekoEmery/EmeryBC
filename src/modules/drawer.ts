@@ -12143,6 +12143,21 @@ This cannot be undone.`,
             const lbl = document.createElement("span");
             lbl.className = "ebc-section-label";
             lbl.style.margin = "0";
+            // Colour and casing set here as well as in the class.
+            //
+            // "Expression Sequences" renders dark and in mixed case while
+            // "EXPRESSIONS" - built by this same helper, one call later, with the
+            // same class - renders bright and uppercase. I could not find the
+            // cause: the stylesheet is well formed, the rule is present in the
+            // bundle, and nothing else in the CSS touches this class. Rather than
+            // guess at it again, the two properties that are visibly wrong are
+            // stated on the element, where nothing can quietly fail to apply.
+            //
+            // Deliberately NOT font-size or padding: those are what the touch
+            // rules scale with !important, and an inline value would beat them
+            // and leave these headings desktop-sized on a tablet.
+            lbl.style.color = "#e7c6d3";
+            lbl.style.textTransform = "uppercase";
             lbl.textContent = title;
             hdr.appendChild(chev);
             hdr.appendChild(lbl);

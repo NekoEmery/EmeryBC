@@ -32,7 +32,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.8";
-const SAL_VERSION  = 356;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 357;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
@@ -49,6 +49,12 @@ let lastActivityTime = Date.now();
 const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep-reply ts
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
+    {
+        version: "9.1.9-dev",
+        changes: [
+            "Fix: collapsible section headings set their own colour and casing instead of relying only on the shared style. 'Expression Sequences' still rendered dark and in mixed case while 'EXPRESSIONS' - built by the same helper one call later, with the same class - rendered correctly. The stylesheet is well formed, the rule is in the bundle, and nothing else touches that class, so rather than guess at the cause a fourth time the two properties that were visibly wrong are now stated on the element itself. Size and padding are deliberately left to the stylesheet so they still scale up in touch mode.",
+        ],
+    },
     {
         version: "9.1.8",
         changes: [

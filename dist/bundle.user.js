@@ -24142,6 +24142,21 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 const lbl = document.createElement("span");
                 lbl.className = "ebc-section-label";
                 lbl.style.margin = "0";
+                // Colour and casing set here as well as in the class.
+                //
+                // "Expression Sequences" renders dark and in mixed case while
+                // "EXPRESSIONS" - built by this same helper, one call later, with the
+                // same class - renders bright and uppercase. I could not find the
+                // cause: the stylesheet is well formed, the rule is present in the
+                // bundle, and nothing else in the CSS touches this class. Rather than
+                // guess at it again, the two properties that are visibly wrong are
+                // stated on the element, where nothing can quietly fail to apply.
+                //
+                // Deliberately NOT font-size or padding: those are what the touch
+                // rules scale with !important, and an inline value would beat them
+                // and leave these headings desktop-sized on a tablet.
+                lbl.style.color = "#e7c6d3";
+                lbl.style.textTransform = "uppercase";
                 lbl.textContent = title;
                 hdr.appendChild(chev);
                 hdr.appendChild(lbl);
@@ -44168,7 +44183,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.8";
-    const SAL_VERSION = 356; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 357; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -44182,6 +44197,12 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "9.1.9-dev",
+            changes: [
+                "Fix: collapsible section headings set their own colour and casing instead of relying only on the shared style. 'Expression Sequences' still rendered dark and in mixed case while 'EXPRESSIONS' - built by the same helper one call later, with the same class - rendered correctly. The stylesheet is well formed, the rule is in the bundle, and nothing else touches that class, so rather than guess at the cause a fourth time the two properties that were visibly wrong are now stated on the element itself. Size and padding are deliberately left to the stylesheet so they still scale up in touch mode.",
+            ],
+        },
         {
             version: "9.1.8",
             changes: [
