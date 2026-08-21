@@ -31,7 +31,7 @@ import bcModSdk from "bondage-club-mod-sdk";
 import { isAchievementUser, hasCompletedEverything, completionPercent, achievementScanRoom, achievementOnActivity, achievementOnItemApply, handleAchievementShareMessage } from "./modules/achievements";
 
 const MOD_NAME = "EBC";
-const MOD_VERSION = "9.1.7";
+const MOD_VERSION = "9.1.8";
 const SAL_VERSION  = 355;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
@@ -50,7 +50,7 @@ const afkBeepCooldown = new Map<number, number>(); // memberNumber → last beep
 const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
 const CHANGELOG: Array<{ version: string; changes: string[] }> = [
     {
-        version: "9.1.8-dev",
+        version: "9.1.8",
         changes: [
             "New (report 100, Julia): restraint timers survive a re-lock. A BCX curse or a devious padlock takes the item off and puts it straight back, and the timer was deleted the instant the slot went empty - so a blink you never saw threw away hours of wear. A slot that empties is now held for eight seconds first: filled again inside that window it was a swap and the timer carries on, and past it the timer really is finished.",
             "Fix (report 101, Julia): the ACTIVE RESTRAINTS list updates live. The picker directly above it started doing so a while back and this did not, so the two sat side by side showing the same restraints and disagreeing. It redraws when what you are wearing actually changes, not on a timer, so it does not fight the collapse state.",
