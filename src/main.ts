@@ -32,7 +32,7 @@ import { isAchievementUser, hasCompletedEverything, completionPercent, achieveme
 
 const MOD_NAME = "EBC";
 const MOD_VERSION = "9.1.8";
-const SAL_VERSION  = 355;   // internal sub-version - shown when Emery Versioning is ON
+const SAL_VERSION  = 356;   // internal sub-version - shown when Emery Versioning is ON
 const IS_DEV_BUILD = true; // true on dev branch, false on master
 
 let noticeShown = false;
