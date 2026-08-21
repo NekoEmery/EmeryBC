@@ -75,12 +75,25 @@ export function timerOnRoomEnter(): void {
 }
 
 export function timerOnRoomLeave(): void {
+    _recentlyRemoved.clear();
     roomEnterTime = null;
     restraintStartTime = null;
 }
 
 // Called from DrawCharacter hook. Keeps per-item and overall timers in sync.
 // Throttled — only runs once per 500 ms regardless of how many characters are drawn per frame.
+/**
+ * How long a slot may sit empty before the timer really is finished.
+ *
+ * Long enough to cover a curse or a devious padlock swapping an item out and
+ * back, short enough that taking something off and choosing a different one
+ * still starts a fresh count.
+ */
+const REAPPLY_GRACE_MS = 8_000;
+
+/** Slots that are empty but might only be mid-swap: group -> when it went. */
+const _recentlyRemoved = new Map<string, number>();
+
 export function timerCheckRestraints(): void {
     const now = Date.now();
     if (now - lastTimerCheckTs < 500) return;
@@ -125,10 +138,23 @@ export function timerCheckRestraints(): void {
             }
         }
         for (const group of Object.keys(timers)) {
-            if (!currentGroups.has(group)) {
-                delete timers[group];
-                changed = true;
+            if (currentGroups.has(group)) {
+                // Back on - forget it was ever missing.
+                if (_recentlyRemoved.delete(group)) changed = true;
+                continue;
             }
+            // Empty now. Held for a few seconds first: if the same slot fills
+            // again inside that window it was a re-lock, not a release, and the
+            // timer carries on from where it was.
+            const since = _recentlyRemoved.get(group);
+            if (since === undefined) {
+                _recentlyRemoved.set(group, now);
+                continue;
+            }
+            if (now - since < REAPPLY_GRACE_MS) continue;
+            _recentlyRemoved.delete(group);
+            delete timers[group];
+            changed = true;
         }
 
         if (changed) saveRestraintTimers(timers);

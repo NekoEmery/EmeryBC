@@ -159,10 +159,25 @@ const PROTECTED_LOCK_NAMES = new Set([
     "FamilyPadlock",
 ]);
 
+/**
+ * BCTweaks best-friend locks, which are not their own asset.
+ *
+ * BCTweaks reuses HighSecurityPadlock and tells its own locks apart by
+ * Property.Name, so by asset alone a best-friend lock is indistinguishable
+ * from any other high-security one - and the safeword stripped it with them.
+ * These are the two names it sets, read from the addon's own source.
+ */
+const BCT_BEST_FRIEND_LOCKS = new Set([
+    "Best Friend Padlock",
+    "Best Friend Timer Padlock",
+]);
+
 function isProtectedLocked(item: Item): boolean {
     try {
-        const prop = (item as unknown as { Property?: { LockedBy?: string } }).Property;
-        return !!prop?.LockedBy && PROTECTED_LOCK_NAMES.has(prop.LockedBy);
+        const prop = (item as unknown as { Property?: { LockedBy?: string; Name?: string } }).Property;
+        if (!prop?.LockedBy) return false;
+        if (PROTECTED_LOCK_NAMES.has(prop.LockedBy)) return true;
+        return typeof prop.Name === "string" && BCT_BEST_FRIEND_LOCKS.has(prop.Name);
     } catch { return false; }
 }
 

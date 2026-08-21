@@ -333,6 +333,21 @@ export function setTopBarButton(value: boolean): void {
     } catch { /* ignore */ }
 }
 
+// -- Full message inbox -------------------------------------------------------
+// MISSED MESSAGES only lists conversations with something unread, and vanishes
+// once everything is read - so there is no way to reach an older conversation
+// from the social tab at all. With this on it lists every conversation, unread
+// first, and stays put. Off by default: for most people the short list that
+// disappears when it is empty is the better one.
+
+export function getInboxShowAll(): boolean {
+    try { return getSettings()?.inboxShowAll === true; } catch { return false; }
+}
+
+export function setInboxShowAll(value: boolean): void {
+    try { getSettings().inboxShowAll = value; syncSettings(); } catch { /* ignore */ }
+}
+
 // -- Online friend notification sound -----------------------------------------
 
 export function getOnlineSoundEnabled(): boolean {
