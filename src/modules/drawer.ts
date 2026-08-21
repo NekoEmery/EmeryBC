@@ -109,7 +109,7 @@ import {
     removePlayerSpecificItems,
     unlockPlayerSpecificItems,
 } from "./restraints";
-import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, getBeepVolume, setBeepVolume, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED, getTopBarButton, setTopBarButton, getAntiRestraintAllowList, toggleAntiRestraintAllowed } from "./settings";
+import { getBadgeEnabled, setBadgeEnabled, getShowOthersBadge, setShowOthersBadge, getShowVersionBadge, setShowVersionBadge, getShowSalVersion, setShowSalVersion, getShowOthersVersionBadge, setShowOthersVersionBadge, getActionButtonsVisible, setActionButtonsVisible, getAntiRestraintEnabled, setAntiRestraintEnabled, getAntiRestraintConfirm, setAntiRestraintConfirm, getBeepMuted, setBeepMuted, getSuppressNativeBeep, setSuppressNativeBeep, getUseNativeBeepSound, setUseNativeBeepSound, getOnlineSoundEnabled, setOnlineSoundEnabled, getAfkEnabled, setAfkEnabled, getAfkThreshold, setAfkThreshold, getAfkMessage, setAfkMessage, getOocEnabled, setOocEnabled, getRoomHistoryEnabled, setRoomHistoryEnabled, getRestraintLogEnabled, setRestraintLogEnabled, getPeopleMet, clearPeopleMet, PersonMet, getBadgeStyle, setBadgeStyle, getOthersBadgeStyle, setOthersBadgeStyle, type BadgeStyle, getBadgeScale, setBadgeScale, getTextBadgeScale, setTextBadgeScale, getCatBadgeScale, setCatBadgeScale, getBadgeBgOpacity, setBadgeBgOpacity, getBadgeTextOpacity, setBadgeTextOpacity, getBadgeOffsetX, setBadgeOffsetX, getBadgeOffsetY, setBadgeOffsetY, getBadgeDragMode, setBadgeDragMode, getBadgeDragStyleTarget, setBadgeDragStyleTarget, resetBadgePosition, resetCatBadgePosition, getVersionTextOffsetX, setVersionTextOffsetX, getVersionTextOffsetY, setVersionTextOffsetY, resetVersionTextPosition, isSpecialFriend, addSpecialFriend, removeSpecialFriend, isBeepMemberMuted, toggleMutedBeepMember, getQuickReplies, saveQuickReplies, getAntiRestraintAnnounce, setAntiRestraintAnnounce, getDomSetAnnounce, setDomSetAnnounce, getEscapeEmoteText, setEscapeEmoteText, getLianChatCompat, setLianChatCompat, getToastSticky, setToastSticky, getToastDurationSec, setToastDurationSec, getUsersLayout, setUsersLayout, getQuickActionsInButtons, setQuickActionsInButtons, getBeepVolume, setBeepVolume, EBC_DATA_CATEGORIES, type DataCategory, exportDataCategories, exportAllData, importDataBackup, getDataCategorySize, clearDataCategory, getDataCategoryLocation, setDataCategoryLocation, getDataCategoryDeviceSize, DEVICE_SUGGESTED, getTopBarButton, setTopBarButton, getAntiRestraintAllowList, toggleAntiRestraintAllowed, getInboxShowAll, setInboxShowAll } from "./settings";
 import { snapshotPlayerRestraints } from "./antiRestraint";
 import { getCurrentVisit, getVisitedHistory, clearRoomHistory, detectNewJoins } from "./roomHistory";
 import { getRestraintLog, clearRestraintLog } from "./restraintLog";
@@ -2331,7 +2331,7 @@ const CSS = `
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    cursor: default;
+    cursor: pointer;
 }
 
 /* "+N more" pill */
@@ -2344,7 +2344,7 @@ const CSS = `
     background: #1e0d17;
     color: #7a5a6a;
     border: 1px solid #2e1520;
-    cursor: default;
+    cursor: pointer;
 }
 
 /* tag tooltip (fixed-position, pointer-events: none) */
@@ -9552,6 +9552,20 @@ This cannot be undone.`,
         body.appendChild(container);
     }
 
+    /** What is on you right now, as a string, so a redraw only happens on a real change. */
+    private restraintSignatureCache(): string {
+        try {
+            return (Player.Appearance ?? [])
+                .filter(i => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
+                .map(i => {
+                    const prop = i.Property as Record<string, unknown> | undefined;
+                    return `${i.Asset.Group.Name}:${i.Asset.Name}:${String(prop?.LockedBy ?? "")}`;
+                })
+                .sort()
+                .join("|");
+        } catch { return ""; }
+    }
+
     // -- Restraint info --------------------------------------------------------
 
     private renderRestraintInfo(body: HTMLElement): void {
@@ -9675,6 +9689,20 @@ This cannot be undone.`,
         container.style.display = collapsed ? "none" : "";
         body.appendChild(label);
         body.appendChild(container);
+
+        // Keep it honest while it is on screen.
+        const restraintSignature = (): string => this.restraintSignatureCache();
+        let seen = restraintSignature();
+        const poll = window.setInterval(() => {
+            try {
+                if (!container.isConnected) { window.clearInterval(poll); return; }
+                const now = restraintSignature();
+                if (now === seen) return;
+                seen = now;
+                updateLabel();
+                render();
+            } catch { /* a failed redraw must not kill the poller */ }
+        }, 1_500);
     }
 
     // -- Color palettes --------------------------------------------------------
@@ -16276,8 +16304,11 @@ This cannot be undone.`,
     }
 
     private renderMessagesDropdown(body: HTMLElement): void {
-        // Nothing to show - hide the whole section
-        if (this.beepUnread.size === 0) return;
+        // With the full inbox on, the section stays whether or not anything is
+        // unread - that is the point of it. Otherwise it disappears when read,
+        // as before.
+        const showAll = getInboxShowAll();
+        if (!showAll && this.beepUnread.size === 0) return;
 
         const self = Player.MemberNumber ?? 0;
         const totalUnread = [...this.beepUnread.values()].reduce((s, n) => s + n, 0);
@@ -16294,7 +16325,7 @@ This cannot be undone.`,
             if (seenNums.has(partner)) continue;
             seenNums.add(partner);
             const unread = this.beepUnread.get(partner) ?? 0;
-            if (unread > 0) {
+            if (unread > 0 || showAll) {
                 missed.push({
                     num: partner, name: resolveName(partner),
                     lastMsg: stripBeepMetadata(e.message), lastTs: e.ts,
@@ -16302,8 +16333,11 @@ This cannot be undone.`,
                 });
             }
         }
-        // Sort most-recent missed first
-        missed.sort((a, b) => b.lastTs - a.lastTs);
+        // Unread first, then most recent - an inbox that buried the unread ones
+        // under older chatter would be worse than the list it replaced.
+        missed.sort((a, b) =>
+            (b.unread > 0 ? 1 : 0) - (a.unread > 0 ? 1 : 0) || b.lastTs - a.lastTs);
+        if (showAll && missed.length === 0) return;
 
         // ── Header ────────────────────────────────────────────────────────
         const hdr = document.createElement("div");
@@ -16311,7 +16345,9 @@ This cannot be undone.`,
 
         const hdrLbl = document.createElement("span");
         hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#8a5070;letter-spacing:0.08em;text-transform:uppercase;";
-        hdrLbl.textContent = `MISSED MESSAGES (${totalUnread})`;
+        hdrLbl.textContent = showAll
+            ? (totalUnread > 0 ? `MESSAGES (${totalUnread} unread)` : "MESSAGES")
+            : `MISSED MESSAGES (${totalUnread})`;
         hdr.appendChild(hdrLbl);
 
         const markBtn = document.createElement("button");
@@ -16324,7 +16360,7 @@ This cannot be undone.`,
             this.refreshTabDot();
             this.rerender();
         });
-        hdr.appendChild(markBtn);
+        if (totalUnread > 0) hdr.appendChild(markBtn);
 
         body.appendChild(hdr);
 
@@ -16422,6 +16458,14 @@ This cannot be undone.`,
             "Mute beep sounds",
             getBeepMuted,
             (v) => setBeepMuted(v),
+        ));
+
+        // Full inbox on the social tab
+        chatSettingsBody.appendChild(mkToggleRow(
+            "Show all conversations, not just unread",
+            getInboxShowAll,
+            (v) => setInboxShowAll(v),
+            () => this.rerender(),
         ));
 
         // Show beeps in BC chat (inverted: suppressed=true means hidden from chat)

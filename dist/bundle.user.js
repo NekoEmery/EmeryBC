@@ -3634,6 +3634,28 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         }
         catch ( /* ignore */_a) { /* ignore */ }
     }
+    // -- Full message inbox -------------------------------------------------------
+    // MISSED MESSAGES only lists conversations with something unread, and vanishes
+    // once everything is read - so there is no way to reach an older conversation
+    // from the social tab at all. With this on it lists every conversation, unread
+    // first, and stays put. Off by default: for most people the short list that
+    // disappears when it is empty is the better one.
+    function getInboxShowAll() {
+        var _a;
+        try {
+            return ((_a = getSettings()) === null || _a === void 0 ? void 0 : _a.inboxShowAll) === true;
+        }
+        catch (_b) {
+            return false;
+        }
+    }
+    function setInboxShowAll(value) {
+        try {
+            getSettings().inboxShowAll = value;
+            syncSettings();
+        }
+        catch ( /* ignore */_a) { /* ignore */ }
+    }
     // -- Online friend notification sound -----------------------------------------
     function getOnlineSoundEnabled() {
         var _a;
@@ -5793,11 +5815,22 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         // Per-item timers are NOT reset — they persist across rooms and offline
     }
     function timerOnRoomLeave() {
+        _recentlyRemoved.clear();
         roomEnterTime = null;
         restraintStartTime = null;
     }
     // Called from DrawCharacter hook. Keeps per-item and overall timers in sync.
     // Throttled — only runs once per 500 ms regardless of how many characters are drawn per frame.
+    /**
+     * How long a slot may sit empty before the timer really is finished.
+     *
+     * Long enough to cover a curse or a devious padlock swapping an item out and
+     * back, short enough that taking something off and choosing a different one
+     * still starts a fresh count.
+     */
+    const REAPPLY_GRACE_MS = 8000;
+    /** Slots that are empty but might only be mid-swap: group -> when it went. */
+    const _recentlyRemoved = new Map();
     function timerCheckRestraints() {
         const now = Date.now();
         if (now - lastTimerCheckTs < 500)
@@ -5838,10 +5871,25 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
                 }
             }
             for (const group of Object.keys(timers)) {
-                if (!currentGroups.has(group)) {
-                    delete timers[group];
-                    changed = true;
+                if (currentGroups.has(group)) {
+                    // Back on - forget it was ever missing.
+                    if (_recentlyRemoved.delete(group))
+                        changed = true;
+                    continue;
                 }
+                // Empty now. Held for a few seconds first: if the same slot fills
+                // again inside that window it was a re-lock, not a release, and the
+                // timer carries on from where it was.
+                const since = _recentlyRemoved.get(group);
+                if (since === undefined) {
+                    _recentlyRemoved.set(group, now);
+                    continue;
+                }
+                if (now - since < REAPPLY_GRACE_MS)
+                    continue;
+                _recentlyRemoved.delete(group);
+                delete timers[group];
+                changed = true;
             }
             if (changed)
                 saveRestraintTimers(timers);
@@ -10351,10 +10399,26 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "LoversTimerPadlock",
         "FamilyPadlock",
     ]);
+    /**
+     * BCTweaks best-friend locks, which are not their own asset.
+     *
+     * BCTweaks reuses HighSecurityPadlock and tells its own locks apart by
+     * Property.Name, so by asset alone a best-friend lock is indistinguishable
+     * from any other high-security one - and the safeword stripped it with them.
+     * These are the two names it sets, read from the addon's own source.
+     */
+    const BCT_BEST_FRIEND_LOCKS = new Set([
+        "Best Friend Padlock",
+        "Best Friend Timer Padlock",
+    ]);
     function isProtectedLocked(item) {
         try {
             const prop = item.Property;
-            return !!(prop === null || prop === void 0 ? void 0 : prop.LockedBy) && PROTECTED_LOCK_NAMES.has(prop.LockedBy);
+            if (!(prop === null || prop === void 0 ? void 0 : prop.LockedBy))
+                return false;
+            if (PROTECTED_LOCK_NAMES.has(prop.LockedBy))
+                return true;
+            return typeof prop.Name === "string" && BCT_BEST_FRIEND_LOCKS.has(prop.Name);
         }
         catch (_a) {
             return false;
@@ -11752,8 +11816,8 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
         "grouped.storageData": { en: "STORAGE & DATA", de: "SPEICHER & DATEN", zh: "存储与数据", fr: "STOCKAGE & DONNÉES", es: "ALMACENAMIENTO Y DATOS", ru: "ХРАНИЛИЩЕ И ДАННЫЕ", ja: "ストレージとデータ" },
         "grouped.domTools": { en: "DOM TOOLS", de: "DOM-TOOLS", zh: "DOM 工具", fr: "OUTILS DOM", es: "HERRAMIENTAS DOM", ru: "DOM-ИНСТРУМЕНТЫ", ja: "DOMツール" },
         // ─── QUICK ACTIONS ─────────────────────────────────────────────────────
-        "qa.releaseRestraints": { en: "Release Restraints", de: "Fesseln lösen", zh: "解除束缚", fr: "Libérer les liens", es: "Soltar ataduras", ru: "Снять путы", ja: "拘束解除" },
-        "qa.removeLocks": { en: "Remove Locks", de: "Schlösser entfernen", zh: "移除锁具", fr: "Retirer les serrures", es: "Quitar candados", ru: "Убрать замки", ja: "錠前を外す" },
+        "qa.releaseRestraints": { en: "Release All Restraints", de: "Fesseln lösen", zh: "解除束缚", fr: "Libérer les liens", es: "Soltar ataduras", ru: "Снять путы", ja: "拘束解除" },
+        "qa.removeLocks": { en: "Remove All Locks", de: "Schlösser entfernen", zh: "移除锁具", fr: "Retirer les serrures", es: "Quitar candados", ru: "Убрать замки", ja: "錠前を外す" },
         "qa.releaseTitle": { en: "Remove all restraints (skips owner/lover/family locks)", de: "Alle Fesseln entfernen (überspringt Besitzer-/Partner-/Familienschlösser)", zh: "移除所有束缚（跳过主人/恋人/家人的锁）", fr: "Retirer tous les liens (ignore serrures propriétaire/amant/famille)", es: "Quitar todas las ataduras (omite candados de dueño/amante/familia)", ru: "Снять все путы (кроме замков хозяина/возлюбленного/семьи)", ja: "すべての拘束を解除（オーナー/恋人/家族の錠前は除く）" },
         "qa.removeLocksTitle": { en: "Remove all locks (skips owner/lover/family locks)", de: "Alle Schlösser entfernen (überspringt Besitzer-/Partner-/Familienschlösser)", zh: "移除所有锁具（跳过主人/恋人/家人的锁）", fr: "Retirer toutes les serrures (ignore serrures propriétaire/amant/famille)", es: "Quitar todos los candados (omite candados de dueño/amante/familia)", ru: "Убрать все замки (кроме замков хозяина/возлюбленного/семьи)", ja: "すべての錠前を外す（オーナー/恋人/家族の錠前は除く）" },
         "qa.confirmBeforeEscaping": { en: "Confirm before escaping", de: "Vor dem Entkommen bestätigen", zh: "逃脱前确认", fr: "Confirmer avant de s'échapper", es: "Confirmar antes de escapar", ru: "Подтвердить перед освобождением", ja: "解除前に確認する" },
@@ -14460,7 +14524,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    cursor: default;
+    cursor: pointer;
 }
 
 /* "+N more" pill */
@@ -14473,7 +14537,7 @@ console.log("[EmeryBC] userscript injected, waiting for BC...");
     background: #1e0d17;
     color: #7a5a6a;
     border: 1px solid #2e1520;
-    cursor: default;
+    cursor: pointer;
 }
 
 /* tag tooltip (fixed-position, pointer-events: none) */
@@ -21478,6 +21542,24 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             body.appendChild(lbl);
             body.appendChild(container);
         }
+        /** What is on you right now, as a string, so a redraw only happens on a real change. */
+        restraintSignatureCache() {
+            var _a;
+            try {
+                return ((_a = Player.Appearance) !== null && _a !== void 0 ? _a : [])
+                    .filter(i => RESTRAINT_GROUPS.has(i.Asset.Group.Name))
+                    .map(i => {
+                    var _a;
+                    const prop = i.Property;
+                    return `${i.Asset.Group.Name}:${i.Asset.Name}:${String((_a = prop === null || prop === void 0 ? void 0 : prop.LockedBy) !== null && _a !== void 0 ? _a : "")}`;
+                })
+                    .sort()
+                    .join("|");
+            }
+            catch (_b) {
+                return "";
+            }
+        }
         // -- Restraint info --------------------------------------------------------
         renderRestraintInfo(body) {
             const label = document.createElement("div");
@@ -21593,6 +21675,24 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             container.style.display = collapsed ? "none" : "";
             body.appendChild(label);
             body.appendChild(container);
+            // Keep it honest while it is on screen.
+            const restraintSignature = () => this.restraintSignatureCache();
+            let seen = restraintSignature();
+            const poll = window.setInterval(() => {
+                try {
+                    if (!container.isConnected) {
+                        window.clearInterval(poll);
+                        return;
+                    }
+                    const now = restraintSignature();
+                    if (now === seen)
+                        return;
+                    seen = now;
+                    updateLabel();
+                    render();
+                }
+                catch ( /* a failed redraw must not kill the poller */_a) { /* a failed redraw must not kill the poller */ }
+            }, 1500);
         }
         // -- Color palettes --------------------------------------------------------
         buildColorPickerWidget(initialHex, onChange) {
@@ -28030,8 +28130,11 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
         }
         renderMessagesDropdown(body) {
             var _a, _b;
-            // Nothing to show - hide the whole section
-            if (this.beepUnread.size === 0)
+            // With the full inbox on, the section stays whether or not anything is
+            // unread - that is the point of it. Otherwise it disappears when read,
+            // as before.
+            const showAll = getInboxShowAll();
+            if (!showAll && this.beepUnread.size === 0)
                 return;
             const self = (_a = Player.MemberNumber) !== null && _a !== void 0 ? _a : 0;
             const totalUnread = [...this.beepUnread.values()].reduce((s, n) => s + n, 0);
@@ -28047,7 +28150,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     continue;
                 seenNums.add(partner);
                 const unread = (_b = this.beepUnread.get(partner)) !== null && _b !== void 0 ? _b : 0;
-                if (unread > 0) {
+                if (unread > 0 || showAll) {
                     missed.push({
                         num: partner, name: resolveName(partner),
                         lastMsg: stripBeepMetadata(e.message), lastTs: e.ts,
@@ -28055,14 +28158,19 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                     });
                 }
             }
-            // Sort most-recent missed first
-            missed.sort((a, b) => b.lastTs - a.lastTs);
+            // Unread first, then most recent - an inbox that buried the unread ones
+            // under older chatter would be worse than the list it replaced.
+            missed.sort((a, b) => (b.unread > 0 ? 1 : 0) - (a.unread > 0 ? 1 : 0) || b.lastTs - a.lastTs);
+            if (showAll && missed.length === 0)
+                return;
             // ── Header ────────────────────────────────────────────────────────
             const hdr = document.createElement("div");
             hdr.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;";
             const hdrLbl = document.createElement("span");
             hdrLbl.style.cssText = "font-family:'Trebuchet MS',serif;font-size:11px;font-weight:bold;color:#8a5070;letter-spacing:0.08em;text-transform:uppercase;";
-            hdrLbl.textContent = `MISSED MESSAGES (${totalUnread})`;
+            hdrLbl.textContent = showAll
+                ? (totalUnread > 0 ? `MESSAGES (${totalUnread} unread)` : "MESSAGES")
+                : `MISSED MESSAGES (${totalUnread})`;
             hdr.appendChild(hdrLbl);
             const markBtn = document.createElement("button");
             markBtn.textContent = "✓ Dismiss all";
@@ -28074,7 +28182,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
                 this.refreshTabDot();
                 this.rerender();
             });
-            hdr.appendChild(markBtn);
+            if (totalUnread > 0)
+                hdr.appendChild(markBtn);
             body.appendChild(hdr);
             // ── Missed message cards ───────────────────────────────────────────
             for (const c of missed) {
@@ -28160,6 +28269,8 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
             };
             // Mute beep sounds
             chatSettingsBody.appendChild(mkToggleRow("Mute beep sounds", getBeepMuted, (v) => setBeepMuted(v)));
+            // Full inbox on the social tab
+            chatSettingsBody.appendChild(mkToggleRow("Show all conversations, not just unread", getInboxShowAll, (v) => setInboxShowAll(v), () => this.rerender()));
             // Show beeps in BC chat (inverted: suppressed=true means hidden from chat)
             const showBeepInChatRow = mkToggleRow("Show beeps in BC chat", () => !getSuppressNativeBeep(), (v) => {
                 setSuppressNativeBeep(!v);
@@ -44057,7 +44168,7 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
 
     const MOD_NAME = "EBC";
     const MOD_VERSION = "9.1.7";
-    const SAL_VERSION = 354; // internal sub-version - shown when Emery Versioning is ON
+    const SAL_VERSION = 355; // internal sub-version - shown when Emery Versioning is ON
     const IS_DEV_BUILD = true; // true on dev branch, false on master
     let noticeShown = false;
     // Set to true by the beep hook when we want to let the mod chain through
@@ -44071,6 +44182,17 @@ This cannot be undone.`, "Cancel", "Delete", () => { clearDataCategory(cat); thi
     const afkBeepCooldown = new Map(); // memberNumber → last beep-reply ts
     const AFK_REPLY_COOLDOWN_MS = 30 * 60 * 1000;
     const CHANGELOG = [
+        {
+            version: "9.1.8-dev",
+            changes: [
+                "New (report 100, Julia): restraint timers survive a re-lock. A BCX curse or a devious padlock takes the item off and puts it straight back, and the timer was deleted the instant the slot went empty - so a blink you never saw threw away hours of wear. A slot that empties is now held for eight seconds first: filled again inside that window it was a swap and the timer carries on, and past it the timer really is finished.",
+                "Fix (report 101, Julia): the ACTIVE RESTRAINTS list updates live. The picker directly above it started doing so a while back and this did not, so the two sat side by side showing the same restraints and disagreeing. It redraws when what you are wearing actually changes, not on a timer, so it does not fight the collapse state.",
+                "Changed (report 101, Julia): 'Release Restraints' and 'Remove Locks' are now 'Release All Restraints' and 'Remove All Locks'. They sit directly above a list you can tick items in, and the old names read as though they acted on the ticks.",
+                "Fix (report 102, Julia): BCTweaks best-friend padlocks are protected from the safeword like owner and lover locks. BCTweaks does not add its own lock asset - it reuses HighSecurityPadlock and marks its own with a name - so by asset alone a best-friend lock was indistinguishable from any other high-security one and got stripped with them. EBC now recognises both the standard and timer versions by that name.",
+                "Fix (report 103, Julia): the cursor over a tag on the social tab is a pointer like the rest of the friend row. Clicking a tag always expanded the friend; only the cursor said otherwise.",
+                "New (report 104, Lola): an option to show every conversation on the social tab, not just unread ones (SETTINGS -> Chat). MISSED MESSAGES lists only what is unread and disappears once it is read, so there was no way to reach an older conversation from there. With this on the section stays, lists everything with unread first, and is titled MESSAGES. Off by default.",
+            ],
+        },
         {
             version: "9.1.7",
             changes: [
